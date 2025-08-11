@@ -56,10 +56,9 @@ describe('InteractiveAnalyzer', () => {
 			// Basic analysis should work
 			expect(result.domain).toBeDefined();
 			expect(result.contentType).toBe('general');
-			expect(result.confidence).toBeGreaterThan(0);
-			expect(result.confidence).toBeGreaterThan(0);
-			expect(result.qualityMetrics).toBeDefined();
-			expect(result.opportunities).toBeDefined();
+                        expect(result.confidence).toBeGreaterThan(0);
+                        expect(result.qualityMetrics).toBeDefined();
+                        expect(result.opportunities).toBeDefined();
 		});
 
 		it('should detect interactive code blocks', () => {
