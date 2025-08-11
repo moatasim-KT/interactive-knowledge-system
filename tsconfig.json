@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["vitest/globals"],
+		"baseUrl": ".",
+		"paths": {
+			"$lib": ["src/lib"],
+			"$lib/*": ["src/lib/*"],
+			"@modelcontextprotocol/sdk/*": ["mcp/node_modules/@modelcontextprotocol/sdk/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
+	"exclude": ["node_modules"]
+}

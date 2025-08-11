@@ -1,0 +1,213 @@
+/**
+ * Progress persistence service for automatic saving and loading
+ */
+import { progressStorage } from '../storage/userStorage.js';
+import { appState, actions } from './appState.svelte.js';
+import type { UserProgress } from '../types/user.js';
+
+class ProgressPersistenceService {
+	private saveQueue = new Set<string>();
+	private saveTimer: number | null = null;
+	private readonly SAVE_DELAY = 2000; // 2 seconds debounce
+
+	/**
+	 * Initialize the persistence service
+	 */
+	async initialize(userId: string) {
+		if (!user_id) return;
+
+		try {
+			// Load all user progress from storage
+			const user_progress = await progressStorage.getUserProgress(user_id);
+			const progress_map = new Map<string, UserProgress>();
+
+			for (const progress of user_progress) {
+				progress_map.set(progress.moduleId, progress);
+			}
+
+			// Update app state
+			actions.loadUserProgress(progress_map);
+
+			console.log(`Loaded ${user_progress.length} progress records for user ${user_id}`);
+		} catch (error) {
+			console.error('Failed to load user progress:', error);
+		}
+	}
+
+	/**
+	 * Queue a module for saving (with debouncing)
+	 */
+	queueSave(moduleId: string) {
+		this.saveQueue.add(module_id);
+
+		// Clear existing timer
+		if (this.saveTimer) {
+			clearTimeout(this.saveTimer);
+		}
+
+		// Set new timer
+		this.saveTimer = setTimeout(() => {
+			this.flushSaveQueue();
+		}, this.SAVE_DELAY);
+	}
+
+	/**
+	 * Immediately save all queued progress
+	 */
+	async flushSaveQueue() {
+		if (this.saveQueue.size === 0) return;
+
+		const modules_to_save = Array.from(this.saveQueue);
+		this.saveQueue.clear();
+
+		if (this.saveTimer) {
+			clearTimeout(this.saveTimer);
+			this.saveTimer = null;
+		}
+
+		try {
+			const save_promises = modules_to_save.map(async (module_id) => {
+				const progress = appState.progress.userProgress.get(module_id);
+				if (progress) {
+					await progressStorage.updateProgress(progress);
+				}
+			});
+
+			await Promise.all(save_promises);
+			console.log(`Saved progress for ${modules_to_save.length} modules`);
+		} catch (error) {
+			console.error('Failed to save progress:', error);
+			// Re-queue failed saves
+			modules_to_save.forEach((module_id) => this.saveQueue.add(module_id));
+		}
+	}
+
+	/**
+	 * Save progress for a specific module immediately
+	 */
+	async saveProgress(moduleId: string, progress: UserProgress) {
+		try {
+			await progressStorage.updateProgress(progress);
+			appState.progress.userProgress.set(module_id, progress);
+
+			// Update completed modules set if needed
+			if (progress.status === 'completed') {
+				appState.progress.completedModules.add(module_id);
+			}
+
+			console.log(`Saved progress for module ${module_id}`);
+		} catch (error) {
+			console.error(`Failed to save progress for module ${module_id}:`, error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Load progress for a specific module
+	 */
+	async loadProgress(userId: string, moduleId: string): Promise<UserProgress | null> {
+		try {
+			const progress = await progressStorage.getProgress(user_id, module_id);
+
+			if (progress) {
+				appState.progress.userProgress.set(module_id, progress);
+
+				if (progress.status === 'completed') {
+					appState.progress.completedModules.add(module_id);
+				}
+			}
+
+			return progress || null;
+		} catch (error) {
+			console.error(`Failed to load progress for module ${module_id}:`, error);
+			return null;
+		}
+	}
+
+	/**
+	 * Sync progress with storage (useful for manual refresh)
+	 */
+	async syncProgress(userId: string) {
+		try {
+			await this.flushSaveQueue(); // Save any pending changes first
+			await this.initialize(user_id); // Reload from storage
+		} catch (error) {
+			console.error('Failed to sync progress:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get progress statistics
+	 */
+	async getStats(userId: string) {
+		try {
+			return await progressStorage.getProgressStats(user_id);
+		} catch (error) {
+			console.error('Failed to get progress stats:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Clean up resources
+	 */
+	destroy() {
+		if (this.saveTimer) {
+			clearTimeout(this.saveTimer);
+			this.saveTimer = null;
+		}
+		this.saveQueue.clear();
+	}
+}
+
+// Create singleton instance
+export const progressPersistence = new ProgressPersistenceService();
+
+// Auto-save functionality (only in browser environment)
+if (typeof window !== 'undefined') {
+	let previous_progress_map = new Map<string, UserProgress>();
+
+	// Auto-save effect - watches for changes in progress and queues saves
+	$effect(() => {
+		const current_progress_map = appState.progress.userProgress;
+
+		// Check for changes and queue saves
+		for (const [module_id, progress] of current_progress_map) {
+			const previous = previous_progress_map.get(module_id);
+
+			// If progress changed, queue for saving
+			if (
+				!previous ||
+				previous.status !== progress.status ||
+				previous.score !== progress.score ||
+				previous.timeSpent !== progress.timeSpent ||
+				previous.bookmarked !== progress.bookmarked ||
+				previous.notes !== progress.notes
+			) {
+				progressPersistence.queueSave(module_id);
+			}
+		}
+
+		// Update previous state
+		previous_progress_map = new Map(current_progress_map);
+	});
+
+	// Auto-initialize when user changes
+	$effect(() => {
+		const user_id = appState.user.id;
+		if (user_id) {
+			progressPersistence.initialize(user_id);
+		}
+	});
+
+	// Cleanup on page unload
+	window.addEventListener('beforeunload', () => {
+		progressPersistence.flushSaveQueue();
+	});
+
+	// Also save periodically
+	setInterval(() => {
+		progressPersistence.flushSaveQueue();
+	}, 30000); // Every 30 seconds
+}
