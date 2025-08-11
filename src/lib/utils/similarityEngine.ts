@@ -88,10 +88,10 @@ export class SimilarityEngine {
 	): Promise<SimilarityScore[]> {
 		const similarities: SimilarityScore[] = [];
 
-		for (const module of allModules) {
-			if (module.id === target_module.id) continue;
+                for (const module of allModules) {
+                        if (module.id === targetModule.id) continue;
 
-			const similarity = await this.calculateSimilarity(target_module, module);
+                        const similarity = await this.calculateSimilarity(targetModule, module);
 			if (similarity.score >= min_similarity) {
 				similarities.push(similarity);
 			}
@@ -261,7 +261,7 @@ export class SimilarityEngine {
 		const recommendations: ContentRecommendation[] = [];
 
 		// Find modules that have current module as prerequisite
-		const dependent_links = await relationshipStorage.getOutgoingLinks(current_module.id);
+                const dependent_links = await relationshipStorage.getOutgoingLinks(currentModule.id);
 		const sequence_links = dependent_links.filter(
 			(link) => link.type === 'sequence' || link.type === 'prerequisite'
 		);
@@ -285,7 +285,7 @@ export class SimilarityEngine {
 						{
 							type: 'prerequisite-completed',
 							weight: 1.0,
-							description: `Next step after completing ${current_module.title}`
+                                                        description: `Next step after completing ${currentModule.title}`
 						}
 					]
 				});
@@ -306,7 +306,7 @@ export class SimilarityEngine {
 		const recommendations: ContentRecommendation[] = [];
 
 		// Find similar content based on tags and content
-		const similar_content = await this.findSimilarContent(current_module, allModules, 5, 0.4);
+                const similar_content = await this.findSimilarContent(currentModule, allModules, 5, 0.4);
 
 		for (const similar of similar_content) {
 			if (completedContent.has(similar.contentId)) continue;
@@ -319,7 +319,7 @@ export class SimilarityEngine {
 					{
 						type: 'similar-content',
 						weight: similar.score,
-						description: `Similar to ${current_module.title} (${Math.round(similar.score * 100)}% match)`
+                                                description: `Similar to ${currentModule.title} (${Math.round(similar.score * 100)}% match)`
 					}
 				]
 			});
@@ -374,13 +374,13 @@ export class SimilarityEngine {
 		allModules: ContentModule[],
 		completedContent: Set<string>
 	): Promise<ContentRecommendation[]> {
-		const recommendations: ContentRecommendation[] = [];
-		const target_difficulty = current_module.metadata.difficulty;
+                const recommendations: ContentRecommendation[] = [];
+                const target_difficulty = currentModule.metadata.difficulty;
 
 		const similar_difficulty_modules = allModules.filter(
 			(module) =>
-				!completedContent.has(module.id) &&
-				module.id !== current_module.id &&
+                                !completedContent.has(module.id) &&
+                                module.id !== currentModule.id &&
 				Math.abs(module.metadata.difficulty - target_difficulty) <= 1
 		);
 
