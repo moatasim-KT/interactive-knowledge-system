@@ -243,7 +243,8 @@ export class WebContentFetcher {
             keywords,
             attribution: originalUrl,
             tags: [], // Will be populated by content analysis
-            category: this.categorizeContent(content_type, domain, description, description)
+            // category is determined by contentType, domain, title, then description
+            category: this.categorizeContent(content_type, domain, title, description)
         };
     }
 
