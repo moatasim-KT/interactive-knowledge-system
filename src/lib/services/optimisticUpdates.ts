@@ -66,10 +66,10 @@ export class OptimisticUpdateManager {
 	 * Confirm optimistic update (remove from rollback list)
 	 */
 	confirmUpdate(updateId: string): void {
-		const update = this.updates.get(update_id);
+		const update = this.updates.get(updateId);
 		if (update) {
-			this.updates.delete(update_id);
-			this.rollbackCallbacks.delete(update_id);
+			this.updates.delete(updateId);
+			this.rollbackCallbacks.delete(updateId);
 		}
 	}
 
@@ -77,7 +77,7 @@ export class OptimisticUpdateManager {
 	 * Rollback optimistic update
 	 */
 	rollbackUpdate(updateId: string): void {
-		const update = this.updates.get(update_id);
+		const update = this.updates.get(updateId);
 		if (!update || !update.applied) return;
 
 		// Restore previous state
@@ -188,25 +188,25 @@ export class OptimisticUpdateManager {
 	}
 
 	private restoreState(entity: string, entityId: string, previousState: any): void {
-		if (!previous_state) return;
+		if (!previousState) return;
 
 		switch (entity) {
 			case 'content':
-				if (previous_state) {
-					actions.updateKnowledgeNode(entityId, previous_state);
+				if (previousState) {
+					actions.updateKnowledgeNode(entityId, previousState);
 				} else {
 					actions.removeKnowledgeNode(entityId);
 				}
 				break;
 			case 'progress':
-				if (previous_state) {
-					actions.updateUserProgress(entityId, previous_state);
+				if (previousState) {
+					actions.updateUserProgress(entityId, previousState);
 				} else {
 					appState.progress.userProgress.delete(entityId);
 				}
 				break;
 			case 'settings':
-				appState.user.settings = previous_state;
+				appState.user.settings = previousState;
 				break;
 		}
 	}

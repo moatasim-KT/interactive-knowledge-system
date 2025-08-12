@@ -138,7 +138,7 @@ export const actions = {
 	},
 
 	// Progress actions
-	markModuleCompleted: (module_id, score?: number) => {
+	markModuleCompleted: (module_id: string, score?: number) => {
 		appState.progress.completedModules.add(module_id);
 
 		const existing = appState.progress.userProgress.get(module_id);
@@ -202,7 +202,7 @@ export const actions = {
 		);
 	},
 
-	updateUserProgress: (module_id, updates: Partial<UserProgress>) => {
+	updateUserProgress: (module_id: string, updates: Partial<UserProgress>) => {
 		const existing = appState.progress.userProgress.get(module_id);
 		if (existing) {
 			appState.progress.userProgress.set(module_id, { ...existing, ...updates });
@@ -237,24 +237,24 @@ export const actions = {
 	},
 
 	// Sync actions
-	setOnlineStatus: (is_online) => {
+	setOnlineStatus: (is_online: boolean) => {
 		appState.sync.isOnline = is_online;
 	},
 
-	addPendingChange: (change_id) => {
+	addPendingChange: (change_id: string) => {
 		if (!appState.sync.pendingChanges.includes(change_id)) {
 			appState.sync.pendingChanges.push(change_id);
 		}
 	},
 
-	removePendingChange: (change_id) => {
+	removePendingChange: (change_id: string) => {
 		const index = appState.sync.pendingChanges.indexOf(change_id);
 		if (index > -1) {
 			appState.sync.pendingChanges.splice(index, 1);
 		}
 	},
 
-	setSyncStatus: (is_syncing) => {
+	setSyncStatus: (is_syncing: boolean) => {
 		appState.sync.isSyncing = is_syncing;
 		if (!is_syncing) {
 			appState.sync.lastSync = new Date();

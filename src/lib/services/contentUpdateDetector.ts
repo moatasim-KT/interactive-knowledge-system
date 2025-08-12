@@ -195,7 +195,7 @@ export class ContentUpdateDetector {
 
 			// Calculate content hash
 			const current_hash = await this.calculateContentHash(current_content);
-			const previous_hash = source.metadata.contentHash;
+			const previous_hash = source.metadata?.contentHash;
 
 			// Basic change detection
 			const has_changes = current_hash !== previous_hash;
@@ -337,7 +337,7 @@ export class ContentUpdateDetector {
 	 */
 	private async makeRequest(url: string, method: 'GET' | 'HEAD'): Promise<Response> {
 		const controller = new AbortController();
-		const timeout_id = setTimeout(() => controller.abort(), this.config.timeout);
+		const timeout_id = typeof window !== 'undefined' ? setTimeout(() => controller.abort(), this.config.timeout) : null;
 
 		try {
 			const response = await fetch(url, {
@@ -352,10 +352,10 @@ export class ContentUpdateDetector {
 				signal: controller.signal
 			});
 
-			clearTimeout(timeout_id);
+			if (timeout_id) clearTimeout(timeout_id);
 			return response;
 		} catch (error) {
-			clearTimeout(timeout_id);
+			if (timeout_id) clearTimeout(timeout_id);
 			throw error;
 		}
 	}

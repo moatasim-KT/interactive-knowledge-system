@@ -45,7 +45,7 @@ export class CloudSyncService {
 	 * Start periodic synchronization
 	 */
 	private startPeriodicSync(): void {
-		if (!this.config || this.syncInterval) return;
+		if (!this.config || this.syncInterval || typeof window === 'undefined') return;
 
 		this.syncInterval = window.setInterval(() => {
 			if (networkService.isOnline() && !this.isSyncing) {
@@ -398,13 +398,13 @@ export class CloudSyncService {
 		return (
 			error instanceof TypeError || // Network error
 			error.name === 'AbortError' || // Timeout
-			(error.status >= 500 && error.status < 600)
+			(error && typeof error.status === 'number' && error.status >= 500 && error.status < 600)
 		); // Server error
 	}
 
 	private setupNetworkListener(): void {
 		networkService.addListener((status) => {
-			if (status.isOnline && !this.isSyncing) {
+			if (status.isOnline && !this.isSyncing && typeof window !== 'undefined') {
 				// Trigger sync when coming back online
 				setTimeout(() => this.sync(), 1000);
 			}
@@ -442,7 +442,7 @@ export class CloudSyncService {
 		actions.addPendingChange(operation.id);
 
 		// Trigger immediate sync if online
-		if (networkService.isOnline() && !this.isSyncing) {
+		if (networkService.isOnline() && !this.isSyncing && typeof window !== 'undefined') {
 			setTimeout(() => this.sync(), 100);
 		}
 
