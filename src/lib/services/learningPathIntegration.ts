@@ -4,7 +4,7 @@
  */
 import type { ContentModule } from '../types/content.js';
 import type { KnowledgeNode, LearningPath } from '../types/knowledge.js';
-import type { ContentSource } from '../types/web-content.js';
+import type { WebContentSource as ContentSource } from '../types/web-content.js';
 import type { ContentLink, RelationshipType } from '../types/relationships.js';
 import { storage } from '../storage/indexeddb.js';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
@@ -136,29 +136,29 @@ export class LearningPathIntegration {
 
         try {
             // Get existing learning paths
-            const existing_paths = await storage.getAll('learning_paths') as LearningPath[];
-            const all_modules = await storage.getAll('modules') as ContentModule[];
+            const existingPaths = await storage.getAll('paths') as LearningPath[];
+            const allModules = await storage.getAll('modules') as ContentModule[];
 
             // Analyze where imported content fits in existing paths
-            for (const path of existing_paths) {
-                const path_modules = all_modules.filter(m => path.modules.includes(m.id));
-                const insertion_analysis = this.analyzePathInsertion(importedModule, path_modules);
+            for (const path of existingPaths) {
+                const pathModules = allModules.filter((m: ContentModule) => path.modules.includes(m.id));
+                const insertionAnalysis = this.analyzePathInsertion(importedModule, pathModules);
 
-                if (insertion_analysis.confidence > 0.4) {
-                    const enhanced_path = this.createEnhancedPath(
+                if (insertionAnalysis.confidence > 0.4) {
+                    const enhancedPath = this.createEnhancedPath(
                         path,
-                        path_modules,
+                        pathModules,
                         importedModule,
-                        insertion_analysis,
+                        insertionAnalysis,
                         source
                     );
-                    suggestions.push(enhanced_path);
+                    suggestions.push(enhancedPath);
                 }
             }
 
             // Generate new learning paths based on content relationships
-            const new_paths = await this.generateNewLearningPaths(importedModule, source);
-            suggestions.push(...new_paths);
+            const newPaths = await this.generateNewLearningPaths(importedModule, source);
+            suggestions.push(...newPaths);
 
             // Sort by confidence and return top suggestions
             suggestions.sort((a, b) => b.confidence - a.confidence);
@@ -393,14 +393,14 @@ export class LearningPathIntegration {
         let confidence = similarity.score * 0.5; // Base similarity score
 
         // Difficulty gap bonus (1-2 levels is ideal)
-        if (difficulty_gap === 1) {
+        if (difficultyGap === 1) {
             confidence += 0.3;
-        } else if (difficulty_gap === 2) {
+        } else if (difficultyGap === 2) {
             confidence += 0.2;
         }
 
         // Foundational content bonus
-        const has_foundational_terms = prereq_module.metadata.tags.some(tag =>
+        const has_foundational_terms = prereqModule.metadata.tags.some((tag: string) =>
             ['basic', 'intro', 'fundamental', 'foundation', 'beginner'].includes(tag.toLowerCase())
         );
         if (has_foundational_terms) {
@@ -408,7 +408,7 @@ export class LearningPathIntegration {
         }
 
         // Time investment consideration (shorter prereqs are better)
-        if (prereq_module.metadata.estimatedTime <= 30) {
+        if (prereqModule.metadata.estimatedTime <= 30) {
             confidence += 0.1;
         }
 
@@ -422,15 +422,15 @@ export class LearningPathIntegration {
         importedModule: ContentModule,
         pathModules: ContentModule[]
     ): { confidence: number; position: number; reasoning: string[] } {
-        let best_position = path_modules.length; // Default to end
+        let best_position = pathModules.length; // Default to end
         let max_confidence = 0;
         const reasoning: string[] = [];
 
         // Try inserting at each position and calculate fit
-        for (let i = 0; i <= path_modules.length; i++) {
+        for (let i = 0; i <= pathModules.length; i++) {
             const confidence = this.calculateInsertionConfidence(
                 importedModule,
-                path_modules,
+                pathModules,
                 i
             );
 
@@ -443,10 +443,10 @@ export class LearningPathIntegration {
         // Add reasoning based on best position
         if (best_position === 0) {
             reasoning.push('Fits as introductory content');
-        } else if (best_position === path_modules.length) {
+        } else if (best_position === pathModules.length) {
             reasoning.push('Fits as advanced content');
         } else {
-            reasoning.push(`Fits between "${path_modules[best_position - 1]?.title}" and "${path_modules[best_position]?.title}"`);
+            reasoning.push(`Fits between "${pathModules[best_position - 1]?.title}" and "${pathModules[best_position]?.title}"`);
         }
 
         return { confidence: max_confidence, position: best_position, reasoning };
@@ -463,8 +463,8 @@ export class LearningPathIntegration {
         let confidence = 0.5; // Base confidence
 
         // Check difficulty progression
-        const prev_module = path_modules[position - 1];
-        const next_module = path_modules[position];
+        const prev_module = pathModules[position - 1];
+        const next_module = pathModules[position];
 
         if (prev_module && next_module) {
             // Check if difficulty fits between previous and next
@@ -510,8 +510,8 @@ export class LearningPathIntegration {
         const modules: LearningPathModule[] = [];
 
         // Add modules before insertion point
-        for (let i = 0; i < insertion_analysis.position; i++) {
-            const module = path_modules[i];
+        for (let i = 0; i < insertionAnalysis.position; i++) {
+            const module = pathModules[i];
             modules.push({
                 id: module.id,
                 title: module.title,
@@ -526,7 +526,7 @@ export class LearningPathIntegration {
         modules.push({
             id: importedModule.id,
             title: importedModule.title,
-            position: insertion_analysis.position,
+            position: insertionAnalysis.position,
             isImported: true,
             sourceUrl: source.url,
             estimatedTime: importedModule.metadata.estimatedTime,
@@ -534,8 +534,8 @@ export class LearningPathIntegration {
         });
 
         // Add modules after insertion point
-        for (let i = insertion_analysis.position; i < path_modules.length; i++) {
-            const module = path_modules[i];
+        for (let i = insertionAnalysis.position; i < pathModules.length; i++) {
+            const module = pathModules[i];
             modules.push({
                 id: module.id,
                 title: module.title,
@@ -556,10 +556,10 @@ export class LearningPathIntegration {
             modules,
             totalDuration: total_duration,
             averageDifficulty: average_difficulty,
-            confidence: insertion_analysis.confidence,
+            confidence: insertionAnalysis.confidence,
             reasoning: [
                 `Based on existing path: ${originalPath.name}`,
-                ...insertion_analysis.reasoning
+                ...insertionAnalysis.reasoning
             ]
         };
     }
@@ -576,20 +576,20 @@ export class LearningPathIntegration {
         try {
             // Get related content through relationships
             const relationships = await relationshipStorage.getLinksForContent(importedModule.id);
-            const all_modules = await storage.getAll('modules') as ContentModule[];
+            const allModules = await storage.getAll('modules') as ContentModule[];
 
             // Find related modules
             const related_module_ids = relationships.map(rel =>
                 rel.sourceId === importedModule.id ? rel.targetId : rel.sourceId
             );
-            const related_modules = all_modules.filter(m => related_module_ids.includes(m.id));
+            const related_modules = allModules.filter((m: ContentModule) => related_module_ids.includes(m.id));
 
             if (related_modules.length >= 2) {
                 // Create a learning path with imported content and related modules
-                const path_modules = [importedModule, ...related_modules]
+                const pathModules = [importedModule, ...related_modules]
                     .sort((a, b) => a.metadata.difficulty - b.metadata.difficulty);
 
-                const modules: LearningPathModule[] = path_modules.map((module, index) => ({
+                const modules: LearningPathModule[] = pathModules.map((module, index) => ({
                     id: module.id,
                     title: module.title,
                     position: index,
@@ -644,15 +644,15 @@ export class LearningPathIntegration {
         const current_level = completed_prereqs.length / Math.max(prerequisites.length, 1);
 
         // Suggest next steps
-        const suggested_next = await this.findNextSteps(module, completedContent, all_modules);
-        const suggested_previous = await this.findPreviousSteps(module, completedContent, all_modules);
-        const related_topics = this.findRelatedTopics(module, all_modules);
+        const suggested_next = await this.findNextSteps(module, completedContent, allModules);
+        const suggested_previous = await this.findPreviousSteps(module, completedContent, allModules);
+        const related_topics = this.findRelatedTopics(module, allModules);
 
         // Identify skill gaps
         const skill_gaps = prerequisites
             .filter(id => !completedContent.has(id))
             .map(id => {
-                const prereq_module = all_modules.find(m => m.id === id);
+                const prereq_module = allModules.find((m) => m.id === id);
                 return prereq_module?.title || 'Unknown prerequisite';
             });
 
@@ -685,7 +685,7 @@ export class LearningPathIntegration {
         for (const module_id of next_module_ids) {
             if (completedContent.has(module_id)) continue;
 
-            const next_module = all_modules.find(m => m.id === module_id);
+            const next_module = allModules.find((m) => m.id === module_id);
             if (next_module) {
                 suggestions.push({
                     contentId: next_module.id,
@@ -721,7 +721,7 @@ export class LearningPathIntegration {
         for (const module_id of prereq_module_ids) {
             if (completedContent.has(module_id)) continue;
 
-            const prereq_module = all_modules.find(m => m.id === module_id);
+            const prereq_module = allModules.find((m) => m.id === module_id);
             if (prereq_module) {
                 suggestions.push({
                     contentId: prereq_module.id,
@@ -748,7 +748,7 @@ export class LearningPathIntegration {
         const suggestions: PrerequisiteSuggestion[] = [];
 
         // Find modules with similar tags and difficulty
-        for (const other_module of all_modules) {
+        for (const other_module of allModules) {
             if (other_module.id === module.id) continue;
 
             const similarity = this.calculateTopicSimilarity(module, other_module);

@@ -355,19 +355,19 @@ export class WebContentErrorHandler {
 		recoverable: number;
 		retryable: number;
 	} {
-		const by_code = {};
+		const byCode: Record<string, number> = {};
 		let recoverable = 0;
 		let retryable = 0;
 
 		for (const error of this.errorHistory) {
-			by_code[error.code] = (by_code[error.code] || 0) + 1;
+			byCode[error.code] = (byCode[error.code] || 0) + 1;
 			if (error.recoverable) recoverable++;
 			if (error.retryable) retryable++;
 		}
 
 		return {
 			total: this.errorHistory.length,
-			byCode: by_code,
+			byCode,
 			recent: this.errorHistory.slice(0, 10),
 			recoverable,
 			retryable

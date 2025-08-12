@@ -4,6 +4,7 @@
 
 import type { SyncOperation, OfflineQueueItem } from '../types/sync.js';
 import { storage } from '../storage/indexeddb.js';
+import type { OfflineQueueRecord } from '../storage/database.js';
 
 export class OfflineQueue {
 	private static instance: OfflineQueue;
@@ -212,21 +213,21 @@ export class OfflineQueue {
 	 */
 	private async loadQueue(): Promise<void> {
 		try {
-			const data = await storage.get(this.QUEUE_STORE, 'queue');
-			if (data && data.items) {
-				this.queue = new Map(
-					data.items.map((item: OfflineQueueItem) => [
-						item.operation.id,
-						{
-							...item,
-							operation: {
-								...item.operation,
-								timestamp: new Date(item.operation.timestamp)
-							}
-						}
-					])
-				);
-			}
+            const data = (await storage.get('offline_queue', 'queue')) as OfflineQueueRecord | undefined;
+            if (data && Array.isArray(data.items)) {
+                this.queue = new Map(
+                    data.items.map((item: OfflineQueueItem) => [
+                        item.operation.id,
+                        {
+                            ...item,
+                            operation: {
+                                ...item.operation,
+                                timestamp: new Date(item.operation.timestamp)
+                            }
+                        }
+                    ])
+                );
+            }
 		} catch (error) {
 			console.error('Failed to load offline queue:', error);
 		}
@@ -237,12 +238,13 @@ export class OfflineQueue {
 	 */
 	private async persistQueue(): Promise<void> {
 		try {
-			const items = Array.from(this.queue.values());
-			await storage.put(this.QUEUE_STORE, {
-				id: 'queue',
-				items,
-				lastUpdated: new Date()
-			});
+            const items = Array.from(this.queue.values());
+            const record: OfflineQueueRecord = {
+                id: 'queue',
+                items,
+                lastUpdated: new Date()
+            };
+            await storage.put('offline_queue', record);
 		} catch (error) {
 			console.error('Failed to persist offline queue:', error);
 		}

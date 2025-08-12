@@ -593,7 +593,7 @@ export class SourceManager {
 						})),
 						suggestions: [
 							{
-								action: 'merge',
+								action: 'merge' as const,
 								confidence: 0.8,
 								reasoning: 'High similarity detected, consider merging sources'
 							}

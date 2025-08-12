@@ -22,6 +22,42 @@ export interface DatabaseSchema {
 	links: ContentLink;
 	versions: VersionRecord;
 	web_sources: import('../types/web-content.js').WebContentSource;
+	offline_queue: OfflineQueueRecord;
+	sync_conflicts: SyncConflict;
+	content_recommendations: ContentRecommendation;
+	integration_metrics: IntegrationMetrics;
+}
+
+/**
+ * Additional minimal record types for auxiliary stores
+ */
+export interface OfflineQueueRecord {
+    id: string;
+    items: any[];
+    lastUpdated: Date;
+}
+
+export interface SyncConflict {
+    id: string;
+    operationId: string;
+    conflictType: string;
+    timestamp: Date;
+    resolved: boolean;
+}
+
+export interface ContentRecommendation {
+    contentId: string;
+    relatedContent: string[];
+    lastUpdated: Date;
+}
+
+export interface IntegrationMetrics {
+    totalImportedContent: number;
+    automaticRelationshipsCreated: number;
+    manualRelationshipsCreated: number;
+    searchIndexEntries: number;
+    learningPathsGenerated: number;
+    averageIntegrationTime: number;
 }
 
 /**

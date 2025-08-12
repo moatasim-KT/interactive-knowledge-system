@@ -4,6 +4,7 @@
 
 // Core storage
 export { IndexedDBStorage, storage } from './indexeddb.js';
+import { storage } from './indexeddb.js';
 export {
 	DATABASE_NAME,
 	DATABASE_VERSION,
@@ -28,6 +29,7 @@ export { RelationshipStorage, relationshipStorage } from './relationshipStorage.
 
 // Media storage
 export { mediaStorage } from './mediaStorage.js';
+
 
 /**
  * Initialize all storage systems

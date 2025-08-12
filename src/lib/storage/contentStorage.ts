@@ -12,7 +12,7 @@ export class ContentStorage {
 	/**
 	 * Create a new content module
 	 */
-	async createModule(module: Omit<ContentModule, 'metadata'>): Promise<ContentModule> {
+	async createModule(module: ContentModule): Promise<ContentModule> {
 		const now = new Date();
 		const full_module = {
 			...module,

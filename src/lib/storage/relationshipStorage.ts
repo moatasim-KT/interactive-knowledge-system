@@ -27,9 +27,9 @@ export class RelationshipStorage {
 		automatic: boolean = false
 	): Promise<ContentLink> {
 		const link: ContentLink = {
-			id: `${sourceId}-${target_id}-${type}`,
+			id: `${sourceId}-${targetId}-${type}`,
 			sourceId,
-			targetId: target_id,
+			targetId,
 			type,
 			strength: Math.max(0, Math.min(1, strength)), // Clamp to 0-1
 			metadata: {
@@ -46,8 +46,8 @@ export class RelationshipStorage {
 		if (type === 'related' || type === 'similar') {
 			const reverse_link = {
 				...link,
-				id: `${target_id}-${sourceId}-${type}`,
-				sourceId: target_id,
+				id: `${targetId}-${sourceId}-${type}`,
+				sourceId: targetId,
 				targetId: sourceId
 			};
 			await storage.add('links', reverse_link, `Created reverse ${type} link`);
@@ -89,7 +89,7 @@ export class RelationshipStorage {
 	 * Delete a link
 	 */
 	async deleteLink(linkId: string): Promise<void> {
-		await storage.delete('links', link_id);
+		await storage.delete('links', linkId);
 	}
 
 	/**
@@ -239,12 +239,12 @@ export class RelationshipStorage {
 
 		// Tarjan's algorithm for finding strongly connected components
 		const tarjan = (
-			node_id,
+			node_id: string,
 			index: number,
 			indices: Map<string, number>,
 			lowlinks: Map<string, number>,
-			on_stack
-		) => {
+			on_stack: Set<string>
+		): number => {
 			indices.set(node_id, index);
 			lowlinks.set(node_id, index);
 			on_stack.add(node_id);
@@ -253,18 +253,24 @@ export class RelationshipStorage {
 			const node = graph.nodes.get(node_id);
 			if (!node) return index + 1;
 
-			for (const link_id of node.outgoingLinks) {
+			Array.from(node.outgoingLinks).forEach((link_id) => {
 				const link = graph.edges.get(link_id);
-				if (!link || link.type !== 'prerequisite') continue;
+				if (!link || link.type !== 'prerequisite') return;
 
 				const target_id = link.targetId;
 				if (!indices.has(target_id)) {
 					index = tarjan(target_id, index + 1, indices, lowlinks, on_stack);
-					lowlinks.set(node_id, Math.min(lowlinks.get(node_id)!, lowlinks.get(target_id)!));
+					lowlinks.set(
+						node_id,
+						Math.min(lowlinks.get(node_id)!, lowlinks.get(target_id)!)
+					);
 				} else if (on_stack.has(target_id)) {
-					lowlinks.set(node_id, Math.min(lowlinks.get(node_id)!, indices.get(target_id)!));
+					lowlinks.set(
+						node_id,
+						Math.min(lowlinks.get(node_id)!, indices.get(target_id)!)
+					);
 				}
-			}
+			});
 
 			if (lowlinks.get(node_id) === indices.get(node_id)) {
 				const component: string[] = [];
@@ -288,11 +294,11 @@ export class RelationshipStorage {
 		const on_stack = new Set<string>();
 		let index = 0;
 
-		for (const node_id of graph.nodes.keys()) {
+		Array.from(graph.nodes.keys()).forEach((node_id) => {
 			if (!indices.has(node_id)) {
 				index = tarjan(node_id, index, indices, lowlinks, on_stack);
 			}
-		}
+		});
 
 		return components;
 	}

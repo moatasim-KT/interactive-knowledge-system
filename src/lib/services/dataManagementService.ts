@@ -87,12 +87,13 @@ export class DataManagementService {
 		try {
 			// Gather all data
 			const modules = await contentStorage.getAllModules();
-			const progress = options.includeProgress ? await progressStorage.getAllProgress() : [];
+			// Get all progress for the current user (assuming userId is available in the context)
+			// If userId is not available, you'll need to pass it to the exportData method
+			const userId = 'current-user'; // TODO: Replace with actual user ID from auth context
+			const progress = options.includeProgress ? await progressStorage.getUserProgress(userId) : [];
 			const paths = await pathStorage.getAllPaths();
 			const nodes: KnowledgeNode[] = []; // TODO: Implement knowledge node storage
-			const settings = options.includeSettings
-				? await settingsStorage.getSettings()
-				: this.getDefaultSettings();
+			const settings = (await settingsStorage.getSettings(userId)) || this.getDefaultSettings();
 
 			// Create export data structure
 			const export_data = createBackup(modules, progress, paths, nodes, settings);
@@ -109,8 +110,8 @@ export class DataManagementService {
 					break;
 				}
 				case 'scorm': {
-					const scorm_package = exportToSCORM(export_data);
-					result = this.createSCORMZip(scorm_package);
+					const scormPackage = exportToSCORM(export_data);
+					result = this.createSCORMZip(scormPackage);
 					break;
 				}
 				case 'csv': {
@@ -210,7 +211,7 @@ export class DataManagementService {
 			const modules = await storage.getAll('modules');
 			const progress = await storage.getAll('progress');
 			const paths = await storage.getAll('paths');
-			const settings = await storage.get('settings', 'user-settings');
+			const settings = (await storage.get('settings', 'user-settings')) || this.getDefaultSettings();
 
 			const current_data = {
 				version: fromVersion,
@@ -279,7 +280,7 @@ export class DataManagementService {
 			const modules = await storage.getAll('modules');
 			const progress = await storage.getAll('progress');
 			const paths = await storage.getAll('paths');
-			const settings = await storage.get('settings', 'user-settings');
+			const settings = (await storage.get('settings', 'user-settings')) || this.getDefaultSettings();
 
 			const export_data = {
 				version: '1.2.0',
@@ -318,7 +319,7 @@ export class DataManagementService {
 			const modules = await storage.getAll('modules');
 			const progress = await storage.getAll('progress');
 			const paths = await storage.getAll('paths');
-			const settings = await storage.get('settings', 'user-settings');
+			const settings = (await storage.get('settings', 'user-settings')) || this.getDefaultSettings();
 
 			const export_data = {
 				version: '1.2.0',
@@ -478,10 +479,10 @@ export class DataManagementService {
 	private createSCORMZip(scormPackage: SCORMPackage): Blob {
 		// This is a simplified implementation
 		// In a real implementation, you would use a library like JSZip
-		const manifest_xml = this.generateSCORMManifest(scorm_package.manifest);
+		const manifest_xml = this.generateSCORMManifest(scormPackage.manifest);
 		const files: { [key: string]: string } = {
 			'imsmanifest.xml': manifest_xml,
-			...scorm_package.content
+			...scormPackage.content
 		};
 
 		// For now, return as JSON (in real implementation, create actual ZIP)

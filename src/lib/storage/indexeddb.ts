@@ -57,10 +57,16 @@ export class IndexedDBStorage {
 
 				// Create indexes
 				store_config.indexes.forEach((index_config) => {
-					store.createIndex(index_config.name, index_config.keyPath, {
-						unique: index_config.unique,
-						multiEntry: index_config.multiEntry || false
-					});
+					const keyPath = Array.isArray(index_config.keyPath)
+						? [...index_config.keyPath]
+						: index_config.keyPath;
+					const options: IDBIndexParameters = {
+						unique: index_config.unique
+					};
+					if ('multiEntry' in index_config) {
+						(options as any).multiEntry = (index_config as any).multiEntry || false;
+					}
+					store.createIndex(index_config.name, keyPath as any, options);
 				});
 			}
 		});
@@ -231,7 +237,7 @@ export class IndexedDBStorage {
 			const transaction = db.transaction(['versions'], 'readonly');
 			const store = transaction.objectStore('versions');
 			const index = store.index('entityId');
-			const request = index.getAll(entity_id);
+			const request = index.getAll(entityId);
 
 			request.onsuccess = () => {
 				const versions = request.result.filter((v) => v.entityType === entityType);
@@ -252,7 +258,7 @@ export class IndexedDBStorage {
 			const transaction = db.transaction(['versions'], 'readonly');
 			const store = transaction.objectStore('versions');
 			const index = store.index('entityVersion');
-			const request = index.get([entity_id, version]);
+			const request = index.get([entityId, version]);
 
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
