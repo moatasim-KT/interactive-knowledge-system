@@ -1,4 +1,4 @@
-import type { Logger } from '$lib/utils/logger';
+import type { Logger } from '../../../utils/logger.js';
 import type { ContentExtractor, ExtractionOptions, ExtractionResult } from './base-extractor';
 
 /**

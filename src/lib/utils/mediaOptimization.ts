@@ -2,7 +2,7 @@
  * Media optimization utilities for compression, resizing, and format conversion
  */
 
-import type { MediaFile, MediaUploadOptions, ResponsiveImageSizes } from '$lib/types/media.js';
+import type { MediaFile, MediaUploadOptions, ResponsiveImageSizes } from '../types/media.js';
 
 /**
  * Compress and optimize an image file
@@ -35,8 +35,8 @@ export function optimizeImage(
 				const { width: newWidth, height: newHeight } = calculate_dimensions(
 					img.width,
 					img.height,
-					max_width,
-					max_height
+					maxWidth,
+					maxHeight
 				);
 
 				canvas.width = newWidth;
@@ -106,20 +106,20 @@ export function generateResponsiveSizes(
 	return new Promise((resolve, reject) => {
 		img.onload = () => {
 			try {
-				const sizes: any = {};
+				const sizes: Partial<ResponsiveImageSizes> = {};
 
-				Object.entries(breakpoints).forEach(([key, max_width]) => {
+				Object.entries(breakpoints).forEach(([key, maxWidth]) => {
 					const { width, height } = calculate_dimensions(
 						img.width,
 						img.height,
-						max_width,
+						maxWidth,
 						img.height
 					);
 
 					canvas.width = width;
 					canvas.height = height;
 					ctx.drawImage(img, 0, 0, width, height);
-					sizes[key] = canvas.toDataURL('image/jpeg', 0.8);
+					sizes[key as keyof ResponsiveImageSizes] = canvas.toDataURL('image/jpeg', 0.8);
 				});
 
 				resolve(sizes as ResponsiveImageSizes);
@@ -210,10 +210,10 @@ export async function generateVideoThumbnail(file: File): Promise<string | null>
  * Calculate optimal dimensions maintaining aspect ratio
  */
 function calculate_dimensions(
-	original_width,
-	original_height,
-	max_width,
-	max_height
+	original_width: number,
+	original_height: number,
+	max_width: number,
+	max_height: number
 ): { width: number; height: number } {
 	let { width, height } = { width: original_width, height: original_height };
 

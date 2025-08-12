@@ -13,6 +13,7 @@ import type {
 } from '../types/web-content.js';
 import type { ContentModule } from '../types/content.js';
 import { sourceManager } from './sourceManager.js';
+import { storageService } from './storage.js';
 import { contentUpdateDetector } from './contentUpdateDetector.js';
 import { duplicateDetector } from './duplicateDetector.js';
 import { webContentFetcher } from './webContentFetcher.js';
@@ -176,13 +177,13 @@ export class ProcessingPipelineManager {
 	createSingleProcessingJob(
 		url: string,
 		priority: 'low' | 'normal' | 'high' = 'normal',
-		options: { tags?: string[]; userId?: string } = {}
+		options: { tags?: string[]; userId?: string; batchId?: string } = {}
 	): string {
-		const job_id = this.generateJobId();
+		const jobId = this.generateJobId();
 		const stages = this.createProcessingStages('single');
 
 		const job: ProcessingJob = {
-			id: job_id,
+			id: jobId,
 			type: 'single',
 			status: 'pending',
 			progress: {
@@ -207,7 +208,7 @@ export class ProcessingPipelineManager {
 		this.jobQueue.push(job);
 		this.sortJobQueue();
 
-		this.logger.info('Single processing job created', { jobId: job_id, url, priority });
+		this.logger.info('Single processing job created', { jobId, url, priority });
 		this.emitEvent('job-created', { job: this.sanitizeJobForEvent(job) });
 
 		// Start processing if not already running
@@ -215,7 +216,7 @@ export class ProcessingPipelineManager {
 			void this.processJobQueue();
 		}
 
-		return job_id;
+		return jobId;
 	}
 
 	/**
@@ -226,38 +227,38 @@ export class ProcessingPipelineManager {
 		priority: 'low' | 'normal' | 'high' = 'normal',
 		options: { tags?: string[]; userId?: string; enableParallel?: boolean } = {}
 	): string {
-		const batch_id = this.generateJobId();
+		const batchId = this.generateJobId();
 
 		if (this.config.enableParallelProcessing && options.enableParallel !== false) {
 			// Create individual jobs for parallel processing
-			const job_ids = urls.map(url =>
+			const jobIds = urls.map(url =>
 				this.createSingleProcessingJob(url, priority, {
 					...options,
 					tags: [...(options.tags || []), 'batch'],
-					batchId: batch_id
+					batchId
 				})
 			);
 
 			this.logger.info('Batch processing job created (parallel)', {
-				batchId: batch_id,
+				batchId,
 				urlCount: urls.length,
-				jobIds: job_ids
+				jobIds
 			});
 
 			this.emitEvent('batch-created', {
-				batchId: batch_id,
+				batchId,
 				urlCount: urls.length,
-				jobIds: job_ids,
+				jobIds,
 				parallel: true
 			});
 
-			return batch_id;
+			return batchId;
 		} else {
 			// Create single batch job for sequential processing
 			const stages = this.createProcessingStages('batch');
 
 			const job: ProcessingJob = {
-				id: batch_id,
+				id: batchId,
 				type: 'batch',
 				status: 'pending',
 				progress: {
@@ -283,12 +284,12 @@ export class ProcessingPipelineManager {
 			this.sortJobQueue();
 
 			this.logger.info('Batch processing job created (sequential)', {
-				batchId: batch_id,
+				batchId,
 				urlCount: urls.length
 			});
 
 			this.emitEvent('batch-created', {
-				batchId: batch_id,
+				batchId,
 				urlCount: urls.length,
 				parallel: false
 			});
@@ -297,7 +298,7 @@ export class ProcessingPipelineManager {
 				void this.processJobQueue();
 			}
 
-			return batch_id;
+			return batchId;
 		}
 	}
 
@@ -365,24 +366,24 @@ export class ProcessingPipelineManager {
 		overallProgress: number;
 		status: 'pending' | 'processing' | 'completed' | 'failed';
 	} | null {
-		const batch_jobs = [
+		const batchJobs = [
 			...this.jobQueue,
 			...this.activeJobs.values(),
 			...this.completedJobs.values()
 		].filter(job => job.metadata.batchId === batchId);
 
-		if (batch_jobs.length === 0) {
+		if (batchJobs.length === 0) {
 			return null;
 		}
 
-		const completed = batch_jobs.filter(job => job.status === 'completed').length;
-		const failed = batch_jobs.filter(job => job.status === 'failed').length;
-		const processing = batch_jobs.filter(job => job.status === 'processing').length;
+		const completed = batchJobs.filter(job => job.status === 'completed').length;
+		const failed = batchJobs.filter(job => job.status === 'failed').length;
+		const processing = batchJobs.filter(job => job.status === 'processing').length;
 
 		let status: 'pending' | 'processing' | 'completed' | 'failed';
-		if (completed === batch_jobs.length) {
+		if (completed === batchJobs.length) {
 			status = 'completed';
-		} else if (failed === batch_jobs.length) {
+		} else if (failed === batchJobs.length) {
 			status = 'failed';
 		} else if (processing > 0 || completed > 0) {
 			status = 'processing';
@@ -392,10 +393,10 @@ export class ProcessingPipelineManager {
 
 		return {
 			batchId,
-			totalJobs: batch_jobs.length,
+			totalJobs: batchJobs.length,
 			completedJobs: completed,
 			failedJobs: failed,
-			overallProgress: (completed / batch_jobs.length) * 100,
+			overallProgress: (completed / batchJobs.length) * 100,
 			status
 		};
 	}
@@ -741,19 +742,18 @@ export class ProcessingPipelineManager {
 		this.logger.debug('Analyzing content for interactivity', { jobId: job.id, contentId: web_content.id });
 
 		try {
-			// Store content temporarily for analysis
-			await sourceManager.addSource({
+			// Add source record (without unsupported fields)
+			const add_result = await sourceManager.addSource({
 				url: web_content.url,
 				title: web_content.title,
-				content: web_content,
 				metadata: web_content.metadata
 			});
 
-			// Analyze for interactive opportunities
+			// Analyze for interactive opportunities (using fetched content id)
 			const analysis = await interactiveAnalyzer.analyzeContent(web_content.id);
 
 			return {
-				contentId: web_content.id,
+				contentId: add_result.sourceId,
 				analysis,
 				extractionMethod: web_content.extraction.method,
 				confidence: web_content.extraction.confidence,
@@ -778,17 +778,15 @@ export class ProcessingPipelineManager {
 		this.logger.debug('Storing content permanently', { jobId: job.id, contentId: content_id });
 
 		try {
-			// The content is already stored from the extract stage, just confirm it exists
-			const source = await sourceManager.getSource(content_id);
+			// Confirm the source exists in storage
+			const source = await storageService.getSource(content_id);
 			if (!source) {
 				throw new Error('Content not found in source manager');
 			}
 
-			// Update source with processing metadata
+			// Update source status to reflect processing
 			await sourceManager.updateSource(content_id, {
-				processingJobId: job.id,
-				processedAt: new Date(),
-				processingStatus: 'completed'
+				status: 'updated'
 			});
 
 			return {
@@ -843,7 +841,7 @@ export class ProcessingPipelineManager {
 
 		try {
 			// Get the source content for quality assessment
-			const source = await sourceManager.getSource(content_id);
+			const source = await storageService.getSource(content_id);
 			if (!source) {
 				throw new Error('Source not found for quality assessment');
 			}

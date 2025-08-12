@@ -2,7 +2,7 @@
  * Code execution utilities for supported languages
  */
 
-import type { CodeExecutionResult, CodeExecutionEnvironment } from '$lib/types/code.js';
+import type { CodeExecutionResult, CodeExecutionEnvironment } from '../types/code.js';
 
 export class CodeExecutionService {
 	private static instance: CodeExecutionService;
@@ -240,7 +240,7 @@ export class CodeExecutionService {
 			// Create a sandboxed iframe for HTML execution
 			const iframe = document.createElement('iframe');
 			iframe.style.display = 'none';
-			iframe.sandbox = 'allow-scripts';
+			iframe.setAttribute('sandbox', 'allow-scripts');
 			document.body.appendChild(iframe);
 
 			return new Promise((resolve) => {

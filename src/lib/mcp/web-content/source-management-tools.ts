@@ -4,14 +4,14 @@
  * Using existing OrganizationSearchTools as guide
  */
 
-import { createLogger } from '$lib/utils/logger.js';
+import { createLogger } from '../../utils/logger';
 import type {
 	WebContentSource,
 	SourceHealthCheck,
 	SourceUpdateResult,
 	DuplicateDetectionResult,
 	QualityMetrics
-} from '$lib/types/web-content.js';
+} from '../../types/web-content';
 
 export class SourceManagementTools {
 	private logger = createLogger('mcp:source-management-tools');
@@ -41,7 +41,7 @@ export class SourceManagementTools {
 		try {
 			const parsed_url = new URL(url);
 			const domain = parsed_url.hostname;
-			const source_id = `source_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+			const sourceId = `source_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
 			// Check for duplicates
 			const existing_source = this.findDuplicateSource(url);
@@ -59,7 +59,7 @@ export class SourceManagementTools {
 			}
 
 			const source: WebContentSource = {
-				id: source_id,
+				id: sourceId,
 				url,
 				title: title || `Content from ${domain}`,
 				domain,
@@ -91,29 +91,29 @@ export class SourceManagementTools {
 			};
 
 			// Store source
-			this.sources.set(source_id, source);
+			this.sources.set(sourceId, source);
 
 			// Update domain index
 			if (!this.sourcesByDomain.has(domain)) {
 				this.sourcesByDomain.set(domain, new Set());
 			}
-			this.sourcesByDomain.get(domain)!.add(source_id);
+			this.sourcesByDomain.get(domain)!.add(sourceId);
 
 			// Update category index
 			if (!this.sourcesByCategory.has(category)) {
 				this.sourcesByCategory.set(category, new Set());
 			}
-			this.sourcesByCategory.get(category)!.add(source_id);
+			this.sourcesByCategory.get(category)!.add(sourceId);
 
 			this.logger.info('Content source added successfully', {
-				sourceId: source_id,
+				sourceId,
 				url,
 				domain,
 				category
 			});
 
 			return {
-				sourceId: source_id,
+				sourceId,
 				source,
 				isDuplicate: false
 			};
@@ -228,11 +228,11 @@ export class SourceManagementTools {
 				}
 				if (updates.category && updates.category !== source.metadata.category) {
 					// Update category index
-					this.sourcesByCategory.get(source.metadata.category)?.delete(source_id);
+					this.sourcesByCategory.get(source.metadata.category)?.delete(sourceId);
 					if (!this.sourcesByCategory.has(updates.category)) {
 						this.sourcesByCategory.set(updates.category, new Set());
 					}
-					this.sourcesByCategory.get(updates.category)!.add(source_id);
+					this.sourcesByCategory.get(updates.category)!.add(sourceId);
 
 					source.metadata.category = updates.category;
 					has_changes = true;
@@ -258,7 +258,7 @@ export class SourceManagementTools {
 			}
 
 			const result: SourceUpdateResult = {
-				sourceId: source_id,
+				sourceId,
 				success: true,
 				hasChanges: has_changes,
 				changes: has_changes
@@ -274,7 +274,7 @@ export class SourceManagementTools {
 			};
 
 			this.logger.info('Source updated successfully', {
-				sourceId: source_id,
+				sourceId,
 				hasChanges: has_changes,
 				contentChanged: content_changed
 			});
@@ -283,7 +283,7 @@ export class SourceManagementTools {
 		} catch (error) {
 			this.logger.error('Failed to update source:', error);
 			return {
-				sourceId: source_id,
+				sourceId,
 				success: false,
 				hasChanges: false,
 				error: error instanceof Error ? error.message : 'Unknown error',
@@ -312,28 +312,28 @@ export class SourceManagementTools {
 			this.sources.delete(sourceId);
 
 			// Remove from domain index
-			this.sourcesByDomain.get(source.domain)?.delete(source_id);
+			this.sourcesByDomain.get(source.domain)?.delete(sourceId);
 			if (this.sourcesByDomain.get(source.domain)?.size === 0) {
 				this.sourcesByDomain.delete(source.domain);
 			}
 
 			// Remove from category index
-			this.sourcesByCategory.get(source.metadata.category)?.delete(source_id);
+			this.sourcesByCategory.get(source.metadata.category)?.delete(sourceId);
 			if (this.sourcesByCategory.get(source.metadata.category)?.size === 0) {
 				this.sourcesByCategory.delete(source.metadata.category);
 			}
 
-			this.logger.info('Source removed successfully', { sourceId: source_id });
+			this.logger.info('Source removed successfully', { sourceId });
 
 			return {
-				sourceId: source_id,
+				sourceId,
 				removed: true,
 				source
 			};
 		} catch (error) {
 			this.logger.error('Failed to remove source:', error);
 			return {
-				sourceId: source_id,
+				sourceId,
 				removed: false
 			};
 		}
@@ -560,7 +560,7 @@ export class SourceManagementTools {
 				);
 
 				if (similar_sources.length > 0) {
-					const duplicate_result = {
+					const duplicate_result: DuplicateDetectionResult = {
 						sourceId: source.id,
 						duplicates: similar_sources.map((s) => ({
 							id: s.id,

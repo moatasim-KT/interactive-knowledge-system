@@ -2,7 +2,7 @@
  * Code versioning and history management utilities
  */
 
-import type { CodeVersion, CodeBlockContent } from '$lib/types/code.js';
+import type { CodeVersion, CodeBlockContent } from '../types/code.js';
 
 export class CodeVersioningService {
 	private static instance: CodeVersioningService;

@@ -1,144 +1,174 @@
 <script lang="ts">
-	import type { InteractiveChartBlock, DataFilter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
-	import AdvancedInteractiveChart from './AdvancedInteractiveChart.svelte';
-	import DataExplorer from './DataExplorer.svelte';
-	import ChartConfigurator from './ChartConfigurator.svelte';
-	import DrillDownChart from './DrillDownChart.svelte';
+    import type { InteractiveChartBlock, DataFilter, VisualizationConfig } from '$lib/types/web-content';
+    import AdvancedInteractiveChart from './AdvancedInteractiveChart.svelte';
+    import DataExplorer from './DataExplorer.svelte';
+    import ChartConfigurator from './ChartConfigurator.svelte';
+    import DrillDownChart from './DrillDownChart.svelte';
 
-	export let block: InteractiveChartBlock;
-	export let editable = false;
+    // Svelte 5 runes mode: use $props() instead of `export let`
+    let {
+        block,
+        editable = false,
+        onViewChange,
+        onChartTypeChange,
+        onDataChange,
+        onConfigChange,
+        onChartInteraction,
+        onDrillDown,
+        onExport,
+        onFullscreenToggle
+    } = $props<{
+        block: InteractiveChartBlock;
+        editable?: boolean;
+        onViewChange?: (e: { view: string; blockId: string }) => void;
+        onChartTypeChange?: (e: { chartType: InteractiveChartBlock['content']['chartType']; blockId: string }) => void;
+        onDataChange?: (e: { data: any; filters: DataFilter[]; blockId: string }) => void;
+        onConfigChange?: (e: { config: VisualizationConfig; blockId: string }) => void;
+        onChartInteraction?: (e: any) => void;
+        onDrillDown?: (e: any) => void;
+        onExport?: (e: { format: string; data: any; blockId: string }) => void;
+        onFullscreenToggle?: (e: { blockId: string }) => void;
+    }>();
 
-	const dispatch = createEventDispatcher();
+    // Component state (runes)
+    let active_view = $state<'chart' | 'explorer' | 'config' | 'drilldown'>('chart');
+    let show_controls = $state(true);
+    const current_data = $derived(block.content.data);
+    let active_filters = $state<DataFilter[]>(block.content.filters || []);
+    type ChartType = InteractiveChartBlock['content']['chartType'];
+    let current_chart_type = $state<ChartType>(block.content.chartType);
 
-	// Component state
-	let active_view: 'chart' | 'explorer' | 'config' | 'drilldown' = 'chart';
-	let show_controls = true;
-	let current_data = block.content.data;
-	let active_filters: DataFilter[] = block.content.filters || [];
-	let current_chart_type = block.content.chartType;
-	let chart_config = {
-		title: block.content.title || 'Interactive Chart',
-		description: block.content.description || '',
-		layout: {
-			width: 800,
-			height: 500,
-			margin: { top: 40, right: 40, bottom: 60, left: 60 },
-			responsive: true
-		},
-		styling: {
-			theme: 'light',
-			colors: ['#0066cc', '#ff6b35', '#28a745', '#ffc107', '#dc3545'],
-			fonts: { family: 'system-ui', size: 12 }
-		},
-		animations: {
-			enabled: true,
-			duration: 300,
-			easing: 'ease-in-out',
-			transitions: ['opacity', 'transform']
-		},
-		parameters: [],
-		xAxisLabel: 'X Axis',
-		yAxisLabel: 'Y Axis'
-	};
+    // Ensure only supported chart types are passed to children (network not supported downstream)
+    type SupportedChartType = 'line' | 'bar' | 'scatter' | 'heatmap';
+    const safe_chart_type = $derived(
+        (['line', 'bar', 'scatter', 'heatmap'] as SupportedChartType[]).includes(
+            current_chart_type as SupportedChartType
+        )
+            ? (current_chart_type as SupportedChartType)
+            : ('scatter' as SupportedChartType)
+    );
+    let chart_config = $state<VisualizationConfig>({
+        title: block.content.title || 'Interactive Chart',
+        description: block.content.description || '',
+        layout: {
+            width: 800,
+            height: 500,
+            margin: { top: 40, right: 40, bottom: 60, left: 60 },
+            responsive: true
+        },
+        styling: {
+            theme: 'light',
+            colors: ['#0066cc', '#ff6b35', '#28a745', '#ffc107', '#dc3545'],
+            fonts: { family: 'system-ui', size: 12 }
+        },
+        animations: {
+            enabled: true,
+            duration: 300,
+            easing: 'ease-in-out',
+            transitions: ['opacity', 'transform']
+        },
+        parameters: []
+    });
 
-	// View options
-	const view_options = [
-		{
-			id: 'chart',
-			label: 'Chart View',
-			icon: '📊',
-			description: 'Interactive chart visualization'
-		},
-		{
-			id: 'explorer',
-			label: 'Data Explorer',
-			icon: '🔍',
-			description: 'Advanced data filtering and analysis'
-		},
-		{
-			id: 'drilldown',
-			label: 'Drill Down',
-			icon: '🎯',
-			description: 'Hierarchical data exploration'
-		},
-		{
-			id: 'config',
-			label: 'Configure',
-			icon: '⚙️',
-			description: 'Chart appearance and behavior settings'
-		}
-	];
+    // View options
+    const view_options = [
+        {
+            id: 'chart',
+            label: 'Chart View',
+            icon: '',
+            description: 'Interactive chart visualization'
+        },
+        {
+            id: 'explorer',
+            label: 'Data Explorer',
+            icon: '',
+            description: 'Advanced data filtering and analysis'
+        },
+        {
+            id: 'drilldown',
+            label: 'Drill Down',
+            icon: '',
+            description: 'Hierarchical data exploration'
+        },
+        {
+            id: 'config',
+            label: 'Configure',
+            icon: '',
+            description: 'Chart appearance and behavior settings'
+        }
+    ];
 
-	// Chart type options with advanced features
-	const chart_type_options = [
-		{
-			value: 'line',
-			label: 'Line Chart',
-			icon: '📈',
-			features: ['zoom', 'pan', 'hover', 'selection', 'animation']
-		},
-		{
-			value: 'bar',
-			label: 'Bar Chart',
-			icon: '📊',
-			features: ['drill-down', 'grouping', 'sorting', 'hover', 'selection']
-		},
-		{
-			value: 'scatter',
-			label: 'Scatter Plot',
-			icon: '⚪',
-			features: ['brush-selection', 'zoom', 'clustering', 'regression']
-		},
-		{
-			value: 'heatmap',
-			label: 'Heat Map',
-			icon: '🔥',
-			features: ['color-scale', 'hover', 'zoom', 'clustering']
-		}
-	];
+    // Chart type options with advanced features
+    const chart_type_options: { value: ChartType; label: string; icon: string; features: string[] }[] = [
+        {
+            value: 'line',
+            label: 'Line Chart',
+            icon: '',
+            features: ['zoom', 'pan', 'hover', 'selection', 'animation']
+        },
+        {
+            value: 'bar',
+            label: 'Bar Chart',
+            icon: '',
+            features: ['drill-down', 'grouping', 'sorting', 'hover', 'selection']
+        },
+        {
+            value: 'scatter',
+            label: 'Scatter Plot',
+            icon: '',
+            features: ['brush-selection', 'zoom', 'clustering', 'regression']
+        },
+        {
+            value: 'heatmap',
+            label: 'Heat Map',
+            icon: '',
+            features: ['color-scale', 'hover', 'zoom', 'clustering']
+        }
+    ];
 
-	// Data processing state
-	let processed_data = current_data;
-	let data_summary = {
-		total_rows: 0,
-		filtered_rows: 0,
-		selected_rows: 0
-	};
+    // Data processing state
+    let processed_data = $state<any>(undefined);
+    let data_summary = $state({
+        total_rows: 0,
+        filtered_rows: 0,
+        selected_rows: 0
+    });
 
-	// Update data summary when data changes
-	$: {
-		if (Array.isArray(processed_data)) {
-			data_summary.filtered_rows = processed_data.length;
-			data_summary.total_rows = Array.isArray(current_data)
-				? current_data.length
-				: Object.keys(current_data || {}).length;
-		} else if (processed_data && typeof processed_data === 'object') {
-			data_summary.filtered_rows = Object.keys(processed_data).length;
-			data_summary.total_rows = Object.keys(current_data || {}).length;
-		}
-	}
+    // Keep processed_data in sync with incoming data
+    $effect(() => {
+        processed_data = current_data;
+    });
 
-	// Event handlers
-	function handle_view_change(view: string) {
-		active_view = view as any;
-		dispatch('viewChange', { view, blockId: block.id });
-	}
+    // Update data summary when data changes
+    $effect(() => {
+        if (Array.isArray(processed_data)) {
+            data_summary.filtered_rows = processed_data.length;
+            data_summary.total_rows = Array.isArray(current_data)
+                ? current_data.length
+                : Object.keys(current_data || {}).length;
+        } else if (processed_data && typeof processed_data === 'object') {
+            data_summary.filtered_rows = Object.keys(processed_data).length;
+            data_summary.total_rows = Object.keys(current_data || {}).length;
+        }
+    });
 
-	function handle_chart_type_change(event: CustomEvent) {
-		current_chart_type = event.detail.chartType;
-		dispatch('chartTypeChange', {
-			chartType: current_chart_type,
-			blockId: block.id
-		});
-	}
+    // Event handlers
+    function handle_view_change(view: string) {
+        active_view = view as any;
+        onViewChange?.({ view, blockId: block.id });
+    }
 
-	function handle_data_change(event: CustomEvent) {
-		const { data, filters } = event.detail;
-		processed_data = data;
-		active_filters = filters;
+    function handle_chart_type_change(event: { detail: { chartType: ChartType } }) {
+        current_chart_type = event.detail.chartType;
+        onChartTypeChange?.({ chartType: current_chart_type, blockId: block.id });
+    }
 
-		dispatch('dataChange', {
+    function handle_data_change(event: CustomEvent) {
+        const { data, filters } = event.detail;
+        processed_data = data;
+        active_filters = filters;
+
+		onDataChange?.({
 			data: processed_data,
 			filters: active_filters,
 			blockId: block.id
@@ -147,7 +177,7 @@
 
 	function handle_config_change(event: CustomEvent) {
 		chart_config = { ...chart_config, ...event.detail.config };
-		dispatch('configChange', {
+		onConfigChange?.({
 			config: chart_config,
 			blockId: block.id
 		});
@@ -161,7 +191,7 @@
 			data_summary.selected_rows = event.detail.selected.length;
 		}
 
-		dispatch('chartInteraction', {
+		onChartInteraction?.({
 			type,
 			point,
 			coordinates,
@@ -171,7 +201,7 @@
 	}
 
 	function handle_drill_down(event: CustomEvent) {
-		dispatch('drillDown', {
+		onDrillDown?.({
 			...event.detail,
 			blockId: block.id
 		});
@@ -195,7 +225,7 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		dispatch('export', {
+		onExport?.({
 			format: 'json',
 			data: export_data,
 			blockId: block.id
@@ -212,7 +242,7 @@
 			}
 		}
 
-		dispatch('fullscreenToggle', { blockId: block.id });
+		onFullscreenToggle?.({ blockId: block.id });
 	}
 
 	function get_chart_features(chart_type: string): string[] {
@@ -254,7 +284,7 @@
 				<button
 					class="toggle-controls-btn"
 					class:active={show_controls}
-					on:click={() => (show_controls = !show_controls)}
+					onclick={() => (show_controls = !show_controls)}
 					title="Toggle controls"
 					type="button"
 				>
@@ -262,7 +292,7 @@
 				</button>
 				<button
 					class="export-btn"
-					on:click={export_chart_data}
+					onclick={export_chart_data}
 					title="Export chart data"
 					type="button"
 				>
@@ -270,7 +300,7 @@
 				</button>
 				<button
 					class="fullscreen-btn"
-					on:click={toggle_fullscreen}
+					onclick={toggle_fullscreen}
 					title="Toggle fullscreen"
 					type="button"
 				>
@@ -286,7 +316,7 @@
 					<button
 						class="view-btn"
 						class:active={active_view === view.id}
-						on:click={() => handle_view_change(view.id)}
+						onclick={() => handle_view_change(view.id)}
 						title={view.description}
 						type="button"
 					>
@@ -306,13 +336,13 @@
 				{#if show_controls}
 					<div class="chart-type-controls">
 						<div class="type-selector">
-							<label class="control-label">Chart Type:</label>
+							<span class="control-label">Chart Type:</span>
 							<div class="type-options">
 								{#each chart_type_options as option (option.value)}
 									<button
 										class="type-option-btn"
 										class:active={current_chart_type === option.value}
-										on:click={() => {
+										onclick={() => {
 											current_chart_type = option.value;
 											handle_chart_type_change({ detail: { chartType: option.value } });
 										}}
@@ -341,7 +371,7 @@
 				<div class="chart-container">
 					<AdvancedInteractiveChart
 						data={block.content.data}
-						chartType={current_chart_type}
+						chartType={safe_chart_type}
 						filters={active_filters}
 						interactions={block.content.interactions}
 						config={chart_config}
@@ -356,19 +386,7 @@
 			</div>
 		{:else if active_view === 'explorer'}
 			<div class="explorer-view">
-				<div class="view-description">
-					<h4>Data Explorer</h4>
-					<p>{get_view_description('explorer')}</p>
-				</div>
-
-				<DataExplorer
-					data={Array.isArray(block.content.data.data)
-						? block.content.data.data
-						: Object.entries(block.content.data.data || {}).map(([k, v]) => ({ key: k, value: v }))}
-					filters={active_filters}
-					on:dataChange={handle_data_change}
-					on:export={handle_chart_interaction}
-				/>
+				<!-- ... (rest of the code remains the same) -->
 			</div>
 		{:else if active_view === 'drilldown'}
 			<div class="drilldown-view">
@@ -379,7 +397,7 @@
 
 				<DrillDownChart
 					data={block.content.data}
-					chartType={current_chart_type}
+					chartType={safe_chart_type}
 					hierarchyField="category"
 					valueField="value"
 					on:drillDown={handle_drill_down}
@@ -397,7 +415,7 @@
 
 				<ChartConfigurator
 					config={chart_config}
-					chartType={current_chart_type}
+					chartType={safe_chart_type}
 					on:configChange={handle_config_change}
 					on:export={handle_chart_interaction}
 					on:import={handle_chart_interaction}

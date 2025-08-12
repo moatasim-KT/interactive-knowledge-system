@@ -3,11 +3,17 @@
  * Exports all MCP server tools for web content processing automation
  */
 
+// Import classes for local usage in this module
+import { InteractiveContentTools } from './interactive-content-tools.js';
+import { BatchProcessingTools } from './batch-processing-tools.js';
+import { SourceManagementTools } from './source-management-tools.js';
+import { TemplateAssetTools } from './template-asset-tools.js';
+
 export { WebContentMcpServer } from './web-content-mcp-server.js';
-export { InteractiveContentTools } from './interactive-content-tools.js';
-export { BatchProcessingTools } from './batch-processing-tools.js';
-export { SourceManagementTools } from './source-management-tools.js';
-export { TemplateAssetTools } from './template-asset-tools.js';
+export { InteractiveContentTools };
+export { BatchProcessingTools };
+export { SourceManagementTools };
+export { TemplateAssetTools };
 
 // Re-export types for convenience
 export type {
@@ -20,7 +26,7 @@ export type {
 	SourceHealthCheck,
 	SourceUpdateResult,
 	DuplicateDetectionResult
-} from '$lib/types/web-content.js';
+} from '../../types/web-content.js';
 
 // Export tool configurations
 export const MCP_TOOL_CATEGORIES = {

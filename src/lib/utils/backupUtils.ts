@@ -176,7 +176,7 @@ export class BackupManager {
 			if (options.createBackupBeforeRestore) {
 				const pre_restore_backup = await this.createBackup(
 					`Pre-restore backup ${new Date().toISOString()}`,
-					`Automatic backup created before restoring ${backup_id}`
+					`Automatic backup created before restoring ${backupId}`
 				);
 				result.backupCreated = pre_restore_backup.success;
 				if (!pre_restore_backup.success) {
@@ -376,7 +376,7 @@ export class BackupManager {
 					checksum
 				};
 
-				this.storeBackup(backupId, import_result.data, metadata);
+				this.storeBackup(backup_id, import_result.data, metadata);
 			}
 
 			return import_result;

@@ -3,7 +3,7 @@
  * Real implementation for managing web content sources
  */
 
-import { createLogger } from '$lib/utils/logger.js';
+import { createLogger } from '../utils/logger.js';
 import { storageService } from './storage.js';
 import { webContentFetcher } from './webContentFetcher.js';
 import { knowledgeSystemIntegration } from './knowledgeSystemIntegration.js';
@@ -12,8 +12,8 @@ import type {
 	SourceHealthCheck,
 	SourceUpdateResult,
 	DuplicateDetectionResult
-} from '$lib/types/web-content.js';
-import type { ContentModule } from '$lib/types/content.js';
+} from '../types/web-content.js';
+import type { ContentModule } from '../types/content.js';
 
 export class SourceManager {
 	private logger = createLogger('source-manager');

@@ -47,7 +47,14 @@ export class InteractiveContentTools {
 		});
 
 		try {
-			const analysis = {
+			const analysis: {
+				interactiveElements: any[];
+				javascriptFrameworks: any[];
+				dependencies: any[];
+				dataRequirements: Record<string, any>;
+				preservationFeasibility: Record<string, any>;
+				opportunities: InteractiveOpportunity[];
+			} = {
 				interactiveElements: [],
 				javascriptFrameworks: [],
 				dependencies: [],
@@ -118,7 +125,12 @@ export class InteractiveContentTools {
 		});
 
 		try {
-			const transformation = {
+			const transformation: {
+				transformedContent: any;
+				interactiveBlocks: any[];
+				preservationResults: Record<string, any>;
+				metadata: any;
+			} = {
 				transformedContent: null,
 				interactiveBlocks: [],
 				preservationResults: {},
@@ -157,7 +169,8 @@ export class InteractiveContentTools {
 			// Create transformed content structure
 			transformation.transformedContent = {
 				...content,
-				blocks: [...(content.blocks || []), ...transformation.interactiveBlocks],
+				// Add interactive blocks without reading non-existent content.blocks on WebContent
+				blocks: [...transformation.interactiveBlocks],
 				metadata: {
 					...content.metadata,
 					transformed: true,
@@ -200,13 +213,20 @@ export class InteractiveContentTools {
 		});
 
 		try {
-			const visualization = {
+			const visualization: {
+				id: string;
+				type: string;
+				contentId: string;
+				data: any;
+				config: VisualizationConfig;
+				interactionHandlers: any[];
+			} = {
 				id: `viz_${Date.now()}`,
 				type: visualizationType,
 				contentId: content.id,
 				data: null,
-				config: null,
-				interactionHandlers: []
+				config: this.createChartConfig(config),
+				interactionHandlers: [] as any[]
 			};
 
 			// Generate visualization based on type
@@ -254,7 +274,7 @@ export class InteractiveContentTools {
 	 * Detect interactive elements in HTML content
 	 */
 	private async detectInteractiveElements(html: string): Promise<any[]> {
-		const elements = [];
+		const elements: any[] = [];
 
 		// Interactive selectors to look for
 		const interactive_selectors = [
@@ -296,7 +316,7 @@ export class InteractiveContentTools {
 	 * Detect JavaScript frameworks in HTML content
 	 */
 	private async detectJavaScriptFrameworks(html: string): Promise<any[]> {
-		const frameworks = [];
+		const frameworks: any[] = [];
 
 		const framework_patterns = {
 			React: [/react/i, /jsx/i, /data-reactroot/i],
@@ -325,7 +345,7 @@ export class InteractiveContentTools {
 	 * Analyze dependencies in HTML content
 	 */
 	private async analyzeDependencies(html: string): Promise<any[]> {
-		const dependencies = [];
+		const dependencies: any[] = [];
 
 		// Look for script tags
 		const script_matches = html.match(/<script[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
@@ -360,7 +380,7 @@ export class InteractiveContentTools {
 	 * Assess preservation feasibility for interactive elements
 	 */
 	private async assessPreservationFeasibility(elements: any[]): Promise<any> {
-		const feasibility = {};
+		const feasibility: Record<string, any> = {};
 
 		elements.forEach((element) => {
 			feasibility[element.id] = {
@@ -641,7 +661,7 @@ export class InteractiveContentTools {
 	 * Create interactive tables
 	 */
 	private async createInteractiveTables(content: WebContent): Promise<any[]> {
-		const blocks = [];
+		const blocks: any[] = [];
 
 		if (content.content.tables) {
 			for (const table of content.content.tables) {
@@ -666,7 +686,7 @@ export class InteractiveContentTools {
 	 * Generate quiz blocks from content
 	 */
 	private async generateQuizBlocks(content: WebContent): Promise<any[]> {
-		const blocks = [];
+		const blocks: any[] = [];
 
 		// Simple quiz generation based on content
 		const sentences = content.content.text.split('.').filter((s) => s.trim().length > 20);
@@ -792,7 +812,7 @@ export class InteractiveContentTools {
 	}
 
 	private createSimulationParameters(domain?: string): SimulationParameter[] {
-		const base_params = [
+		const base_params: SimulationParameter[] = [
 			{
 				name: 'speed',
 				type: 'number',

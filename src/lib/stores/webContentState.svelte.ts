@@ -3,8 +3,13 @@
  * Manages state for web content sourcing and transformation using Svelte 5 runes
  */
 
-import type { WebContent, WebContentSource, BatchProcessingJob } from '$lib/types/web-content.js';
-import { createLogger } from '$lib/utils/logger.js';
+import type {
+    WebContent,
+    WebContentSource,
+    BatchProcessingJob,
+    ContentProcessingResult
+} from '../types/web-content.js';
+import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('web-content-state');
 
@@ -67,30 +72,32 @@ export const webContentState = $state({
  * Derived state functions for computed values
  */
 export function getFilteredSources() {
-    const { items, searchQuery, filters } = webContentState.sources;
+    const { items } = webContentState.sources;
     const { searchQuery: uiSearchQuery, filters: uiFilters } = webContentState.ui;
 
-    let filtered = Object.values(items);
+    let filtered: WebContentSource[] = Object.values(items) as WebContentSource[];
 
     // Apply search query
-    const query = (searchQuery || uiSearchQuery).toLowerCase();
+    const query = (uiSearchQuery || '').toLowerCase();
     if (query.trim()) {
-        filtered = filtered.filter(source =>
+        filtered = filtered.filter((source: WebContentSource) =>
             source.title.toLowerCase().includes(query) ||
             source.domain.toLowerCase().includes(query) ||
-            source.metadata.tags.some(tag => tag.toLowerCase().includes(query))
+            source.metadata.tags.some((tag: string) => tag.toLowerCase().includes(query))
         );
     }
 
     // Apply filters
     if (uiFilters.domain) {
-        filtered = filtered.filter(source => source.domain === uiFilters.domain);
+        filtered = filtered.filter((source: WebContentSource) => source.domain === uiFilters.domain);
     }
     if (uiFilters.category) {
-        filtered = filtered.filter(source => source.metadata.category === uiFilters.category);
+        filtered = filtered.filter(
+            (source: WebContentSource) => source.metadata.category === uiFilters.category
+        );
     }
     if (uiFilters.status !== 'all') {
-        filtered = filtered.filter(source => source.status === uiFilters.status);
+        filtered = filtered.filter((source: WebContentSource) => source.status === uiFilters.status);
     }
 
     return filtered;
@@ -99,8 +106,8 @@ export function getFilteredSources() {
 export function getContentStats() {
     const sources = Object.keys(webContentState.sources.items).length;
     const content = Object.keys(webContentState.content.items).length;
-    const active_jobs = Object.values(webContentState.batch.jobs)
-        .filter(job => job.status === 'processing').length;
+    const active_jobs = (Object.values(webContentState.batch.jobs) as BatchProcessingJob[])
+        .filter((job: BatchProcessingJob) => job.status === 'processing').length;
 
     return {
         totalSources: sources,
@@ -114,8 +121,10 @@ export function getBatchProgress() {
     const active_job = webContentState.batch.activeJob;
     if (!active_job) return null;
 
-    const completed = active_job.results.filter(r => r.status === 'completed').length;
-    const failed = active_job.results.filter(r => r.status === 'failed').length;
+    const completed = (active_job.results as ContentProcessingResult[])
+        .filter((r: ContentProcessingResult) => r.success === true).length;
+    const failed = (active_job.results as ContentProcessingResult[])
+        .filter((r: ContentProcessingResult) => r.success === false).length;
     const total = active_job.urls.length;
 
     return {
@@ -140,7 +149,7 @@ export const webContentActions = {
     updateSource: (id: string, updates: Partial<WebContentSource>) => {
         const existing = webContentState.sources.items[id];
         if (existing) {
-            const updated = { ...existing, ...updates, lastChecked: Date.now().toString() };
+            const updated = { ...existing, ...updates, lastChecked: new Date() };
             webContentState.sources.items[id] = updated;
             webContentState.sources.lastUpdated = Date.now().toString();
             logger.info(`Updated source: ${id}`);
@@ -151,10 +160,6 @@ export const webContentActions = {
         const source = webContentState.sources.items[id];
         if (source) {
             delete webContentState.sources.items[id];
-            // Also remove associated content
-            if (source.content?.processed?.id) {
-                delete webContentState.content.items[source.content.processed.id];
-            }
             webContentState.sources.lastUpdated = Date.now().toString();
             logger.info(`Removed source: ${id}`);
         }
@@ -281,7 +286,9 @@ export const webContentActions = {
     },
 
     removeNotification: (id: string) => {
-        const index = webContentState.ui.notifications.findIndex(n => n.id === id);
+        const index = webContentState.ui.notifications.findIndex(
+            (n: { id: string }) => n.id === id
+        );
         if (index > -1) {
             webContentState.ui.notifications.splice(index, 1);
         }

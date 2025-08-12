@@ -1,398 +1,503 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { KnowledgeMap, RelationshipManager } from '$lib/components';
-	import { contentStorage, relationshipStorage } from '$lib/storage';
-	import { similarityEngine } from '$lib/utils/similarityEngine.js';
-	import type { ContentModule, ContentRecommendation } from '$lib/types';
+    import { onMount } from 'svelte';
+    import { KnowledgeMap, RelationshipManager } from '$lib/components';
+    import { contentStorage, relationshipStorage } from '$lib/storage';
+    import { similarityEngine } from '$lib/utils/similarityEngine';
+    import type { ContentModule, ContentRecommendation } from '$lib/types';
 
-	let modules: ContentModule[] = $state([]);
-	let selected_module = $state(null);
-	let completed_content = $state(new Set<string>());
-	let recommendations: ContentRecommendation[] = $state([]);
-	let loading = $state(true);
-	let error = $state('');
+    let modules: ContentModule[] = $state([]);
+    let selected_module = $state<ContentModule | null>(null);
+    let completed_content = $state(new Set<string>());
+    let recommendations: ContentRecommendation[] = $state([]);
+    let loading = $state(true);
+    let error = $state('');
 
-	// Demo data
-	const demo_modules = [
-		{
-			id: 'html-basics',
-			title: 'HTML Basics',
-			description: 'Learn the fundamentals of HTML markup language',
-			blocks: [],
-			relationships: { prerequisites: [], dependents: [], related: [] },
-			analytics: { views: 150, completions: 120, averageScore: 85, averageTime: 60 }
-		},
-		{
-			id: 'css-fundamentals',
-			title: 'CSS Fundamentals',
-			description: 'Understanding CSS styling and layout',
-			blocks: [],
-			relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
-			analytics: { views: 130, completions: 100, averageScore: 78, averageTime: 90 }
-		},
-		{
-			id: 'javascript-intro',
-			title: 'JavaScript Introduction',
-			description: 'Getting started with JavaScript programming',
-			blocks: [],
-			relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
-			analytics: { views: 140, completions: 110, averageScore: 82, averageTime: 120 }
-		},
-		{
-			id: 'responsive-design',
-			title: 'Responsive Web Design',
-			description: 'Creating websites that work on all devices',
-			blocks: [],
-			relationships: { prerequisites: ['css-fundamentals'], dependents: [], related: [] },
-			analytics: { views: 100, completions: 75, averageScore: 80, averageTime: 150 }
-		},
-		{
-			id: 'dom-manipulation',
-			title: 'DOM Manipulation',
-			description: 'Using JavaScript to interact with HTML elements',
-			blocks: [],
-			relationships: {
-				prerequisites: ['javascript-intro', 'css-fundamentals'],
-				dependents: [],
-				related: []
-			},
-			analytics: { views: 90, completions: 65, averageScore: 75, averageTime: 180 }
-		},
-		{
-			id: 'web-accessibility',
-			title: 'Web Accessibility',
-			description: 'Making websites accessible to all users',
-			blocks: [],
-			relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
-			analytics: { views: 80, completions: 60, averageScore: 88, averageTime: 100 }
-		}
-	];
+    // Demo data
+    const demo_modules = [
+        {
+            id: 'html-basics',
+            title: 'HTML Basics',
+            description: 'Learn the fundamentals of HTML markup language',
+            blocks: [],
+            relationships: { prerequisites: [], dependents: [], related: [] },
+            analytics: { views: 150, completions: 120, averageScore: 85, averageTime: 60 }
+        },
+        {
+            id: 'css-fundamentals',
+            title: 'CSS Fundamentals',
+            description: 'Understanding CSS styling and layout',
+            blocks: [],
+            relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
+            analytics: { views: 130, completions: 100, averageScore: 78, averageTime: 90 }
+        },
+        {
+            id: 'javascript-intro',
+            title: 'JavaScript Introduction',
+            description: 'Getting started with JavaScript programming',
+            blocks: [],
+            relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
+            analytics: { views: 140, completions: 110, averageScore: 82, averageTime: 120 }
+        },
+        {
+            id: 'responsive-design',
+            title: 'Responsive Web Design',
+            description: 'Creating websites that work on all devices',
+            blocks: [],
+            relationships: { prerequisites: ['css-fundamentals'], dependents: [], related: [] },
+            analytics: { views: 100, completions: 75, averageScore: 80, averageTime: 150 }
+        },
+        {
+            id: 'dom-manipulation',
+            title: 'DOM Manipulation',
+            description: 'Using JavaScript to interact with HTML elements',
+            blocks: [],
+            relationships: {
+                prerequisites: ['javascript-intro', 'css-fundamentals'],
+                dependents: [],
+                related: []
+            },
+            analytics: { views: 90, completions: 65, averageScore: 75, averageTime: 180 }
+        },
+        {
+            id: 'web-accessibility',
+            title: 'Web Accessibility',
+            description: 'Making websites accessible to all users',
+            blocks: [],
+            relationships: { prerequisites: ['html-basics'], dependents: [], related: [] },
+            analytics: { views: 80, completions: 60, averageScore: 88, averageTime: 100 }
+        }
+    ];
 
-	onMount(async () => {
-		try {
-			await initialize_demo_data();
-			await load_modules();
-			await load_recommendations();
-		} catch (err) {
-			error = `Failed to initialize demo: ${err}`;
-		} finally {
-			loading = false;
-		}
-	});
+    onMount(async () => {
+        try {
+            await initialize_demo_data();
+            await load_modules();
+            await load_recommendations();
+        } catch (err) {
+            error = `Failed to initialize demo: ${err}`;
+        } finally {
+            loading = false;
+        }
+    });
 
-	/**
-	 * Initialize demo data if not already present
-	 */
-	async function initialize_demo_data() {
-		const existing_modules = await contentStorage.getAllModules();
+    /**
+     * Initialize demo data if not already present
+     */
+    async function initialize_demo_data() {
+        const existing_modules = await contentStorage.getAllModules();
 
-		if (existing_modules.length === 0) {
-			// Create demo modules
-			for (const module_data of demo_modules) {
-				const full_module = {
-					...module_data,
-					metadata: {
-						author: 'demo-instructor',
-						created: new Date(),
-						modified: new Date(),
-						version: 1,
-						difficulty: Math.floor(Math.random() * 3) + 1,
-						estimatedTime: 60 + Math.floor(Math.random() * 120),
-						prerequisites: module_data.relationships.prerequisites,
-						tags: generate_tags(module_data.title, module_data.description),
-						language: 'en'
-					}
-				};
+        if (existing_modules.length === 0) {
+            // Create demo modules
+            for (const module_data of demo_modules) {
+                const full_module = {
+                    ...module_data,
+                    metadata: {
+                        author: 'demo-instructor',
+                        created: new Date(),
+                        modified: new Date(),
+                        version: 1,
+                        difficulty: Math.floor(Math.random() * 3) + 1,
+                        estimatedTime: 60 + Math.floor(Math.random() * 120),
+                        prerequisites: module_data.relationships.prerequisites,
+                        tags: generate_tags(module_data.title, module_data.description),
+                        language: 'en'
+                    }
+                };
 
-				await contentStorage.createModule(full_module);
-			}
+                await contentStorage.createModule(full_module);
+            }
 
-			// Create demo relationships
-			await create_demo_relationships();
-		}
-	}
+            // Create demo relationships
+            await create_demo_relationships();
+        }
+    }
 
-	/**
-	 * Generate tags based on title and description
-	 */
-	function generate_tags(title: string, description: string): string[] {
-		const text = `${title} ${description}`.toLowerCase();
-		const tags: string[] = [];
+    /**
+     * Generate tags based on title and description
+     */
+    function generate_tags(title: string, description: string): string[] {
+        const text = `${title} ${description}`.toLowerCase();
+        const tags: string[] = [];
 
-		if (text.includes('html')) tags.push('html');
-		if (text.includes('css')) tags.push('css');
-		if (text.includes('javascript')) tags.push('javascript');
-		if (text.includes('web')) tags.push('web-development');
-		if (text.includes('design')) tags.push('design');
-		if (text.includes('responsive')) tags.push('responsive');
-		if (text.includes('accessibility')) tags.push('accessibility');
-		if (text.includes('dom')) tags.push('dom');
-		if (text.includes('basic') || text.includes('fundamental') || text.includes('intro'))
-			tags.push('beginner');
+        if (text.includes('html')) tags.push('html');
+        if (text.includes('css')) tags.push('css');
+        if (text.includes('javascript')) tags.push('javascript');
+        if (text.includes('web')) tags.push('web-development');
+        if (text.includes('design')) tags.push('design');
+        if (text.includes('responsive')) tags.push('responsive');
+        if (text.includes('accessibility')) tags.push('accessibility');
+        if (text.includes('dom')) tags.push('dom');
+        if (text.includes('basic') || text.includes('fundamental') || text.includes('intro'))
+            tags.push('beginner');
 
-		return tags.length > 0 ? tags : ['web-development'];
-	}
+        return tags.length > 0 ? tags : ['web-development'];
+    }
 
-	/**
-	 * Create demo relationships between modules
-	 */
-	async function create_demo_relationships() {
-		// Prerequisites
-		await relationshipStorage.createLink('html-basics', 'css-fundamentals', 'prerequisite', 1.0);
-		await relationshipStorage.createLink('html-basics', 'javascript-intro', 'prerequisite', 0.8);
-		await relationshipStorage.createLink(
-			'css-fundamentals',
-			'responsive-design',
-			'prerequisite',
-			1.0
-		);
-		await relationshipStorage.createLink(
-			'javascript-intro',
-			'dom-manipulation',
-			'prerequisite',
-			1.0
-		);
-		await relationshipStorage.createLink(
-			'css-fundamentals',
-			'dom-manipulation',
-			'prerequisite',
-			0.6
-		);
-		await relationshipStorage.createLink('html-basics', 'web-accessibility', 'prerequisite', 0.7);
+    /**
+     * Create demo relationships between modules
+     */
+    async function create_demo_relationships() {
+        // Prerequisites
+        await relationshipStorage.createLink('html-basics', 'css-fundamentals', 'prerequisite', 1.0);
+        await relationshipStorage.createLink('html-basics', 'javascript-intro', 'prerequisite', 0.8);
+        await relationshipStorage.createLink(
+            'css-fundamentals',
+            'responsive-design',
+            'prerequisite',
+            1.0
+        );
+        await relationshipStorage.createLink(
+            'javascript-intro',
+            'dom-manipulation',
+            'prerequisite',
+            1.0
+        );
+        await relationshipStorage.createLink(
+            'css-fundamentals',
+            'dom-manipulation',
+            'prerequisite',
+            0.6
+        );
+        await relationshipStorage.createLink('html-basics', 'web-accessibility', 'prerequisite', 0.7);
 
-		// Related content
-		await relationshipStorage.createLink('css-fundamentals', 'responsive-design', 'related', 0.8);
-		await relationshipStorage.createLink('html-basics', 'web-accessibility', 'related', 0.9);
-		await relationshipStorage.createLink('javascript-intro', 'dom-manipulation', 'related', 0.7);
+        // Related content
+        await relationshipStorage.createLink('css-fundamentals', 'responsive-design', 'related', 0.8);
+        await relationshipStorage.createLink('html-basics', 'web-accessibility', 'related', 0.9);
+        await relationshipStorage.createLink('javascript-intro', 'dom-manipulation', 'related', 0.7);
 
-		// Similar content
-		await relationshipStorage.createLink('css-fundamentals', 'responsive-design', 'similar', 0.6);
-	}
+        // Similar content
+        await relationshipStorage.createLink('css-fundamentals', 'responsive-design', 'similar', 0.6);
+    }
 
-	/**
-	 * Load all modules
-	 */
-	async function load_modules() {
-		modules = await contentStorage.getAllModules();
-		if (modules.length > 0 && !selected_module) {
-			selected_module = modules[0];
-		}
-	}
+    /**
+     * Load all modules
+     */
+    async function load_modules() {
+        modules = await contentStorage.getAllModules();
+        if (modules.length > 0 && !selected_module) {
+            selected_module = modules[0];
+        }
+    }
 
-	/**
-	 * Load recommendations for the current user state
-	 */
-	async function load_recommendations() {
-		if (modules.length === 0) return;
+    /**
+     * Load recommendations for the current user state
+     */
+    async function load_recommendations() {
+        if (modules.length === 0) return;
 
-		try {
-			recommendations = await similarityEngine.generateRecommendations(
-				'demo-user',
-				completed_content,
-				selected_module?.id || null,
-				modules,
-				5
-			);
-		} catch (err) {
-			console.error('Failed to load recommendations:', err);
-		}
-	}
+        try {
+            recommendations = await similarityEngine.generateRecommendations(
+                'demo-user',
+                completed_content,
+                selected_module?.id || null,
+                modules,
+                5
+            );
+        } catch (err) {
+            console.error('Failed to load recommendations:', err);
+        }
+    }
 
-	/**
-	 * Handle node click in knowledge map
-	 */
-	function handle_node_click(node_id) {
-		const module = modules.find((m) => m.id === node_id);
-		if (module) {
-			selected_module = module;
-			load_recommendations();
-		}
-	}
+    /**
+     * Handle node click in knowledge map
+     */
+    function handle_node_click(node_id: string) {
+        const module = modules.find((m) => m.id === node_id);
+        if (module) {
+            selected_module = module;
+            load_recommendations();
+        }
+    }
 
-	/**
-	 * Toggle completion status of a module
-	 */
-	async function toggle_completion(module_id) {
-		if (completed_content.has(module_id)) {
-			completed_content.delete(module_id);
-		} else {
-			completed_content.add(module_id);
-		}
-		completed_content = new Set(completed_content); // Trigger reactivity
-		await load_recommendations();
-	}
+    /**
+     * Toggle completion status of a module
+     */
+    async function toggle_completion(module_id: string) {
+        if (completed_content.has(module_id)) {
+            completed_content.delete(module_id);
+        } else {
+            completed_content.add(module_id);
+        }
+        completed_content = new Set(completed_content); // Trigger reactivity
+        await load_recommendations();
+    }
 
-	/**
-	 * Handle relationship changes
-	 */
-	async function handle_relationship_change() {
-		await load_recommendations();
-	}
+    /**
+     * Handle relationship changes
+     */
+    async function handle_relationship_change() {
+        await load_recommendations();
+    }
 
-	/**
-	 * Reset demo data
-	 */
-	async function reset_demo() {
-		loading = true;
-		try {
-			// Clear existing data
-			const existing_modules = await contentStorage.getAllModules();
-			for (const module of existing_modules) {
-				await contentStorage.deleteModule(module.id);
-			}
+    /**
+     * Reset demo data
+     */
+    async function reset_demo() {
+        loading = true;
+        try {
+            // Clear existing data
+            const existing_modules = await contentStorage.getAllModules();
+            for (const module of existing_modules) {
+                await contentStorage.deleteModule(module.id);
+            }
 
-			const existing_links = await relationshipStorage.getLinksForContent('');
-			// Note: This is a simplified cleanup - in practice you'd need to get all links
+            const existing_links = await relationshipStorage.getLinksForContent('');
+            // Note: This is a simplified cleanup - in practice you'd need to get all links
 
-			completed_content.clear();
-			selected_module = null;
-			recommendations = [];
+            completed_content.clear();
+            selected_module = null;
+            recommendations = [];
 
-			// Reinitialize
-			await initialize_demo_data();
-			await load_modules();
-			await load_recommendations();
-		} catch (err) {
-			error = `Failed to reset demo: ${err}`;
-		} finally {
-			loading = false;
-		}
-	}
+            // Reinitialize
+            await initialize_demo_data();
+            await load_modules();
+            await load_recommendations();
+        } catch (err) {
+            error = `Failed to reset demo: ${err}`;
+        } finally {
+            loading = false;
+        }
+    }
 </script>
 
 <svelte:head>
-	<title>Relationship System Demo - Interactive Knowledge System</title>
+    <title>Relationship System Demo - Interactive Knowledge System</title>
 </svelte:head>
 
 <div class="demo-container">
-	<header class="demo-header">
-		<h1>Content Relationship System Demo</h1>
-		<p>
-			Explore how content pieces are connected through prerequisites, similarities, and
-			recommendations.
-		</p>
+    <header class="demo-header">
+        <h1>Content Relationship System Demo</h1>
+        <p>
+            Explore how content pieces are connected through prerequisites, similarities, and
+            recommendations.
+        </p>
 
-		<div class="demo-controls">
-			<button class="btn btn-secondary" onclick={resetDemo} disabled={loading}> Reset Demo </button>
-		</div>
-	</header>
+        <div class="demo-controls">
+            <button class="btn btn-secondary" onclick={reset_demo} disabled={loading}> Reset Demo </button>
+        </div>
+    </header>
 
-	{#if loading}
-		<div class="loading-state">
-			<div class="spinner"></div>
-			<p>Loading relationship system...</p>
-		</div>
-	{:else if error}
-		<div class="error-state">
-			<h3>Error</h3>
-			<p>{error}</p>
-			<button class="btn btn-primary" onclick={resetDemo}>Try Again</button>
-		</div>
-	{:else}
-		<div class="demo-content">
-			<!-- Knowledge Map Section -->
-			<section class="map-section">
-				<h2>Knowledge Map</h2>
-				<p>Visual representation of content relationships. Click nodes to explore connections.</p>
+    {#if loading}
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading relationship system...</p>
+        </div>
+    {:else if error}
+        <div class="error-state">
+            <h3>Error</h3>
+            <p>{error}</p>
+            <button class="btn btn-primary" onclick={reset_demo}>Try Again</button>
+        </div>
+    {:else}
+        <div class="demo-content">
+            <!-- Knowledge Map Section -->
+            <section class="map-section">
+                <h2>Knowledge Map</h2>
+                <p>Visual representation of content relationships. Click nodes to explore connections.</p>
 
-				<div class="map-container">
-					<KnowledgeMap
-						{modules}
-						{completedContent}
-						currentContent={selected_module?.id}
-						width={800}
-						height={500}
-						onNodeClick={handleNodeClick}
-					/>
-				</div>
+                <div class="map-container">
+                    <KnowledgeMap
+                        {modules}
+                        completedContent={completed_content}
+                        currentContent={selected_module?.id}
+                        width={800}
+                        height={500}
+                        onNodeClick={handle_node_click}
+                    />
+                </div>
 
-				<!-- Completion Controls -->
-				<div class="completion-controls">
-					<h3>Mark as Completed:</h3>
-					<div class="module-checkboxes">
-						{#each modules as module}
-							<label class="checkbox-label">
-								<input
-									type="checkbox"
-									checked={completed_content.has(module.id)}
-									onchange={() => toggle_completion(module.id)}
-								/>
-								{module.title}
-							</label>
-						{/each}
-					</div>
-				</div>
-			</section>
+                <!-- Completion Controls -->
+                <div class="completion-controls">
+                    <h3>Mark as Completed:</h3>
+                    <div class="module-checkboxes">
+                        {#each modules as module}
+                            <label class="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={completed_content.has(module.id)}
+                                    onchange={() => toggle_completion(module.id)}
+                                />
+                                {module.title}
+                            </label>
+                        {/each}
+                    </div>
+                </div>
+            </section>
 
-			<!-- Selected Module Details -->
-			{#if selectedModule}
-				<section class="module-details">
-					<h2>Selected Module: {selected_module.title}</h2>
-					<p>{selected_module.description}</p>
+            <!-- Selected Module Details -->
+            {#if selected_module}
+                <section class="module-details">
+                    <h2>Selected Module: {selected_module.title}</h2>
+                    <p>{selected_module.description}</p>
 
-					<div class="module-info">
-						<div class="info-item">
-							<strong>Difficulty:</strong>
-							{selected_module.metadata.difficulty}/5
-						</div>
-						<div class="info-item">
-							<strong>Estimated Time:</strong>
-							{selected_module.metadata.estimatedTime} minutes
-						</div>
-						<div class="info-item">
-							<strong>Tags:</strong>
-							{selected_module.metadata.tags.join(', ')}
-						</div>
-						<div class="info-item">
-							<strong>Prerequisites:</strong>
-							{#if selected_module.metadata.prerequisites.length > 0}
-								{selected_module.metadata.prerequisites
-									.map((id) => modules.find((m) => m.id === id)?.title || id)
-									.join(', ')}
-							{:else}
-								None
-							{/if}
-						</div>
-					</div>
+                    <div class="module-info">
+                        <div class="info-item">
+                            <strong>Difficulty:</strong>
+                            {selected_module.metadata.difficulty}/5
+                        </div>
+                        <div class="info-item">
+                            <strong>Estimated Time:</strong>
+                            {selected_module.metadata.estimatedTime} minutes
+                        </div>
+                        <div class="info-item">
+                            <strong>Tags:</strong>
+                            {selected_module.metadata.tags.join(', ')}
+                        </div>
+                        <div class="info-item">
+                            <strong>Prerequisites:</strong>
+                            {#if selected_module.metadata.prerequisites.length > 0}
+                                {selected_module.metadata.prerequisites
+                                    .map((id: string) => modules.find((m) => m.id === id)?.title || id)
+                                    .join(', ')}
+                            {:else}
+                                None
+                            {/if}
+                        </div>
+                    </div>
 
-					<!-- Relationship Manager -->
-					<RelationshipManager
-						currentModule={selectedModule}
-						allModules={modules}
-						{completedContent}
-						onRelationshipChange={handleRelationshipChange}
-					/>
-				</section>
-			{/if}
+                    <!-- Relationship Manager -->
+                    <RelationshipManager
+                        currentModule={selected_module}
+                        allModules={modules}
+                        completedContent={completed_content}
+                        onRelationshipChange={handle_relationship_change}
+                    />
+                </section>
+            {/if}
 
-			<!-- Recommendations Section -->
-			{#if recommendations.length > 0}
-				<section class="recommendations-section">
-					<h2>Personalized Recommendations</h2>
-					<p>Based on your progress and content relationships:</p>
+            <!-- Recommendations Section -->
+            {#if recommendations.length > 0}
+                <section class="recommendations-section">
+                    <h2>Personalized Recommendations</h2>
 
-					<div class="recommendations-list">
-						{#each recommendations as recommendation}
-							<div class="recommendation-card">
-								<div class="recommendation-header">
-									<h3>
-										{modules.find((m) => m.id === recommendation.contentId)?.title ||
-											'Unknown Module'}
-									</h3>
-									<div class="recommendation-score">
-										{Math.round(recommendation.score * 100)}% match
-									</div>
-								</div>
+    <div class="demo-container">
+        <header class="demo-header">
+            <h1>Content Relationship System Demo</h1>
+            <p>
+                Explore how content pieces are connected through prerequisites, similarities, and
+                recommendations.
+            </p>
 
-								<div class="recommendation-type">
-									Type: <span class="type-badge type-{recommendation.type}"
-										>{recommendation.type}</span
-									>
-								</div>
+            <div class="demo-controls">
+                <button class="btn btn-secondary" onclick={reset_demo} disabled={loading}> Reset Demo </button>
+            </div>
+        </header>
 
-								<div class="recommendation-reasons">
-									<strong>Why recommended:</strong>
-									<ul>
+        {#if loading}
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading relationship system...</p>
+            </div>
+        {:else if error}
+            <div class="error-state">
+                <h3>Error</h3>
+                <p>{error}</p>
+                <button class="btn btn-primary" onclick={reset_demo}>Try Again</button>
+            </div>
+        {:else}
+            <div class="demo-content">
+                <!-- Knowledge Map Section -->
+                <section class="map-section">
+                    <h2>Knowledge Map</h2>
+                    <p>Visual representation of content relationships. Click nodes to explore connections.</p>
+
+                    <div class="map-container">
+                        <KnowledgeMap
+                            {modules}
+                            completedContent={completed_content}
+                            currentContent={selected_module?.id}
+                            width={800}
+                            height={500}
+                            onNodeClick={handle_node_click}
+                        />
+                    </div>
+
+                    <!-- Completion Controls -->
+                    <div class="completion-controls">
+                        <h3>Mark as Completed:</h3>
+                        <div class="module-checkboxes">
+                            {#each modules as module}
+                                <label class="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={completed_content.has(module.id)}
+                                        onchange={() => toggle_completion(module.id)}
+                                    />
+                                    {module.title}
+                                </label>
+                            {/each}
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Selected Module Details -->
+                {#if selected_module}
+                    <section class="module-details">
+                        <h2>Selected Module: {selected_module.title}</h2>
+                        <p>{selected_module.description}</p>
+
+                        <div class="module-info">
+                            <div class="info-item">
+                                <strong>Difficulty:</strong>
+                                {selected_module.metadata.difficulty}/5
+                            </div>
+                            <div class="info-item">
+                                <strong>Estimated Time:</strong>
+                                {selected_module.metadata.estimatedTime} minutes
+                            </div>
+                            <div class="info-item">
+                                <strong>Tags:</strong>
+                                {selected_module.metadata.tags.join(', ')}
+                            </div>
+                            <div class="info-item">
+                                <strong>Prerequisites:</strong>
+                                {#if selected_module.metadata.prerequisites.length > 0}
+                                    {selected_module.metadata.prerequisites
+                                        .map((id: string) => modules.find((m) => m.id === id)?.title || id)
+                                        .join(', ')}
+                                {:else}
+                                    None
+                                {/if}
+                            </div>
+                        </div>
+
+                        <!-- Relationship Manager -->
+                        <RelationshipManager
+                            currentModule={selected_module}
+                            allModules={modules}
+                            completedContent={completed_content}
+                            onRelationshipChange={handle_relationship_change}
+                        />
+                    </div>
+                </section>
+            {/if}
+
+            <!-- System Statistics -->
+            <section class="stats-section">
+                <h2>System Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{modules.length}</div>
+                        <div class="stat-label">Total Modules</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{completed_content.size}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{recommendations.length}</div>
+                        <div class="stat-label">Recommendations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">
+                            {Math.round((completed_content.size / modules.length) * 100)}%
+                        </div>
+                        <div class="stat-label">Progress</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    {/if}
 										{#each recommendation.reasons as reason}
 											<li>{reason.description} (weight: {Math.round(reason.weight * 100)}%)</li>
 										{/each}

@@ -223,9 +223,6 @@ export function getDomainMetadata(url: string): Record<string, unknown> | null {
 	return domain_info?.metadata || null;
 }
 
-// Export the KNOWN_DOMAINS for external use
-export { KNOWN_DOMAINS };
-
 export default {
 	detectDomain,
 	getContentTypeForUrl,

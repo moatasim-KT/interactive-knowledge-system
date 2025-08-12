@@ -187,6 +187,9 @@ export interface InteractiveChartBlock extends Omit<ContentBlock, 'type'> {
 		interactions: ChartInteraction[];
 		filters: DataFilter[];
 		sourceReference: SourceReference;
+		/** Optional presentation fields used by components like AdvancedChartBlock */
+		title?: string;
+		description?: string;
 	};
 }
 

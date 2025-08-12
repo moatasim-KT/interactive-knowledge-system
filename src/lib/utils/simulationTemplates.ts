@@ -4,7 +4,7 @@ import type {
 	SimulationParameter,
 	DiagramElement,
 	DiagramConnection
-} from '$lib/types/web-content.js';
+} from '../types/web-content.js';
 
 /**
  * Simulation template definitions for different domains

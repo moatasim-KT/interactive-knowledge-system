@@ -3,12 +3,12 @@
  * Integrates web content sourcing with the existing Interactive Knowledge System
  */
 
-import { createLogger } from '$lib/utils/logger.js';
-import { appState, actions } from '$lib/stores/appState.svelte.js';
-import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
-import type { WebContent, WebContentSource } from '$lib/types/web-content.js';
-import type { KnowledgeNode, ContentBlock } from '$lib/types/index.js';
-import webContent from '$lib/mcp/web-content';
+import { createLogger } from '../utils/logger.js';
+import { appState, actions } from '../stores/appState.svelte.js';
+import { webContentState, webContentActions } from '../stores/webContentState.svelte.js';
+import type { WebContent, WebContentSource } from '../types/web-content.js';
+import type { KnowledgeNode, ContentBlock } from '../types/index.js';
+import webContent from '../mcp/web-content/index.js';
 
 const logger = createLogger('web-content-knowledge-integration');
 

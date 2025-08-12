@@ -84,14 +84,14 @@ export class BatchProcessingTools {
 	 * @returns The created batch job ID
 	 */
 	public createBatchJob(urls: string[], options: BatchJobOptions = {}): string {
-		const job_id = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		const jobId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const job_options: Required<BatchJobOptions> = {
       ...this.defaultBatchJobOptions,
       ...options,
     };
     
     const job: ExtendedBatchJob = {
-      id: job_id,
+      id: jobId,
       urls: [...urls],
       status: 'pending',
       progress: {
@@ -114,22 +114,22 @@ export class BatchProcessingTools {
     };
 
 		// Add job to active jobs map
-		this.activeJobs.set(job_id, job);
+		this.activeJobs.set(jobId, job);
 
 		try {
 			// Add job to queue
-			this.jobQueue.push(job_id);
+			this.jobQueue.push(jobId);
 
 			// Start processing if not already running
 			if (!this.isProcessing) {
 				void this.processJobQueue(); // Use void for fire-and-forget
 			}
 
-			this.logger.info(`Created batch job ${job_id} with ${urls.length} URLs`);
-			return job_id;
+			this.logger.info(`Created batch job ${jobId} with ${urls.length} URLs`);
+			return jobId;
 		} catch (error) {
 			// Clean up in case of error
-			this.activeJobs.delete(job_id);
+			this.activeJobs.delete(jobId);
 			const error_message = error instanceof Error ? error.message : 'Unknown error creating batch job';
 			this.logger.error(`Failed to create batch job: ${error_message}`, { error });
 			throw new Error(`Failed to create batch job: ${error_message}`);
@@ -239,7 +239,7 @@ export class BatchProcessingTools {
 
 		try {
 			job.status = 'processing';
-			this.logger.info(`Starting batch job processing: ${job_id}`);
+			this.logger.info(`Starting batch job processing: ${jobId}`);
 
 			const { concurrency = 3 } = job.options;
 
@@ -263,7 +263,7 @@ export class BatchProcessingTools {
 						job.progress.completed++;
 					} else {
 						job.progress.failed++;
-						this.logger.warn(`Failed to process URL in batch job ${job_id}:`, {
+						this.logger.warn(`Failed to process URL in batch job ${jobId}:`, {
 							url,
 							error: result.reason
 						});
@@ -271,7 +271,7 @@ export class BatchProcessingTools {
 				});
 
 				// Update progress
-				this.logger.debug(`Batch job ${job_id} progress:`, {
+				this.logger.debug(`Batch job ${jobId} progress:`, {
 					completed: job.progress.completed,
 					failed: job.progress.failed,
 					total: job.progress.total
@@ -282,7 +282,7 @@ export class BatchProcessingTools {
 			job.status = 'completed';
 			job.completedAt = new Date();
 
-			this.logger.info(`Batch job completed: ${job_id}`, {
+			this.logger.info(`Batch job completed: ${jobId}`, {
 				completed: job.progress.completed,
 				failed: job.progress.failed,
 				total: job.progress.total
@@ -290,9 +290,9 @@ export class BatchProcessingTools {
 		} catch (error) {
 			job.status = 'failed';
 			job.completedAt = new Date();
-			this.logger.error(`Batch job failed: ${job_id}`, error);
+			this.logger.error(`Batch job failed: ${jobId}`, error);
 		} finally {
-			this.processingJobs.delete(job_id);
+			this.processingJobs.delete(jobId);
 			// Continue processing queue
 			this.processJobQueue();
 		}
@@ -352,7 +352,11 @@ export class BatchProcessingTools {
 						id: `block_${Date.now()}`,
 						type: 'text',
 						content: mock_content.content.text,
-						metadata: {}
+						metadata: {
+							created: new Date(),
+							modified: new Date(),
+							version: 1
+						}
 					}
 				],
 				interactiveOpportunities: [],
@@ -595,13 +599,13 @@ export class BatchProcessingTools {
 		const cutoff_time = new Date(Date.now() - older_than_hours * 60 * 60 * 1000);
 		let cleaned = 0;
 
-		for (const [job_id, job] of this.activeJobs.entries()) {
+		for (const [jobId, job] of this.activeJobs.entries()) {
 			if (
 				(job.status === 'completed' || job.status === 'failed') &&
 				job.completedAt &&
 				job.completedAt < cutoff_time
 			) {
-				this.activeJobs.delete(job_id);
+				this.activeJobs.delete(jobId);
 				cleaned++;
 			}
 		}

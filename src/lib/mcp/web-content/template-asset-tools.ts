@@ -4,12 +4,12 @@
  * Using existing TemplateAssetTools patterns
  */
 
-import { createLogger } from '$lib/utils/logger.js';
+import { createLogger } from '../../utils/logger';
 import type {
 	WebContent,
 	VisualizationConfig,
 	SimulationParameter
-} from '$lib/types/web-content.js';
+} from '../../types/web-content';
 
 export interface ContentTemplate {
 	id: string;
@@ -47,7 +47,9 @@ export class TemplateAssetTools {
 	 * Initialize default templates
 	 */
 	private initializeDefaultTemplates(): void {
-		const default_templates = [
+		const default_templates: Array<
+			Omit<ContentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
+		> = [
 			{
 				name: 'Article Template',
 				description: 'Standard article layout with header, content, and footer',
@@ -293,12 +295,12 @@ export class TemplateAssetTools {
 			}
 
 			this.logger.info('Template updated successfully', {
-				templateId: template_id,
+				templateId,
 				updated
 			});
 
 			return {
-				templateId: template_id,
+				templateId,
 				template,
 				updated
 			};
@@ -331,10 +333,10 @@ export class TemplateAssetTools {
 
 			this.templates.delete(templateId);
 
-			this.logger.info('Template deleted successfully', { templateId: template_id });
+			this.logger.info('Template deleted successfully', { templateId });
 
 			return {
-				templateId: template_id,
+				templateId,
 				deleted: true,
 				template
 			};
@@ -421,7 +423,7 @@ export class TemplateAssetTools {
 			template.updatedAt = new Date();
 
 			this.logger.info('Template applied successfully', {
-				templateId: template_id,
+				templateId: templateId,
 				contentId: content.id,
 				templateType: template.type
 			});
@@ -632,7 +634,7 @@ export class TemplateAssetTools {
 	private extractVariableFromContent(varName: string, content: WebContent): any {
 		switch (varName) {
 			case 'title':
-				return content.title || content.metadata.title;
+				return content.title;
 			case 'content':
 				return content.content.text;
 			case 'author':
@@ -875,10 +877,12 @@ export class TemplateAssetTools {
 	 * Generate quiz questions from content
 	 */
 	private generateQuestionsFromContent(content: WebContent): any[] {
-		const sentences = content.content.text.split('.').filter((s) => s.trim().length > 20);
+		const sentences: string[] = content.content.text
+			.split('.')
+			.filter((s: string) => s.trim().length > 20);
 		const random_sentences = sentences.sort(() => 0.5 - Math.random()).slice(0, 3);
 
-		return random_sentences.map((sentence, index) => ({
+		return random_sentences.map((sentence: string, index: number) => ({
 			id: `q_${index}`,
 			type: 'multiple-choice',
 			question: `What is the main concept in: "${sentence.trim()}"?`,

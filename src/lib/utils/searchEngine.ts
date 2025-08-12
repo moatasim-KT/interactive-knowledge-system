@@ -197,15 +197,15 @@ export class SearchEngine {
 	 * Remove content from search index
 	 */
 	removeFromIndex(contentId: string): void {
-		this.searchIndex.content.delete(content_id);
-		this.searchIndex.links.delete(content_id);
+		this.searchIndex.content.delete(contentId);
+		this.searchIndex.links.delete(contentId);
 
 		// Remove from tag mappings
-		for (const [tag, content_ids] of this.searchIndex.tags.entries()) {
-			const index = content_ids.indexOf(content_id);
+		for (const [tag, contentIds] of this.searchIndex.tags.entries()) {
+			const index = contentIds.indexOf(contentId);
 			if (index > -1) {
-				content_ids.splice(index, 1);
-				if (content_ids.length === 0) {
+				contentIds.splice(index, 1);
+				if (contentIds.length === 0) {
 					this.searchIndex.tags.delete(tag);
 				}
 			}
@@ -223,75 +223,75 @@ export class SearchEngine {
 		node?: KnowledgeNode
 	): number {
 		let score = 0;
-		let has_term_match = false;
+		let hasTermMatch = false;
 
 		// Term frequency scoring
-		for (const query_token of query_tokens) {
+		for (const queryToken of queryTokens) {
 			// Only count partial matches if they're at least 3 characters and the token is longer
-			const partial_matches = content_tokens.filter(
-				(token) =>
-					query_token.length >= 3 &&
-					token.length > query_token.length &&
-					token.includes(query_token)
+			const partialMatches = contentTokens.filter(
+				(token: string) =>
+					queryToken.length >= 3 &&
+					token.length > queryToken.length &&
+					token.includes(queryToken)
 			).length;
-			if (partial_matches > 0) {
-				score += partial_matches * 5;
-				has_term_match = true;
+			if (partialMatches > 0) {
+				score += partialMatches * 5;
+				hasTermMatch = true;
 			}
 
 			// Exact matches get higher scores
-			if (content_tokens.includes(query_token)) {
+			if (contentTokens.includes(queryToken)) {
 				score += 20;
-				has_term_match = true;
+				hasTermMatch = true;
 			}
 		}
 
 		// Title matches get bonus points
 		const title = module?.title || node?.title || '';
-		const title_tokens = this.tokenize(title);
-		for (const query_token of query_tokens) {
+		const titleTokens = this.tokenize(title);
+		for (const queryToken of queryTokens) {
 			// Exact title matches
-			if (title_tokens.includes(query_token)) {
+			if (titleTokens.includes(queryToken)) {
 				score += 50;
-				has_term_match = true;
+				hasTermMatch = true;
 			}
 			// Partial title matches (only for longer queries)
 			else if (
-				query_token.length >= 3 &&
-				title_tokens.some(
-					(token) => token.length > query_token.length && token.includes(query_token)
+				queryToken.length >= 3 &&
+				titleTokens.some(
+					(token) => token.length > queryToken.length && token.includes(queryToken)
 				)
 			) {
 				score += 25;
-				has_term_match = true;
+				hasTermMatch = true;
 			}
 		}
 
 		// Tag matches get bonus points
 		const tags = module?.metadata.tags || node?.metadata.tags || [];
 		for (const tag of tags) {
-			const tag_tokens = this.tokenize(tag);
-			for (const query_token of query_tokens) {
+			const tagTokens = this.tokenize(tag);
+			for (const queryToken of queryTokens) {
 				// Exact tag matches
-				if (tag_tokens.includes(query_token)) {
+				if (tagTokens.includes(queryToken)) {
 					score += 30;
-					has_term_match = true;
+					hasTermMatch = true;
 				}
 				// Partial tag matches (only for longer queries)
 				else if (
-					query_token.length >= 3 &&
-					tag_tokens.some(
-						(token) => token.length > query_token.length && token.includes(query_token)
+					queryToken.length >= 3 &&
+					tagTokens.some(
+						(token) => token.length > queryToken.length && token.includes(queryToken)
 					)
 				) {
 					score += 15;
-					has_term_match = true;
+					hasTermMatch = true;
 				}
 			}
 		}
 
 		// Only boost with analytics if we have actual term matches
-		if (has_term_match && module) {
+		if (hasTermMatch && module) {
 			// More views/completions = higher relevance
 			score += Math.log(module.analytics.views + 1) * 2;
 			score += Math.log(module.analytics.completions + 1) * 3;
@@ -325,16 +325,16 @@ export class SearchEngine {
 
 			// Tag filter
 			if (filters.tags && filters.tags.length > 0) {
-				const item_tags = module?.metadata.tags || node?.metadata.tags || [];
-				if (!filters.tags.some((tag) => item_tags.includes(tag))) {
+				const itemTags = module?.metadata.tags || node?.metadata.tags || [];
+				if (!filters.tags.some((tag) => itemTags.includes(tag))) {
 					return false;
 				}
 			}
 
 			// Difficulty filter
 			if (filters.difficulty && filters.difficulty.length > 0) {
-				const item_difficulty = module?.metadata.difficulty || node?.metadata.difficulty;
-				if (item_difficulty && !filters.difficulty.includes(item_difficulty)) {
+				const itemDifficulty = module?.metadata.difficulty || node?.metadata.difficulty;
+				if (itemDifficulty && !filters.difficulty.includes(itemDifficulty)) {
 					return false;
 				}
 			}
@@ -366,31 +366,31 @@ export class SearchEngine {
 	/**
 	 * Generate snippet from content
 	 */
-	private generateSnippet(queryTokens: string[], contentText: string, max_length = 150): string {
-		const sentences = content_text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+	private generateSnippet(queryTokens: string[], contentText: string, maxLength = 150): string {
+		const sentences = contentText.split(/[.!?]+/).filter((s: string) => s.trim().length > 0);
 
 		// Find sentence with most query terms
-		let best_sentence = '';
-		let max_matches = 0;
+		let bestSentence = '';
+		let maxMatches = 0;
 
 		for (const sentence of sentences) {
-			const sentence_tokens = this.tokenize(sentence);
-			const matches = query_tokens.filter((token) =>
-				sentence_tokens.some((s_token) => s_token.includes(token))
+			const sentenceTokens = this.tokenize(sentence);
+			const matches = queryTokens.filter((token: string) =>
+				sentenceTokens.some((sToken: string) => sToken.includes(token))
 			).length;
 
-			if (matches > max_matches) {
-				max_matches = matches;
-				best_sentence = sentence.trim();
+			if (matches > maxMatches) {
+				maxMatches = matches;
+				bestSentence = sentence.trim();
 			}
 		}
 
 		// Truncate if too long
-		if (best_sentence.length > max_length) {
-			best_sentence = best_sentence.substring(0, max_length - 3) + '...';
+		if (bestSentence.length > maxLength) {
+			bestSentence = bestSentence.substring(0, maxLength - 3) + '...';
 		}
 
-		return best_sentence || content_text.substring(0, max_length - 3) + '...';
+		return bestSentence || contentText.substring(0, maxLength - 3) + '...';
 	}
 
 	/**
@@ -401,26 +401,25 @@ export class SearchEngine {
 		modules: Map<string, ContentModule>,
 		nodes: Map<string, KnowledgeNode>,
 		filters: SearchFilters = {},
-		max_results = 50
+		maxResults = 50
 	): SearchResult[] {
 		if (!query.trim()) {
 			return [];
 		}
 
-		const query_tokens = this.tokenize(query);
+		const queryTokens = this.tokenize(query);
 		const results: SearchResult[] = [];
 
-		// Search through indexed content
-		for (const [content_id, content_tokens] of this.searchIndex.content.entries()) {
-			const module = modules.get(content_id);
-			const node = nodes.get(content_id);
+		for (const [contentId, contentTokens] of this.searchIndex.content.entries()) {
+			const module = modules.get(contentId);
+			const node = nodes.get(contentId);
 
 			if (!module && !node) continue;
 
 			const relevance = this.calculateRelevance(
-				content_id,
-				query_tokens,
-				content_tokens,
+				contentId,
+				queryTokens,
+				contentTokens,
 				module,
 				node
 			);
@@ -428,16 +427,16 @@ export class SearchEngine {
 			// Only include results with meaningful relevance (at least one term match)
 			if (relevance > 10) {
 				const title = module?.title || node?.title || '';
-				const content_text = module
+				const contentText = module
 					? `${module.description} ${this.extractContentText(module.blocks)}`
 					: title;
 
-				const snippet = this.generateSnippet(query_tokens, content_text);
+				const snippet = this.generateSnippet(queryTokens, contentText);
 				const tags = module?.metadata.tags || node?.metadata.tags || [];
 				const type = module ? 'module' : node?.type || 'unknown';
 
 				results.push({
-					id: content_id,
+					id: contentId,
 					title,
 					snippet,
 					relevance,
@@ -448,13 +447,13 @@ export class SearchEngine {
 		}
 
 		// Sort by relevance (descending)
-		results.sort((a, b) => b.relevance - a.relevance);
+		results.sort((a: SearchResult, b: SearchResult) => b.relevance - a.relevance);
 
 		// Apply filters
-		const filtered_results = this.applyFilters(results, filters, modules, nodes);
+		const filteredResults = this.applyFilters(results, filters, modules, nodes);
 
 		// Return top results
-		return filtered_results.slice(0, max_results);
+		return filteredResults.slice(0, maxResults);
 	}
 
 	/**
@@ -465,174 +464,174 @@ export class SearchEngine {
 		modules: Map<string, ContentModule>,
 		nodes: Map<string, KnowledgeNode>
 	): SearchResult[] {
-		const results: SearchResult[] = [];
-		const found_ids = new Set<string>();
+    const results: SearchResult[] = [];
+    const foundIds = new Set<string>();
 
-		for (const tag of tags) {
-			const content_ids = this.searchIndex.tags.get(tag) || [];
-			for (const content_id of content_ids) {
-				if (found_ids.has(content_id)) continue;
-				found_ids.add(content_id);
+    for (const tag of tags) {
+        const contentIds = this.searchIndex.tags.get(tag) || [];
+        for (const contentId of contentIds) {
+            if (foundIds.has(contentId)) continue;
+            foundIds.add(contentId);
 
-				const module = modules.get(content_id);
-				const node = nodes.get(content_id);
+            const module = modules.get(contentId);
+            const node = nodes.get(contentId);
 
-				if (module || node) {
-					const title = module?.title || node?.title || '';
-					const content_text = module
-						? `${module.description} ${this.extractContentText(module.blocks)}`
-						: title;
-					const snippet = this.generateSnippet([tag], content_text);
-					const item_tags = module?.metadata.tags || node?.metadata.tags || [];
-					const type = module ? 'module' : node?.type || 'unknown';
+            if (module || node) {
+                const title = module?.title || node?.title || '';
+                const contentText = module
+                    ? `${module.description} ${this.extractContentText(module.blocks)}`
+                    : title;
+                const snippet = this.generateSnippet([tag], contentText);
+                const itemTags = module?.metadata.tags || node?.metadata.tags || [];
+                const type = module ? 'module' : node?.type || 'unknown';
 
-					results.push({
-						id: content_id,
-						title,
-						snippet,
-						relevance: 100, // High relevance for exact tag matches
-						type,
-						tags: item_tags
-					});
-				}
-			}
-		}
+                results.push({
+                    id: contentId,
+                    title,
+                    snippet,
+                    relevance: 100, // High relevance for exact tag matches
+                    type,
+                    tags: itemTags
+                });
+            }
+        }
+    }
 
-		return results.sort((a, b) => b.relevance - a.relevance);
-	}
+    return results.sort((a, b) => b.relevance - a.relevance);
+}
 
-	/**
-	 * Get related content based on links and tags
-	 */
-	getRelatedContent(
-		contentId: string,
-		modules: Map<string, ContentModule>,
-		nodes: Map<string, KnowledgeNode>,
-		max_results = 10
-	): SearchResult[] {
-		const results: SearchResult[] = [];
-		const module = modules.get(content_id);
-		const node = nodes.get(content_id);
+/**
+ * Get related content based on links and tags
+ */
+getRelatedContent(
+    contentId: string,
+    modules: Map<string, ContentModule>,
+    nodes: Map<string, KnowledgeNode>,
+    maxResults = 10
+): SearchResult[] {
+    const results: SearchResult[] = [];
+    const module = modules.get(contentId);
+    const node = nodes.get(contentId);
 
-		if (!module && !node) return results;
+    if (!module && !node) return results;
 
-		// Get directly linked content
-		const linked_ids = this.searchIndex.links.get(content_id) || [];
-		for (const linked_id of linked_ids) {
-			const linked_module = modules.get(linked_id);
-			const linked_node = nodes.get(linked_id);
+    // Get directly linked content
+    const linkedIds = this.searchIndex.links.get(contentId) || [];
+    for (const linkedId of linkedIds) {
+        const linkedModule = modules.get(linkedId);
+        const linkedNode = nodes.get(linkedId);
 
-			if (linked_module || linked_node) {
-				const title = linked_module?.title || linked_node?.title || '';
-				const content_text = linked_module
-					? `${linked_module.description} ${this.extractContentText(linked_module.blocks)}`
-					: title;
-				const snippet = this.generateSnippet([], content_text);
-				const tags = linked_module?.metadata.tags || linked_node?.metadata.tags || [];
-				const type = linked_module ? 'module' : linked_node?.type || 'unknown';
+        if (linkedModule || linkedNode) {
+            const title = linkedModule?.title || linkedNode?.title || '';
+            const contentText = linkedModule
+                ? `${linkedModule.description} ${this.extractContentText(linkedModule.blocks)}`
+                : title;
+            const snippet = this.generateSnippet([], contentText);
+            const tags = linkedModule?.metadata.tags || linkedNode?.metadata.tags || [];
+            const type = linkedModule ? 'module' : linkedNode?.type || 'unknown';
 
-				results.push({
-					id: linked_id,
-					title,
-					snippet,
-					relevance: 90, // High relevance for direct links
-					type,
-					tags
-				});
-			}
-		}
+            results.push({
+                id: linkedId,
+                title,
+                snippet,
+                relevance: 90, // High relevance for direct links
+                type,
+                tags
+            });
+        }
+    }
 
-		// Get content with similar tags
-		const item_tags = module?.metadata.tags || node?.metadata.tags || [];
-		for (const tag of item_tags) {
-			const tagged_ids = this.searchIndex.tags.get(tag) || [];
-			for (const tagged_id of tagged_ids) {
-				if (tagged_id === content_id || results.some((r) => r.id === tagged_id)) continue;
+    // Get content with similar tags
+    const itemTags = module?.metadata.tags || node?.metadata.tags || [];
+    for (const tag of itemTags) {
+        const taggedIds = this.searchIndex.tags.get(tag) || [];
+        for (const taggedId of taggedIds) {
+            if (taggedId === contentId || results.some((r) => r.id === taggedId)) continue;
 
-				const tagged_module = modules.get(tagged_id);
-				const tagged_node = nodes.get(tagged_id);
+            const taggedModule = modules.get(taggedId);
+            const taggedNode = nodes.get(taggedId);
 
-				if (tagged_module || tagged_node) {
-					const title = tagged_module?.title || tagged_node?.title || '';
-					const content_text = tagged_module
-						? `${tagged_module.description} ${this.extractContentText(tagged_module.blocks)}`
-						: title;
-					const snippet = this.generateSnippet([], content_text);
-					const tags = tagged_module?.metadata.tags || tagged_node?.metadata.tags || [];
-					const type = tagged_module ? 'module' : tagged_node?.type || 'unknown';
+            if (taggedModule || taggedNode) {
+                const title = taggedModule?.title || taggedNode?.title || '';
+                const contentText = taggedModule
+                    ? `${taggedModule.description} ${this.extractContentText(taggedModule.blocks)}`
+                    : title;
+                const snippet = this.generateSnippet([], contentText);
+                const tags = taggedModule?.metadata.tags || taggedNode?.metadata.tags || [];
+                const type = taggedModule ? 'module' : taggedNode?.type || 'unknown';
 
-					results.push({
-						id: tagged_id,
-						title,
-						snippet,
-						relevance: 70, // Medium relevance for tag similarity
-						type,
-						tags
-					});
-				}
-			}
-		}
+                results.push({
+                    id: taggedId,
+                    title,
+                    snippet,
+                    relevance: 70, // Medium relevance for tag similarity
+                    type,
+                    tags
+                });
+            }
+        }
+    }
 
-		return results.sort((a, b) => b.relevance - a.relevance).slice(0, max_results);
-	}
+    return results.sort((a, b) => b.relevance - a.relevance).slice(0, maxResults);
+}
 
-	/**
-	 * Get search suggestions based on partial query
-	 */
-	getSuggestions(partialQuery: string, max_suggestions = 5): string[] {
-		if (partialQuery.length < 2) return [];
+/**
+ * Get search suggestions based on partial query
+ */
+getSuggestions(partialQuery: string, maxSuggestions = 5): string[] {
+    if (partialQuery.length < 2) return [];
 
-		const suggestions = new Set<string>();
-		const query_lower = partialQuery.toLowerCase();
+    const suggestions = new Set<string>();
+    const queryLower = partialQuery.toLowerCase();
 
-		// Search through indexed terms
-		for (const tokens of this.searchIndex.content.values()) {
-			for (const token of tokens) {
-				if (token.startsWith(query_lower) && token.length > query_lower.length) {
-					suggestions.add(token);
-					if (suggestions.size >= max_suggestions) break;
-				}
-			}
-			if (suggestions.size >= max_suggestions) break;
-		}
+    // Search through indexed terms
+    for (const tokens of this.searchIndex.content.values()) {
+        for (const token of tokens) {
+            if (token.startsWith(queryLower) && token.length > queryLower.length) {
+                suggestions.add(token);
+                if (suggestions.size >= maxSuggestions) break;
+            }
+        }
+        if (suggestions.size >= maxSuggestions) break;
+    }
 
-		// Search through tags
-		for (const tag of this.searchIndex.tags.keys()) {
-			if (tag.toLowerCase().includes(query_lower)) {
-				suggestions.add(tag);
-				if (suggestions.size >= max_suggestions) break;
-			}
-		}
+    // Search through tags
+    for (const tag of this.searchIndex.tags.keys()) {
+        if (tag.toLowerCase().includes(queryLower)) {
+            suggestions.add(tag);
+            if (suggestions.size >= maxSuggestions) break;
+        }
+    }
 
-		return Array.from(suggestions).slice(0, max_suggestions);
-	}
+    return Array.from(suggestions).slice(0, maxSuggestions);
+}
 
-	/**
-	 * Clear the entire search index
-	 */
-	clearIndex(): void {
-		this.searchIndex.content.clear();
-		this.searchIndex.tags.clear();
-		this.searchIndex.links.clear();
-	}
+/**
+ * Clear the entire search index
+ */
+clearIndex(): void {
+    this.searchIndex.content.clear();
+    this.searchIndex.tags.clear();
+    this.searchIndex.links.clear();
+}
 
-	/**
-	 * Get index statistics
-	 */
-	getIndexStats() {
-		return {
-			totalContent: this.searchIndex.content.size,
-			totalTags: this.searchIndex.tags.size,
-			totalLinks: this.searchIndex.links.size,
-			averageTokensPerContent:
-				this.searchIndex.content.size > 0
-					? Array.from(this.searchIndex.content.values()).reduce(
-							(sum, tokens) => sum + tokens.length,
-							0
-						) / this.searchIndex.content.size
-					: 0
-		};
-	}
+/**
+ * Get index statistics
+ */
+getIndexStats() {
+    return {
+        totalContent: this.searchIndex.content.size,
+        totalTags: this.searchIndex.tags.size,
+        totalLinks: this.searchIndex.links.size,
+        averageTokensPerContent:
+            this.searchIndex.content.size > 0
+                ? Array.from(this.searchIndex.content.values()).reduce(
+                        (sum, tokens) => sum + tokens.length,
+                        0
+                    ) / this.searchIndex.content.size
+                : 0
+    };
+}
 }
 
 // Export singleton instance

@@ -6,13 +6,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ProcessingPipelineManager } from '../processingPipeline.js';
 
 describe('ProcessingPipelineManager', () => {
-    let pipeline_manager;
+    let pipelineManager: ProcessingPipelineManager;
 
     beforeEach(() => {
-        pipeline_manager = ProcessingPipelineManager.getInstance();
+        pipelineManager = ProcessingPipelineManager.getInstance();
 
         // Reset configuration for each test
-        pipeline_manager.updateConfig({
+        pipelineManager.updateConfig({
             maxConcurrentJobs: 2,
             retryAttempts: 2,
             retryDelay: 100,
@@ -29,16 +29,16 @@ describe('ProcessingPipelineManager', () => {
     });
 
     it('should create a single processing job', async () => {
-        const job_id = pipeline_manager.createSingleProcessingJob('https://example.com', 'normal');
+        const jobId = pipelineManager.createSingleProcessingJob('https://example.com', 'normal');
 
-        expect(job_id).toBeDefined();
-        expect(typeof job_id).toBe('string');
+        expect(jobId).toBeDefined();
+        expect(typeof jobId).toBe('string');
 
         // Wait a bit for processing to start and complete
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Job should now be in completed jobs (either success or failed)
-        const job = pipeline_manager.getJobStatus(job_id);
+        const job = pipelineManager.getJobStatus(jobId);
         expect(job).toBeDefined();
         expect(['pending', 'processing', 'failed', 'completed'].includes(job?.status || '')).toBe(true);
         expect(job?.type).toBe('single');
@@ -47,47 +47,47 @@ describe('ProcessingPipelineManager', () => {
 
     it('should create a batch processing job with parallel processing', () => {
         const urls = ['https://example1.com', 'https://example2.com', 'https://example3.com'];
-        const batch_id = pipeline_manager.createBatchProcessingJob(urls, 'high', { enableParallel: true });
+        const batchId = pipelineManager.createBatchProcessingJob(urls, 'high', { enableParallel: true });
 
-        expect(batch_id).toBeDefined();
+        expect(batchId).toBeDefined();
 
-        const batch_status = pipeline_manager.getBatchStatus(batch_id);
-        expect(batch_status).toBeDefined();
-        expect(batch_status?.totalJobs).toBe(3);
-        expect(batch_status?.status).toBe('pending');
+        const batchStatus = pipelineManager.getBatchStatus(batchId);
+        expect(batchStatus).toBeDefined();
+        expect(batchStatus?.totalJobs).toBe(3);
+        expect(batchStatus?.status).toBe('pending');
     });
 
     it('should create a batch processing job with sequential processing', () => {
         const urls = ['https://example1.com', 'https://example2.com'];
-        const batch_id = pipeline_manager.createBatchProcessingJob(urls, 'normal', { enableParallel: false });
+        const batchId = pipelineManager.createBatchProcessingJob(urls, 'normal', { enableParallel: false });
 
-        expect(batch_id).toBeDefined();
+        expect(batchId).toBeDefined();
 
         // For sequential processing, it should create a single batch job
-        const job = pipeline_manager.getJobStatus(batch_id);
+        const job = pipelineManager.getJobStatus(batchId);
         expect(job).toBeDefined();
         expect(job?.type).toBe('batch');
         expect(job?.metadata.sourceUrls).toEqual(urls);
     });
 
     it('should cancel a job', () => {
-        const job_id = pipeline_manager.createSingleProcessingJob('https://example.com');
+        const jobId = pipelineManager.createSingleProcessingJob('https://example.com');
 
         // Cancel should return true if job exists
-        const cancelled = pipeline_manager.cancelJob(job_id);
+        const cancelled = pipelineManager.cancelJob(jobId);
         expect(cancelled).toBe(true);
 
         // Cancelling non-existent job should return false
-        const cancelled_fake = pipeline_manager.cancelJob('fake-job-id');
-        expect(cancelled_fake).toBe(false);
+        const cancelledFake = pipelineManager.cancelJob('fake-job-id');
+        expect(cancelledFake).toBe(false);
     });
 
     it('should get pipeline statistics', () => {
         // Create some jobs
-        pipeline_manager.createSingleProcessingJob('https://example1.com');
-        pipeline_manager.createSingleProcessingJob('https://example2.com');
+        pipelineManager.createSingleProcessingJob('https://example1.com');
+        pipelineManager.createSingleProcessingJob('https://example2.com');
 
-        const stats = pipeline_manager.getStatistics();
+        const stats = pipelineManager.getStatistics();
         expect(stats).toBeDefined();
         expect(stats.queuedJobs).toBeGreaterThanOrEqual(0);
         expect(stats.activeJobs).toBeGreaterThanOrEqual(0);
@@ -96,51 +96,51 @@ describe('ProcessingPipelineManager', () => {
     });
 
     it('should handle event listeners', () => {
-        const mock_listener = vi.fn();
+        const mockListener = vi.fn();
 
-        pipeline_manager.addEventListener('job-created', mock_listener);
+        pipelineManager.addEventListener('job-created', mockListener);
 
         // Create a job to trigger the event
-        pipeline_manager.createSingleProcessingJob('https://example.com');
+        pipelineManager.createSingleProcessingJob('https://example.com');
 
         // The event should have been emitted
-        expect(mock_listener).toHaveBeenCalled();
+        expect(mockListener).toHaveBeenCalled();
 
         // Remove the listener
-        pipeline_manager.removeEventListener('job-created', mock_listener);
+        pipelineManager.removeEventListener('job-created', mockListener);
     });
 
     it('should update configuration', () => {
-        const new_config = {
+        const newConfig = {
             maxConcurrentJobs: 5,
             retryAttempts: 5,
             enableDetailedLogging: true
         };
 
-        pipeline_manager.updateConfig(new_config);
+        pipelineManager.updateConfig(newConfig);
 
         // Configuration should be updated (we can't directly test this without exposing config)
         // But we can test that it doesn't throw an error
-        expect(() => pipeline_manager.updateConfig(new_config)).not.toThrow();
+        expect(() => pipelineManager.updateConfig(newConfig)).not.toThrow();
     });
 
     it('should cleanup completed jobs', () => {
         // This method should not throw an error
-        expect(() => pipeline_manager.cleanupCompletedJobs(1000)).not.toThrow();
+        expect(() => pipelineManager.cleanupCompletedJobs(1000)).not.toThrow();
     });
 
     it('should get active jobs', () => {
-        const active_jobs = pipeline_manager.getActiveJobs();
-        expect(Array.isArray(active_jobs)).toBe(true);
+        const activeJobs = pipelineManager.getActiveJobs();
+        expect(Array.isArray(activeJobs)).toBe(true);
     });
 
     it('should get job queue', () => {
-        const job_queue = pipeline_manager.getJobQueue();
-        expect(Array.isArray(job_queue)).toBe(true);
+        const jobQueue = pipelineManager.getJobQueue();
+        expect(Array.isArray(jobQueue)).toBe(true);
     });
 
     it('should get completed jobs', () => {
-        const completed_jobs = pipeline_manager.getCompletedJobs();
-        expect(Array.isArray(completed_jobs)).toBe(true);
+        const completedJobs = pipelineManager.getCompletedJobs();
+        expect(Array.isArray(completedJobs)).toBe(true);
     });
 });

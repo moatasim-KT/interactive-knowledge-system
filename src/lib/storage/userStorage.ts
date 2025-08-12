@@ -400,7 +400,7 @@ export class SettingsStorage {
 	 * Create default settings for a new user
 	 */
 	async createDefaultSettings(userId: string, name: string, email?: string): Promise<UserSettings> {
-		const default_settings = {
+		const default_settings: UserSettings = {
 			id: userId,
 			preferences: {
 				theme: 'light',

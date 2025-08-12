@@ -84,7 +84,7 @@ export function importFromJSON(jsonString: string): ImportResult {
 		}
 
 		// Validate and sanitize modules
-		const valid_modules = [];
+		const valid_modules: ContentModule[] = [];
 		data.modules.forEach((module, index) => {
 			try {
 				const validated_module = validate_module(module);
@@ -97,7 +97,7 @@ export function importFromJSON(jsonString: string): ImportResult {
 		});
 
 		// Validate progress entries
-		const valid_progress = [];
+		const valid_progress: UserProgress[] = [];
 		data.progress.forEach((progress, index) => {
 			try {
 				const validated_progress = validate_progress(progress);
@@ -154,9 +154,9 @@ export function importFromMarkdown(
 
 	try {
 		const modules: ContentModule[] = [];
-		const lines = markdownString.split('\n');
-		let current_module = null;
-		let current_blocks = [];
+		const lines: string[] = markdownString.split('\n');
+		let current_module: Partial<ContentModule> | null = null;
+		let current_blocks: ContentBlock[] = [];
 		let block_id = 1;
 
 		for (let i = 0; i < lines.length; i++) {
@@ -182,7 +182,7 @@ export function importFromMarkdown(
 			// Handle H2 headers as sections within modules
 			else if (config.treatH2AsSection && line.startsWith('## ')) {
 				if (current_module) {
-					const section_block = {
+					const section_block: ContentBlock = {
 						id: `block-${block_id++}`,
 						type: 'text',
 						content: `<h2>${line.substring(3).trim()}</h2>`,
@@ -198,7 +198,7 @@ export function importFromMarkdown(
 			// Handle code blocks
 			else if (config.extractCodeBlocks && line.startsWith('```')) {
 				const language = line.substring(3).trim();
-				const code_lines = [];
+				const code_lines: string[] = [];
 				i++; // Move to next line
 
 				// Collect code lines until closing ```
@@ -208,7 +208,7 @@ export function importFromMarkdown(
 				}
 
 				if (current_module) {
-					const code_block = {
+					const code_block: ContentBlock = {
 						id: `block-${block_id++}`,
 						type: 'code',
 						content: {
@@ -230,7 +230,7 @@ export function importFromMarkdown(
 				if (!current_module.description && current_blocks.length === 0) {
 					current_module.description = line;
 				} else {
-					const text_block = {
+					const text_block: ContentBlock = {
 						id: `block-${block_id++}`,
 						type: 'text',
 						content: config.preserveFormatting
@@ -321,7 +321,7 @@ export function importFromFormat(content: string, format: 'opml' | 'csv' | 'xml'
 /**
  * Import from OPML format (outline format)
  */
-function import_from_opml(opml_string): ImportResult {
+function import_from_opml(opml_string: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],
@@ -422,7 +422,7 @@ function import_from_opml(opml_string): ImportResult {
 /**
  * Import from CSV format
  */
-function import_from_csv(csv_string): ImportResult {
+function import_from_csv(csv_string: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],
@@ -436,23 +436,27 @@ function import_from_csv(csv_string): ImportResult {
 	};
 
 	try {
-		const lines = csv_string.split('\n');
+		const lines: string[] = csv_string.split('\n');
 		if (lines.length < 2) {
 			result.errors.push('CSV must have at least a header row and one data row');
 			return result;
 		}
 
-		const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
+		const headers: string[] = lines[0]
+			.split(',')
+			.map((h: string) => h.trim().replace(/"/g, ''));
 		const modules: ContentModule[] = [];
 
 		for (let i = 1; i < lines.length; i++) {
 			const line = lines[i].trim();
 			if (!line) continue;
 
-			const values = line.split(',').map((v) => v.trim().replace(/"/g, ''));
-			const module_data = {};
+			const values: string[] = line
+				.split(',')
+				.map((v: string) => v.trim().replace(/"/g, ''));
+			const module_data: Record<string, string> = {};
 
-			headers.forEach((header, index) => {
+			headers.forEach((header: string, index: number) => {
 				module_data[header] = values[index] || '';
 			});
 
@@ -527,7 +531,7 @@ function import_from_csv(csv_string): ImportResult {
 /**
  * Import from generic XML format
  */
-function import_from_xml(xml_string): ImportResult {
+function import_from_xml(xml_string: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],

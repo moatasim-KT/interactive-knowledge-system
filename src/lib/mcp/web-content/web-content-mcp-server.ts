@@ -5,13 +5,13 @@
  * Based on existing MCP server patterns from mcp/server.js
  */
 
-import { createLogger } from '$lib/utils/logger.js';
-import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
-import { webContentFetcher } from '$lib/services/webContentFetcher.js';
-import { sourceManager } from '$lib/services/sourceManager.js';
-import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.js';
-import { processingPipeline } from '$lib/services/processingPipeline.js';
-import { webContentErrorHandler } from '$lib/services/webContentErrorHandler.js';
+import { createLogger } from '../../utils/logger';
+import { webContentState, webContentActions } from '../../stores/webContentState.svelte';
+import { webContentFetcher } from '../../services/webContentFetcher';
+import { sourceManager } from '../../services/sourceManager';
+import { interactiveAnalyzer } from '../../services/interactiveAnalyzer';
+import { processingPipelineManager } from '../../services/processingPipeline';
+import { webContentErrorHandler } from '../../services/webContentErrorHandler';
 
 /**
  * Web Content Sourcing MCP Server Class
@@ -26,7 +26,7 @@ export class WebContentMcpServer {
     private webContentFetcher = webContentFetcher;
     private sourceManager = sourceManager;
     private interactiveAnalyzer = interactiveAnalyzer;
-    private processingPipeline = processingPipeline;
+    private processingPipeline = processingPipelineManager;
     private errorHandler = webContentErrorHandler;
 
     constructor() {
@@ -40,12 +40,8 @@ export class WebContentMcpServer {
      * Setup error handling for MCP operations
      */
     private setupErrorHandling(): void {
-        // Configure error handler for MCP operations
-        this.errorHandler.configure({
-            enableNotifications: true,
-            enableStateUpdates: true,
-            enableLogging: true
-        });
+        // No explicit configuration method on error handler; reserved for future hooks
+        return;
     }
 
     /**
@@ -375,15 +371,13 @@ export class WebContentMcpServer {
                 // Add content to Svelte store
                 webContentActions.addContent(content);
 
-                // Create and add source
-                const source = await this.sourceManager.createSource({
+                // Create and add source (use real API addSource)
+                const addResult = await this.sourceManager.addSource({
                     url,
-                    content,
-                    options,
-                    fetchedAt: new Date().toISOString()
+                    title: content.title
                 });
 
-                webContentActions.addSource(source);
+                webContentActions.addSource(addResult.source);
 
                 // Complete processing
                 webContentActions.setContentProcessing(false, 100);
@@ -417,11 +411,7 @@ export class WebContentMcpServer {
             });
 
             // Handle error through error handler
-            await this.errorHandler.handleError(error, {
-                operation: 'fetchWebContent',
-                url,
-                options
-            });
+            this.errorHandler.handleError(error, `url=${url}`, 'fetchWebContent');
 
             throw new Error(errorMessage);
         }
@@ -438,19 +428,18 @@ export class WebContentMcpServer {
 
         try {
             // Create batch job in Svelte store
-            const batchJob = {
+            const batchJob: import('../../types/web-content').BatchProcessingJob = {
                 id: `batch_${Date.now()}`,
                 urls,
-                status: 'processing' as const,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                results: urls.map((url: string) => ({
-                    url,
-                    status: 'pending' as const,
-                    contentId: null,
-                    error: null
-                })),
-                options
+                options,
+                status: 'processing',
+                progress: {
+                    total: urls.length,
+                    completed: 0,
+                    failed: 0
+                },
+                results: [],
+                createdAt: new Date()
             };
 
             webContentActions.addBatchJob(batchJob);
@@ -472,11 +461,13 @@ export class WebContentMcpServer {
                     try {
                         const result = await this.handleFetchWebContent({ url, options });
 
-                        // Update batch job progress
-                        const updatedResults = batchJob.results.map(r =>
-                            r.url === url ? { ...r, status: 'completed' as const, contentId: result.data.id } : r
-                        );
-                        webContentActions.updateBatchJob(batchJob.id, { results: updatedResults });
+                        // Update batch job progress (increment counters)
+                        const newProgress = {
+                            ...batchJob.progress,
+                            completed: batchJob.progress.completed + 1
+                        };
+                        batchJob.progress = newProgress;
+                        webContentActions.updateBatchJob(batchJob.id, { progress: newProgress });
 
                         return { url, success: true, result };
                     } catch (error) {
@@ -487,11 +478,13 @@ export class WebContentMcpServer {
                         };
                         errors.push(error_result);
 
-                        // Update batch job progress
-                        const updatedResults = batchJob.results.map(r =>
-                            r.url === url ? { ...r, status: 'failed' as const, error: error_result.error } : r
-                        );
-                        webContentActions.updateBatchJob(batchJob.id, { results: updatedResults });
+                        // Update batch job progress (increment failed)
+                        const newProgress = {
+                            ...batchJob.progress,
+                            failed: batchJob.progress.failed + 1
+                        };
+                        batchJob.progress = newProgress;
+                        webContentActions.updateBatchJob(batchJob.id, { progress: newProgress });
 
                         return error_result;
                     }
@@ -504,7 +497,7 @@ export class WebContentMcpServer {
             // Complete batch job
             webContentActions.updateBatchJob(batchJob.id, {
                 status: 'completed' as const,
-                updatedAt: new Date()
+                completedAt: new Date()
             });
             webContentActions.setBatchProcessing(false);
 

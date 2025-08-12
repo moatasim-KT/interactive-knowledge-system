@@ -7,18 +7,18 @@ import type { UserProgress } from '../types/user.js';
 
 class ProgressPersistenceService {
 	private saveQueue = new Set<string>();
-	private saveTimer: number | null = null;
+	private saveTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly SAVE_DELAY = 2000; // 2 seconds debounce
 
 	/**
 	 * Initialize the persistence service
 	 */
 	async initialize(userId: string) {
-		if (!user_id) return;
+		if (!userId) return;
 
 		try {
 			// Load all user progress from storage
-			const user_progress = await progressStorage.getUserProgress(user_id);
+			const user_progress = await progressStorage.getUserProgress(userId);
 			const progress_map = new Map<string, UserProgress>();
 
 			for (const progress of user_progress) {
@@ -28,7 +28,7 @@ class ProgressPersistenceService {
 			// Update app state
 			actions.loadUserProgress(progress_map);
 
-			console.log(`Loaded ${user_progress.length} progress records for user ${user_id}`);
+			console.log(`Loaded ${user_progress.length} progress records for user ${userId}`);
 		} catch (error) {
 			console.error('Failed to load user progress:', error);
 		}
@@ -38,7 +38,7 @@ class ProgressPersistenceService {
 	 * Queue a module for saving (with debouncing)
 	 */
 	queueSave(moduleId: string) {
-		this.saveQueue.add(module_id);
+		this.saveQueue.add(moduleId);
 
 		// Clear existing timer
 		if (this.saveTimer) {
@@ -66,8 +66,8 @@ class ProgressPersistenceService {
 		}
 
 		try {
-			const save_promises = modules_to_save.map(async (module_id) => {
-				const progress = appState.progress.userProgress.get(module_id);
+			const save_promises = modules_to_save.map(async (moduleId) => {
+				const progress = appState.progress.userProgress.get(moduleId);
 				if (progress) {
 					await progressStorage.updateProgress(progress);
 				}
@@ -78,7 +78,7 @@ class ProgressPersistenceService {
 		} catch (error) {
 			console.error('Failed to save progress:', error);
 			// Re-queue failed saves
-			modules_to_save.forEach((module_id) => this.saveQueue.add(module_id));
+			modules_to_save.forEach((moduleId) => this.saveQueue.add(moduleId));
 		}
 	}
 
@@ -88,16 +88,16 @@ class ProgressPersistenceService {
 	async saveProgress(moduleId: string, progress: UserProgress) {
 		try {
 			await progressStorage.updateProgress(progress);
-			appState.progress.userProgress.set(module_id, progress);
+			appState.progress.userProgress.set(moduleId, progress);
 
 			// Update completed modules set if needed
 			if (progress.status === 'completed') {
-				appState.progress.completedModules.add(module_id);
+				appState.progress.completedModules.add(moduleId);
 			}
 
-			console.log(`Saved progress for module ${module_id}`);
+			console.log(`Saved progress for module ${moduleId}`);
 		} catch (error) {
-			console.error(`Failed to save progress for module ${module_id}:`, error);
+			console.error(`Failed to save progress for module ${moduleId}:`, error);
 			throw error;
 		}
 	}
@@ -107,19 +107,19 @@ class ProgressPersistenceService {
 	 */
 	async loadProgress(userId: string, moduleId: string): Promise<UserProgress | null> {
 		try {
-			const progress = await progressStorage.getProgress(user_id, module_id);
+			const progress = await progressStorage.getProgress(userId, moduleId);
 
 			if (progress) {
-				appState.progress.userProgress.set(module_id, progress);
+				appState.progress.userProgress.set(moduleId, progress);
 
 				if (progress.status === 'completed') {
-					appState.progress.completedModules.add(module_id);
+					appState.progress.completedModules.add(moduleId);
 				}
 			}
 
 			return progress || null;
 		} catch (error) {
-			console.error(`Failed to load progress for module ${module_id}:`, error);
+			console.error(`Failed to load progress for module ${moduleId}:`, error);
 			return null;
 		}
 	}
@@ -130,7 +130,7 @@ class ProgressPersistenceService {
 	async syncProgress(userId: string) {
 		try {
 			await this.flushSaveQueue(); // Save any pending changes first
-			await this.initialize(user_id); // Reload from storage
+			await this.initialize(userId); // Reload from storage
 		} catch (error) {
 			console.error('Failed to sync progress:', error);
 			throw error;
@@ -142,7 +142,7 @@ class ProgressPersistenceService {
 	 */
 	async getStats(userId: string) {
 		try {
-			return await progressStorage.getProgressStats(user_id);
+			return await progressStorage.getProgressStats(userId);
 		} catch (error) {
 			console.error('Failed to get progress stats:', error);
 			throw error;

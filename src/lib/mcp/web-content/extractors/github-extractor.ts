@@ -1,6 +1,6 @@
 import { BaseContentExtractor } from './base-extractor';
 import type { WebContentMetadata, ExtractionOptions } from '../types';
-import { createLogger } from '$lib/utils/logger';
+import { createLogger } from '../../../utils/logger.js';
 
 export class GitHubExtractor extends BaseContentExtractor {
 	// GitHub domains this extractor handles

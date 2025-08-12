@@ -3,8 +3,8 @@
  * Provides comprehensive error handling for web content sourcing operations
  */
 
-import { createLogger } from '$lib/utils/logger.js';
-import { webContentActions } from '$lib/stores/webContentState.svelte.js';
+import { createLogger } from '../utils/logger.js';
+import { webContentActions } from '../stores/webContentState.svelte.js';
 
 const logger = createLogger('web-content-error-handler');
 

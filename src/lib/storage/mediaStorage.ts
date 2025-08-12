@@ -2,7 +2,7 @@
  * Media storage management using IndexedDB
  */
 
-import type { MediaFile, MediaStorageQuota } from '$lib/types/media.js';
+import type { MediaFile, MediaStorageQuota } from '../types/media.js';
 
 const DB_NAME = 'InteractiveKnowledgeMedia';
 const DB_VERSION = 1;

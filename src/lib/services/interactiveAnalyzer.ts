@@ -3,7 +3,7 @@
  * Real implementation for analyzing content and generating interactive opportunities
  */
 
-import { createLogger } from '$lib/utils/logger.js';
+import { createLogger } from '../utils/logger.js';
 import { storageService } from './storage.js';
 import type {
     WebContent,
@@ -11,7 +11,7 @@ import type {
     InteractionSpec,
     VisualizationConfig,
     SimulationParameter
-} from '$lib/types/web-content.js';
+} from '../types/web-content.js';
 
 export class InteractiveAnalyzer {
     private logger = createLogger('interactive-analyzer');

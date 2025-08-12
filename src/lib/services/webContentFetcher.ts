@@ -3,8 +3,8 @@
  * Real implementation for fetching and extracting web content
  */
 
-import { createLogger } from '$lib/utils/logger.js';
-import type { WebContent, WebContentMetadata } from '$lib/types/web-content.js';
+import { createLogger } from '../utils/logger.js';
+import type { WebContent, WebContentMetadata } from '../types/web-content.js';
 
 export interface FetchOptions {
     timeout?: number;
