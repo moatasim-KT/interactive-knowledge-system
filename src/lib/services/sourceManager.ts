@@ -67,11 +67,11 @@ export class SourceManager {
 				};
 			}
 
-			const source_id = `source_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+			const sourceId = `source_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 			const now = new Date();
 
 			const source: WebContentSource = {
-				id: source_id,
+				id: sourceId,
 				url,
 				title: title || `Content from ${domain}`,
 				domain,
@@ -105,14 +105,14 @@ export class SourceManager {
 			await storageService.addSource(source);
 
 			this.logger.info('Content source added successfully', {
-				sourceId: source_id,
+				sourceId: sourceId,
 				url,
 				domain,
 				category
 			});
 
 			return {
-				sourceId: source_id,
+				sourceId: sourceId,
 				source,
 				isDuplicate: false
 			};
@@ -202,12 +202,12 @@ export class SourceManager {
 	): Promise<SourceUpdateResult> {
 		await this.ensureInitialized();
 
-		this.logger.info('Updating content source', { sourceId: source_id, updates });
+		this.logger.info('Updating content source', { sourceId: sourceId, updates });
 
 		try {
-			const source = await storageService.getSource(source_id);
+			const source = await storageService.getSource(sourceId);
 			if (!source) {
-				throw new Error(`Source not found: ${source_id}`);
+				throw new Error(`Source not found: ${sourceId}`);
 			}
 
 			const original_source = { ...source };
@@ -262,7 +262,7 @@ export class SourceManager {
 			}
 
 			const result: SourceUpdateResult = {
-				sourceId: source_id,
+				sourceId: sourceId,
 				success: true,
 				hasChanges: has_changes,
 				changes: has_changes
@@ -278,7 +278,7 @@ export class SourceManager {
 			};
 
 			this.logger.info('Source updated successfully', {
-				sourceId: source_id,
+				sourceId: sourceId,
 				hasChanges: has_changes
 			});
 
@@ -286,7 +286,7 @@ export class SourceManager {
 		} catch (error) {
 			this.logger.error('Failed to update source:', error);
 			return {
-				sourceId: source_id,
+				sourceId: sourceId,
 				success: false,
 				hasChanges: false,
 				error: error instanceof Error ? error.message : 'Unknown error',
@@ -302,18 +302,18 @@ export class SourceManager {
 	}> {
 		await this.ensureInitialized();
 
-		this.logger.info('Removing content source', { sourceId: source_id });
+		this.logger.info('Removing content source', { sourceId: sourceId });
 
 		try {
-			const source = await storageService.getSource(source_id);
+			const source = await storageService.getSource(sourceId);
 			if (!source) {
 				return {
-					sourceId: source_id,
+					sourceId: sourceId,
 					removed: false
 				};
 			}
 
-			await storageService.deleteSource(source_id);
+			await storageService.deleteSource(sourceId);
 
 			// Also remove associated content
 			const content = await storageService.getContentByUrl(source.url);
@@ -321,17 +321,17 @@ export class SourceManager {
 				await storageService.deleteContent(content.id);
 			}
 
-			this.logger.info('Source removed successfully', { sourceId: source_id });
+			this.logger.info('Source removed successfully', { sourceId: sourceId });
 
 			return {
-				sourceId: source_id,
+				sourceId: sourceId,
 				removed: true,
 				source
 			};
 		} catch (error) {
 			this.logger.error('Failed to remove source:', error);
 			return {
-				sourceId: source_id,
+				sourceId: sourceId,
 				removed: false
 			};
 		}
@@ -353,7 +353,7 @@ export class SourceManager {
 		await this.ensureInitialized();
 
 		const sources_to_validate = sourceIds
-			? await Promise.all(sourceIds.map((id) => storageService.getSource(id)).filter(Boolean))
+			? (await Promise.all(sourceIds.map((id) => storageService.getSource(id)))).filter(Boolean)
 			: await storageService.getAllSources();
 
 		this.logger.info('Validating content sources', {
@@ -480,10 +480,13 @@ export class SourceManager {
 				const suggestions: string[] = [];
 
 				try {
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 					const response = await fetch(source.url, {
 						method: 'HEAD',
-						signal: AbortSignal.timeout(10000) // 10 second timeout
+                                                signal: controller.signal
 					});
+                                        clearTimeout(timeoutId);
 
 					const response_time = Date.now() - start_time;
 
@@ -568,7 +571,7 @@ export class SourceManager {
 		this.logger.info('Detecting duplicate sources');
 
 		try {
-			const sources = await storageService.getAllSources();
+		const sources = await storageService.getAllSources();
 			const duplicates: DuplicateDetectionResult[] = [];
 			const processed = new Set<string>();
 
@@ -633,7 +636,7 @@ export class SourceManager {
 	}> {
 		await this.ensureInitialized();
 
-		const sources = await storageService.getAllSources();
+			const sources = await storageService.getAllSources();
 		const now = new Date();
 		const one_day_ago = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 		const one_week_ago = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -747,9 +750,9 @@ export class SourceManager {
 			);
 
 			// Enrich recommendations with source information
+		const sources = await storageService.getAllSources();
 			const enriched_recommendations = [];
 			for (const rec of recommendations) {
-				const sources = await storageService.getAllSources();
 				const source = sources.find(s => s.usage.generatedModules.includes(rec.contentId));
 
 				if (source) {
