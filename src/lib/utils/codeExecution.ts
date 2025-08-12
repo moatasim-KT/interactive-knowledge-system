@@ -48,22 +48,32 @@ export class CodeExecutionService {
 		});
 	}
 
-	public async executeCode(
-		code: string,
-		language: string,
-		customEnvironment?: Partial<CodeExecutionEnvironment>
-	): Promise<CodeExecutionResult> {
-		const start_time = performance.now();
-		const environment = this.executionEnvironments.get(language);
+        public async executeCode(
+                code: string,
+                language: string,
+                customEnvironment?: Partial<CodeExecutionEnvironment>
+        ): Promise<CodeExecutionResult> {
+                const start_time = performance.now();
+                const base_environment = this.executionEnvironments.get(language);
 
-		if (!environment) {
-			return {
-				success: false,
-				error: `Execution not supported for language: ${language}`,
-				executionTime: 0,
-				timestamp: new Date()
-			};
-		}
+                if (!base_environment) {
+                        return {
+                                success: false,
+                                error: `Execution not supported for language: ${language}`,
+                                executionTime: 0,
+                                timestamp: new Date()
+                        };
+                }
+
+                // Merge any custom environment overrides with the defaults.
+                // Previously the customEnvironment parameter was ignored which
+                // prevented callers from adjusting execution constraints like
+                // timeout or memory limits.  Create a new object so the stored
+                // defaults remain unchanged.
+                const environment: CodeExecutionEnvironment = {
+                        ...base_environment,
+                        ...customEnvironment
+                };
 
 		try {
 			let result: CodeExecutionResult;
