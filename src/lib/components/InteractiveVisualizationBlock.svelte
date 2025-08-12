@@ -3,16 +3,20 @@
 	import InteractiveChart from './InteractiveChart.svelte';
 	import ParameterControls from './ParameterControls.svelte';
 	import DataManipulator from './DataManipulator.svelte';
-	import { createEventDispatcher } from 'svelte';
 
-	export let block: InteractiveVisualizationBlock;
-	export let editable = false;
+	interface Props {
+		block: InteractiveVisualizationBlock;
+		editable?: boolean;
+		onParameterChange?: (event: { parameter: string; value: any }) => void;
+		onDataChange?: (event: { data: any; filters: any[] }) => void;
+		onChartInteraction?: (event: any) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { block, editable = false, onParameterChange, onDataChange, onChartInteraction }: Props = $props();
 
-	let current_data = block.content.data;
-	let parameters = block.content.config.parameters || [];
-	let filters: any[] = [];
+	let current_data = $state(block.content.data);
+	let parameters = $state(block.content.config.parameters || []);
+	let filters = $state<any[]>([]);
 
 	// Handle parameter changes
 	function handle_parameter_change(event: CustomEvent) {
@@ -27,7 +31,7 @@
 		// Trigger data update based on parameter change
 		update_visualization();
 
-		dispatch('parameterChange', { parameter, value, blockId: block.id });
+		onParameterChange?.({ parameter, value });
 	}
 
 	// Handle data manipulation (filtering, sorting)
@@ -36,7 +40,7 @@
 		current_data = data;
 		filters = newFilters;
 
-		dispatch('dataChange', { data, filters, blockId: block.id });
+		onDataChange?.({ data, filters });
 	}
 
 	// Update visualization based on current parameters and data
@@ -47,8 +51,8 @@
 	}
 
 	// Handle chart interactions (hover, zoom, etc.)
-	function handle_chart_interaction(event: CustomEvent) {
-		dispatch('chartInteraction', { ...event.detail, blockId: block.id });
+	function handle_chart_interaction(event: any) {
+		onChartInteraction?.(event);
 	}
 </script>
 
@@ -64,22 +68,22 @@
 		<!-- Parameter Controls -->
 		{#if parameters.length > 0}
 			<div class="parameter-section">
-				<ParameterControls {parameters} on:parameterChange={handleParameterChange} />
+				<ParameterControls {parameters} onParameterChange={handle_parameter_change} />
 			</div>
 		{/if}
 
 		<!-- Data Manipulation Controls -->
 		<div class="data-manipulation-section">
-			<DataManipulator data={currentData} {filters} on:dataChange={handleDataChange} />
+			<DataManipulator data={current_data} {filters} onDataChange={handle_data_change} />
 		</div>
 
 		<!-- Main Visualization -->
 		<div class="visualization-display">
 			{#if block.content.visualizationType === 'chart'}
 				<InteractiveChart
-					data={currentData}
+					data={current_data}
 					config={block.content.config}
-					on:interaction={handleChartInteraction}
+					onInteraction={handle_chart_interaction}
 				/>
 			{:else if block.content.visualizationType === 'neural-network'}
 				<!-- Neural network visualization would go here -->

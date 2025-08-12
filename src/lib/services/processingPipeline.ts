@@ -412,24 +412,24 @@ export class ProcessingPipelineManager {
 		averageProcessingTime: number;
 		successRate: number;
 	} {
-		const completed_jobs = Array.from(this.completedJobs.values());
-		const successful_jobs = completed_jobs.filter(job => job.status === 'completed');
+		const completedJobs = Array.from(this.completedJobs.values());
+		const successfulJobs = completedJobs.filter(job => job.status === 'completed');
 
-		const processing_times = completed_jobs
+		const processingTimes = completedJobs
 			.filter(job => job.startedAt && job.completedAt)
 			.map(job => job.completedAt!.getTime() - job.startedAt!.getTime());
 
-		const average_time = processing_times.length > 0
-			? processing_times.reduce((sum, time) => sum + time, 0) / processing_times.length
+		const averageTime = processingTimes.length > 0
+			? processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
 			: 0;
 
 		return {
 			activeJobs: this.activeJobs.size,
 			queuedJobs: this.jobQueue.length,
-			completedJobs: completed_jobs.length,
-			totalProcessed: completed_jobs.length,
-			averageProcessingTime: average_time,
-			successRate: completed_jobs.length > 0 ? (successful_jobs.length / completed_jobs.length) * 100 : 0
+			completedJobs: completedJobs.length,
+			totalProcessed: completedJobs.length,
+			averageProcessingTime: averageTime,
+			successRate: completedJobs.length > 0 ? (successfulJobs.length / completedJobs.length) * 100 : 0
 		};
 	}
 
@@ -509,26 +509,26 @@ export class ProcessingPipelineManager {
 					stageIndex: i
 				});
 
-				let stage_result: ProcessingResult;
-				let retry_count = 0;
+				let stageResult: ProcessingResult;
+				let retryCount = 0;
 
 				// Retry logic for individual stages
-				while (retry_count <= this.config.retryAttempts) {
+				while (retryCount <= this.config.retryAttempts) {
 					try {
-						stage_result = await this.processStageWithTimeout(job, stage);
+						stageResult = await this.processStageWithTimeout(job, stage);
 						break; // Success, exit retry loop
 					} catch (error) {
-						retry_count++;
+						retryCount++;
 
-						if (retry_count > this.config.retryAttempts) {
+						if (retryCount > this.config.retryAttempts) {
 							throw error; // Max retries exceeded
 						}
 
-						const delay = this.calculateRetryDelay(retry_count);
+						const delay = this.calculateRetryDelay(retryCount);
 						this.logger.warn('Stage failed, retrying', {
 							jobId: job.id,
 							stage: stage.name,
-							attempt: retry_count,
+							attempt: retryCount,
 							delay,
 							error: error instanceof Error ? error.message : 'Unknown error'
 						});
@@ -536,7 +536,7 @@ export class ProcessingPipelineManager {
 						this.emitEvent('stage-retry', {
 							jobId: job.id,
 							stage: stage.name,
-							attempt: retry_count,
+							attempt: retryCount,
 							delay
 						});
 
@@ -545,14 +545,14 @@ export class ProcessingPipelineManager {
 				}
 
 				// Record stage completion
-				const stage_timing = job.stageTimings.get(stage.name)!;
-				stage_timing.endTime = Date.now();
-				stage_timing.duration = stage_timing.endTime - stage_timing.startTime;
+				const stageTiming = job.stageTimings.get(stage.name)!;
+				stageTiming.endTime = Date.now();
+				stageTiming.duration = stageTiming.endTime - stageTiming.startTime;
 
-				job.results.push(stage_result!);
+				job.results.push(stageResult!);
 
-				if (!stage_result!.success) {
-					throw new Error(`Stage ${stage.name} failed: ${stage_result!.metadata.issues.join(', ')}`);
+				if (!stageResult!.success) {
+					throw new Error(`Stage ${stage.name} failed: ${stageResult!.metadata.issues.join(', ')}`);
 				}
 
 				job.progress.stageProgress = 100;
@@ -625,40 +625,40 @@ export class ProcessingPipelineManager {
 		job: ProcessingJob,
 		stage: ProcessingStage
 	): Promise<ProcessingResult> {
-		const start_time = Date.now();
+		const startTime = Date.now();
 		const issues: string[] = [];
 
 		try {
-			let stage_data = {};
+			let stageData = {};
 
 			switch (stage.name) {
 				case 'fetch':
-					stage_data = await this.processFetchStage(job, stage);
+					stageData = await this.processFetchStage(job, stage);
 					break;
 
 				case 'extract':
-					stage_data = await this.processExtractStage(job, stage);
+					stageData = await this.processExtractStage(job, stage);
 					break;
 
 				case 'store':
-					stage_data = await this.processStoreStage(job, stage);
+					stageData = await this.processStoreStage(job, stage);
 					break;
 
 				case 'duplicate_check':
 					if (this.config.enableDuplicateDetection) {
-						stage_data = await this.processDuplicateCheckStage(job, stage);
+						stageData = await this.processDuplicateCheckStage(job, stage);
 					}
 					break;
 
 				case 'quality_assessment':
 					if (this.config.enableQualityAssessment) {
-						stage_data = await this.processQualityAssessmentStage(job, stage);
+						stageData = await this.processQualityAssessmentStage(job, stage);
 					}
 					break;
 
 				case 'interactive_transformation':
 					if (this.config.enableInteractiveTransformation) {
-						stage_data = await this.processInteractiveTransformationStage(job, stage);
+						stageData = await this.processInteractiveTransformationStage(job, stage);
 					}
 					break;
 
@@ -666,14 +666,14 @@ export class ProcessingPipelineManager {
 					issues.push(`Unknown stage: ${stage.name}`);
 			}
 
-			const confidence = this.calculateStageConfidence(stage.name, stage_data);
+			const confidence = this.calculateStageConfidence(stage.name, stageData);
 
 			return {
 				stage: stage.name,
 				success: issues.length === 0,
-				data: stage_data,
+				data: stageData,
 				metadata: {
-					processingTime: Date.now() - start_time,
+					processingTime: Date.now() - startTime,
 					confidence,
 					issues
 				}
@@ -706,22 +706,22 @@ export class ProcessingPipelineManager {
 		this.logger.debug('Fetching content', { jobId: job.id, url });
 
 		try {
-			const web_content = await webContentFetcher.fetch(url, {
+			const webContent = await webContentFetcher.fetch(url, {
 				timeout: this.config.timeoutMs,
 				cleanContent: true,
 				preserveInteractivity: true
 			});
 
-			if (!web_content.success) {
-				throw new Error(`Failed to fetch content: ${web_content.extraction.issues.join(', ')}`);
+			if (!webContent.success) {
+				throw new Error(`Failed to fetch content: ${webContent.extraction.issues.join(', ')}`);
 			}
 
 			return {
-				webContent: web_content,
+				webContent: webContent,
 				url,
 				fetchedAt: new Date(),
 				success: true,
-				confidence: web_content.extraction.confidence
+				confidence: webContent.extraction.confidence
 			};
 		} catch (error) {
 			this.logger.error('Fetch stage failed', { jobId: job.id, url, error });
@@ -733,30 +733,30 @@ export class ProcessingPipelineManager {
 	 * Process extract stage (analyze content for interactive opportunities)
 	 */
 	private async processExtractStage(job: ProcessingJob, stage: ProcessingStage): Promise<any> {
-		const fetch_result = job.results.find(r => r.stage === 'fetch');
-		if (!fetch_result?.data?.webContent) {
+		const fetchResult = job.results.find(r => r.stage === 'fetch');
+		if (!fetchResult?.data?.webContent) {
 			throw new Error('No web content available for extraction');
 		}
 
-		const web_content = fetch_result.data.webContent;
-		this.logger.debug('Analyzing content for interactivity', { jobId: job.id, contentId: web_content.id });
+		const webContent = fetchResult.data.webContent;
+		this.logger.debug('Analyzing content for interactivity', { jobId: job.id, contentId: webContent.id });
 
 		try {
 			// Add source record (without unsupported fields)
-			const add_result = await sourceManager.addSource({
-				url: web_content.url,
-				title: web_content.title,
-				metadata: web_content.metadata
+			const addResult = await sourceManager.addSource({
+				url: webContent.url,
+				title: webContent.title,
+				metadata: webContent.metadata
 			});
 
 			// Analyze for interactive opportunities (using fetched content id)
-			const analysis = await interactiveAnalyzer.analyzeContent(web_content.id);
+			const analysis = await interactiveAnalyzer.analyzeContent(webContent.id);
 
 			return {
-				contentId: add_result.sourceId,
+				contentId: addResult.sourceId,
 				analysis,
-				extractionMethod: web_content.extraction.method,
-				confidence: web_content.extraction.confidence,
+				extractionMethod: webContent.extraction.method,
+				confidence: webContent.extraction.confidence,
 				interactiveOpportunities: analysis.opportunities.length
 			};
 		} catch (error) {

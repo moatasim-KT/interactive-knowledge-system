@@ -6,7 +6,7 @@
  */
 
 import { createLogger } from '../../utils/logger';
-import { webContentState, webContentActions } from '../../stores/webContentState.svelte';
+import { webContentState, webContentActions } from '../../stores/webContentState.svelte.js';
 import { webContentFetcher } from '../../services/webContentFetcher';
 import { sourceManager } from '../../services/sourceManager';
 import { interactiveAnalyzer } from '../../services/interactiveAnalyzer';

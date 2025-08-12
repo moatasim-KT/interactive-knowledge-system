@@ -31,7 +31,7 @@ describe('Source Management Types', () => {
 	});
 
 	it('should have proper WebContent structure', () => {
-		const web_content = {
+		const webContent = {
 			id: 'test-content-1',
 			url: 'https://example.com/article',
 			finalUrl: 'https://example.com/article',
@@ -71,38 +71,38 @@ describe('Source Management Types', () => {
 			success: true
 		};
 
-		expect(web_content.id).toBe('test-content-1');
-		expect(web_content.url).toBe('https://example.com/article');
-		expect(web_content.title).toBe('Test Article');
-		expect(web_content.metadata.domain).toBe('example.com');
-		expect(web_content.metadata.category).toBe('tutorial');
-		expect(web_content.extraction.method).toBe('readability');
-		expect(web_content.success).toBe(true);
+		expect(webContent.id).toBe('test-content-1');
+		expect(webContent.url).toBe('https://example.com/article');
+		expect(webContent.title).toBe('Test Article');
+		expect(webContent.metadata.domain).toBe('example.com');
+		expect(webContent.metadata.category).toBe('tutorial');
+		expect(webContent.extraction.method).toBe('readability');
+		expect(webContent.success).toBe(true);
 	});
 
 	it('should validate filter combinations', () => {
 		// Test empty filters
-		const empty_filters = {};
-		expect(Object.keys(empty_filters)).toHaveLength(0);
+		const emptyFilters = {};
+		expect(Object.keys(emptyFilters)).toHaveLength(0);
 
 		// Test partial filters
-		const partial_filters = {
+		const partialFilters = {
 			domain: 'github.com',
 			tags: ['javascript']
 		};
-		expect(partial_filters.domain).toBe('github.com');
-		expect(partial_filters.tags).toEqual(['javascript']);
-		expect(partial_filters.status).toBeUndefined();
+		expect(partialFilters.domain).toBe('github.com');
+		expect(partialFilters.tags).toEqual(['javascript']);
+		expect(partialFilters.status).toBeUndefined();
 
 		// Test date range validation
-		const date_filters = {
+		const dateFilters = {
 			dateRange: {
 				start: new Date('2024-01-01'),
 				end: new Date('2024-01-31')
 			}
 		};
-		expect(date_filters.dateRange?.start.getTime()).toBeLessThan(
-			date_filters.dateRange?.end.getTime() || 0
+		expect(dateFilters.dateRange?.start.getTime()).toBeLessThan(
+			dateFilters.dateRange?.end.getTime() || 0
 		);
 	});
 });

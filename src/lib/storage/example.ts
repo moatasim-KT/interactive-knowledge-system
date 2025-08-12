@@ -50,20 +50,20 @@ export async function exampleWorkflow() {
 		}
 	};
 
-	const created_module = await contentStorage.createModule(module_data);
-	console.log('Created module:', created_module.title);
+	const createdModule = await contentStorage.createModule(module_data);
+	console.log('Created module:', createdModule.title);
 
 	// 2. Create user settings
-	const user_id = 'user-123';
-	const user_settings = await settingsStorage.createDefaultSettings(
-		user_id,
+	const userId = 'user-123';
+	const userSettings = await settingsStorage.createDefaultSettings(
+		userId,
 		'John Doe',
 		'john.doe@example.com'
 	);
-	console.log('Created user settings for:', user_settings.profile.name);
+	console.log('Created user settings for:', userSettings.profile.name);
 
 	// 3. Update user preferences
-	await settingsStorage.updatePreferences(user_id, {
+	await settingsStorage.updatePreferences(userId, {
 		theme: 'dark',
 		learningStyle: 'visual',
 		difficulty: 3
@@ -71,27 +71,27 @@ export async function exampleWorkflow() {
 	console.log('Updated user preferences');
 
 	// 4. Start learning the module
-	await progressStorage.startModule(user_id, created_module.id);
+	await progressStorage.startModule(userId, createdModule.id);
 	console.log('Started module for user');
 
 	// 5. Simulate some learning time
-	await progressStorage.addTimeSpent(user_id, created_module.id, 30);
+	await progressStorage.addTimeSpent(userId, createdModule.id, 30);
 	console.log('Added 30 minutes of study time');
 
 	// 6. Bookmark the module
-	const is_bookmarked = await progressStorage.toggleBookmark(user_id, created_module.id);
-	console.log('Module bookmarked:', is_bookmarked);
+	const isBookmarked = await progressStorage.toggleBookmark(userId, createdModule.id);
+	console.log('Module bookmarked:', isBookmarked);
 
 	// 7. Complete the module with a score
-	await progressStorage.completeModule(user_id, created_module.id, 88);
+	await progressStorage.completeModule(userId, createdModule.id, 88);
 	console.log('Completed module with score: 88');
 
 	// 8. Update the module content
-	const updated_module = {
-		...created_module,
+	const updatedModule = {
+		...createdModule,
 		title: 'Introduction to TypeScript - Updated',
 		blocks: [
-			...created_module.blocks,
+			...createdModule.blocks,
 			{
 				id: 'block-2',
 				type: 'code' as const,
@@ -105,36 +105,36 @@ export async function exampleWorkflow() {
 		]
 	};
 
-	await contentStorage.updateModule(updated_module, 'Added code example');
+	await contentStorage.updateModule(updatedModule, 'Added code example');
 	console.log('Updated module with new content');
 
 	// 9. Search for modules
-	const search_results = await contentStorage.searchModulesByTag('typescript');
-	console.log('Found modules with TypeScript tag:', search_results.length);
+	const searchResults = await contentStorage.searchModulesByTag('typescript');
+	console.log('Found modules with TypeScript tag:', searchResults.length);
 
 	// 10. Get user progress summary
-	const user_progress = await progressStorage.getUserProgress(user_id);
-	const completed_modules = await progressStorage.getCompletedModules(user_id);
-	const bookmarked_modules = await progressStorage.getBookmarkedModules(user_id);
+	const userProgress = await progressStorage.getUserProgress(userId);
+	const completedModules = await progressStorage.getCompletedModules(userId);
+	const bookmarkedModules = await progressStorage.getBookmarkedModules(userId);
 
 	console.log('User progress summary:');
-	console.log('- Total modules:', user_progress.length);
-	console.log('- Completed modules:', completed_modules.length);
-	console.log('- Bookmarked modules:', bookmarked_modules.length);
+	console.log('- Total modules:', userProgress.length);
+	console.log('- Completed modules:', completedModules.length);
+	console.log('- Bookmarked modules:', bookmarkedModules.length);
 
 	// 11. Get module version history
-	const module_history = await contentStorage.getModuleHistory(created_module.id);
-	console.log('Module has', module_history.length, 'versions');
+	const moduleHistory = await contentStorage.getModuleHistory(createdModule.id);
+	console.log('Module has', moduleHistory.length, 'versions');
 
 	// 12. Get recently accessed modules
-	const recent_modules = await progressStorage.getRecentlyAccessed(user_id, 5);
-	console.log('Recently accessed modules:', recent_modules.length);
+	const recentModules = await progressStorage.getRecentlyAccessed(userId, 5);
+	console.log('Recently accessed modules:', recentModules.length);
 
 	return {
-		module: updated_module,
-		userSettings: user_settings,
-		progress: user_progress,
-		history: module_history
+		module: updatedModule,
+		userSettings: userSettings,
+		progress: userProgress,
+		history: moduleHistory
 	};
 }
 
@@ -201,10 +201,10 @@ export async function exampleBatchImport() {
 	console.log('Batch import completed');
 
 	// Verify import
-	const all_modules = await contentStorage.getAllModules();
-	console.log('Total modules in database:', all_modules.length);
+	const allModules = await contentStorage.getAllModules();
+	console.log('Total modules in database:', allModules.length);
 
-	return all_modules;
+	return allModules;
 }
 
 /**
@@ -215,8 +215,8 @@ export async function exampleErrorHandling() {
 		await initializeStorage();
 
 		// Try to get a non-existent module
-		const non_existent_module = await contentStorage.getModule('does-not-exist');
-		console.log('Non-existent module result:', non_existent_module); // Should be undefined
+		const nonExistentModule = await contentStorage.getModule('does-not-exist');
+		console.log('Non-existent module result:', nonExistentModule); // Should be undefined
 
 		// Try to update settings for non-existent user
 		try {

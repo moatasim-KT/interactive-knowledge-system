@@ -30,17 +30,17 @@ export class WebContentFetcher {
 
     async fetch(url: string, options: FetchOptions = {}): Promise<WebContent> {
         const opts = { ...this.defaultOptions, ...options };
-        const start_time = Date.now();
+        const startTime = Date.now();
 
         try {
             this.logger.info(`Fetching content from: ${url}`);
 
             // Validate URL
-            const parsed_url = new URL(url);
+            const parsedUrl = new URL(url);
 
             // Create abort controller for timeout
             const controller = new AbortController();
-            const timeout_id = setTimeout(() => controller.abort(), opts.timeout);
+            const timeoutId = setTimeout(() => controller.abort(), opts.timeout);
 
             try {
                 // Fetch the content
@@ -56,7 +56,7 @@ export class WebContentFetcher {
                     redirect: opts.followRedirects ? 'follow' : 'manual'
                 });
 
-                clearTimeout(timeout_id);
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -68,15 +68,15 @@ export class WebContentFetcher {
                 // Parse and extract content
                 const content = this.extractContent(html, url, finalUrl, opts);
 
-                const processing_time = Date.now() - start_time;
-                this.logger.info(`Content fetched successfully in ${processing_time}ms`);
+                const processingTime = Date.now() - startTime;
+                this.logger.info(`Content fetched successfully in ${processingTime}ms`);
 
                 return content;
             } finally {
-                clearTimeout(timeout_id);
+                clearTimeout(timeoutId);
             }
         } catch (error) {
-            const processing_time = Date.now() - start_time;
+            const processingTime = Date.now() - startTime;
             this.logger.error(`Failed to fetch content from ${url}:`, error);
 
             // Return error content
@@ -130,7 +130,7 @@ export class WebContentFetcher {
         const metadata = this.extractMetadata(doc, originalUrl, finalUrl);
 
         // Extract main content
-        const main_content = this.extractMainContent(doc, options);
+        const mainContent = this.extractMainContent(doc, options);
 
         // Extract structured data
         const images = this.extractImages(doc, finalUrl);
@@ -139,16 +139,16 @@ export class WebContentFetcher {
         const charts = this.detectCharts(doc);
 
         // Generate content ID
-        const content_id = `content_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const contentId = `content_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
         return {
-            id: content_id,
+            id: contentId,
             url: originalUrl,
             finalUrl: finalUrl,
             title: metadata.description || 'Untitled',
             content: {
-                html: main_content.html,
-                text: main_content.text,
+                html: mainContent.html,
+                text: mainContent.text,
                 images,
                 codeBlocks,
                 tables,
@@ -157,8 +157,8 @@ export class WebContentFetcher {
             metadata,
             extraction: {
                 method: 'heuristic',
-                confidence: this.calculateExtractionConfidence(doc, main_content),
-                qualityScore: this.calculateQualityScore(main_content, metadata),
+                confidence: this.calculateExtractionConfidence(doc, mainContent),
+                qualityScore: this.calculateQualityScore(mainContent, metadata),
                 issues: [],
                 processingTime: 0 // Will be set by caller
             },
@@ -453,8 +453,8 @@ export class WebContentFetcher {
 
     private detectCodeLanguage(element: Element, code: string): string {
         // Check class names for language hints
-        const class_name = element.className.toLowerCase();
-        const language_patterns = {
+        const className = element.className.toLowerCase();
+        const languagePatterns = {
             javascript: /\b(javascript|js)\b/,
             typescript: /\b(typescript|ts)\b/,
             python: /\b(python|py)\b/,
@@ -469,8 +469,8 @@ export class WebContentFetcher {
             bash: /\b(bash|shell|sh)\b/
         };
 
-        for (const [lang, pattern] of Object.entries(language_patterns)) {
-            if (pattern.test(class_name)) {
+        for (const [lang, pattern] of Object.entries(languagePatterns)) {
+            if (pattern.test(className)) {
                 return lang;
             }
         }

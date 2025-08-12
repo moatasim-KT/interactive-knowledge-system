@@ -69,15 +69,17 @@
 		};
 	});
 
-	$: if (dialog_element) {
-		if (open) {
-			dialog_element.showModal();
-			document.body.style.overflow = 'hidden';
-		} else {
-			dialog_element.close();
-			document.body.style.overflow = '';
+	$effect(() => {
+		if (dialog_element) {
+			if (open) {
+				dialog_element.showModal();
+				document.body.style.overflow = 'hidden';
+			} else {
+				dialog_element.close();
+				document.body.style.overflow = '';
+			}
 		}
-	}
+	});
 
 	const modal_classes = $derived(() =>
 		[
@@ -104,14 +106,14 @@
 </script>
 
 <dialog
-	bind:this={dialogElement}
-	class={modalClasses()}
-	onclick={handleBackdropClick}
-	onkeydown={handleKeydown}
+	bind:this={dialog_element}
+	class={modal_classes()}
+	onclick={handle_backdrop_click}
+	onkeydown={handle_keydown}
 	aria-modal="true"
 	aria-labelledby={title ? 'modal-title' : undefined}
 >
-	<div class={contentClasses()} onclick={(e) => e.stopPropagation()}>
+	<div class={content_classes()} onclick={(e) => e.stopPropagation()}>
 		{#if title || closable}
 			<header class="flex items-center justify-between p-6 border-b border-border">
 				{#if title}
@@ -123,7 +125,7 @@
 				{#if closable}
 					<button
 						class="text-text-muted hover:text-text-primary transition-colors p-1 rounded-md hover:bg-surface-secondary"
-						onclick={handleClose}
+						onclick={handle_close}
 						aria-label="Close modal"
 					>
 						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

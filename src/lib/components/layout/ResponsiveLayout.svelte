@@ -88,28 +88,28 @@
 	);
 </script>
 
-<svelte:window bind:innerWidth={windowWidth} />
+<svelte:window bind:innerWidth={window_width} />
 
-<div class={layoutClasses}>
+<div class={layout_classes}>
 	<!-- Mobile Overlay -->
-	{#if isMobile}
-		<div class={overlayClasses} onclick={closeSidebar} aria-hidden="true"></div>
+	{#if is_mobile}
+		<div class={overlay_classes} onclick={close_sidebar} aria-hidden="true"></div>
 	{/if}
 
 	<!-- Sidebar -->
 	<aside
-		class={sidebarClasses}
+		class={sidebar_classes}
 		style="width: {is_mobile ? '100%' : sidebarWidth}; max-width: {is_mobile
 			? '20rem'
 			: sidebarWidth};"
 		aria-label="Sidebar navigation"
 	>
 		<!-- Mobile Close Button -->
-		{#if isMobile}
+		{#if is_mobile}
 			<div class="flex justify-end p-4 border-b border-border">
 				<button
 					class="p-2 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded-md transition-colors"
-					onclick={closeSidebar}
+					onclick={close_sidebar}
 					aria-label="Close sidebar"
 				>
 					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -130,7 +130,7 @@
 	</aside>
 
 	<!-- Main Content Area -->
-	<div class={mainClasses}>
+	<div class={main_classes}>
 		<!-- Header -->
 		{#if header}
 			<header class="bg-surface border-b border-border sticky top-0 z-sticky">
@@ -138,7 +138,7 @@
 				<div class="flex items-center gap-4 p-4 lg:hidden">
 					<button
 						class="p-2 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded-md transition-colors"
-						onclick={toggleSidebar}
+						onclick={toggle_sidebar}
 						aria-label="Toggle sidebar"
 					>
 						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

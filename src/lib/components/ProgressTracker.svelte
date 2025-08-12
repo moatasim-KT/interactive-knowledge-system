@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import type { UserProgress } from '../types/user.js';
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState, actions } from '../stores/appState.svelte.js';
@@ -171,7 +170,8 @@
 		return remaining_minutes > 0 ? `${hours}h ${remaining_minutes}m` : `${hours}h`;
 	};
 
-	onMount(() => {
+	// Load progress on mount and start time tracking if needed
+	$effect(() => {
 		load_progress();
 
 		// Start time tracking if module is already in progress
@@ -182,10 +182,11 @@
 				}
 			}, 100);
 		}
-	});
 
-	onDestroy(() => {
-		stop_time_tracking();
+		// Cleanup on destroy
+		return () => {
+			stop_time_tracking();
+		};
 	});
 </script>
 
@@ -207,7 +208,7 @@
 		</div>
 	{/if}
 
-	{#if isLoading}
+	{#if is_loading}
 		<div class="flex items-center justify-center py-4">
 			<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
 			<span class="ml-2 text-sm text-gray-600">Loading progress...</span>
@@ -233,7 +234,7 @@
 			<div class="flex items-center space-x-2">
 				<!-- Bookmark button -->
 				<button
-					onclick={toggleBookmark}
+					onclick={toggle_bookmark}
 					class="p-1 rounded-md hover:bg-gray-100 transition-colors"
 					title={progress.bookmarked ? 'Remove bookmark' : 'Add bookmark'}
 				>
@@ -275,7 +276,7 @@
 			<div class="flex space-x-2">
 				{#if progress.status === 'not-started'}
 					<button
-						onclick={startModule}
+						onclick={start_module}
 						class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
 					>
 						Start Learning

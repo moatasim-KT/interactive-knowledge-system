@@ -1,25 +1,25 @@
 <script lang="ts">
 	import type { DataFilter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	export let data: any;
-	export let filters: DataFilter[] = [];
+	interface Props {
+		data: any;
+		filters?: DataFilter[];
+		onDataChange?: (event: { data: any; filters: DataFilter[] }) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { data, filters = [], onDataChange }: Props = $props();
 
-	let sort_field = '';
-	let sort_direction = 'asc';
-	let search_query = '';
-	let active_filters = [...filters];
-	let show_advanced_filters = false;
+	let sort_field = $state('');
+	let sort_direction = $state<'asc' | 'desc'>('asc');
+	let search_query = $state('');
+	let active_filters = $state([...filters]);
+	let show_advanced_filters = $state(false);
 
 	// Processed data based on current filters and sorting
-	let processed_data;
-	$: processed_data = process_data(data, active_filters, sort_field, sort_direction, search_query);
+	const processed_data = $derived(() => process_data(data, active_filters, sort_field, sort_direction, search_query));
 
 	// Available fields for filtering and sorting (auto-detected from data)
-	let available_fields;
-	$: available_fields = detect_fields(data);
+	const available_fields = $derived(() => detect_fields(data));
 
 	function detect_fields(raw_data): string[] {
 		if (!raw_data) return [];
@@ -164,18 +164,20 @@
 	}
 
 	function emit_data_change() {
-		dispatch('dataChange', {
-			data: processed_data,
+		onDataChange?.({
+			data: processed_data(),
 			filters: active_filters,
 			sort: { field: sort_field, direction: sort_direction },
 			search: search_query
 		});
 	}
 
-	// Emit initial data
-	$: if (processed_data) {
-		emit_data_change();
-	}
+	// Emit data changes when processed data changes
+	$effect(() => {
+		if (processed_data()) {
+			emit_data_change();
+		}
+	});
 </script>
 
 <div class="data-manipulator">
@@ -184,14 +186,14 @@
 		<div class="header-actions">
 			<button
 				class="toggle-advanced-btn"
-				on:click={() => (show_advanced_filters = !show_advanced_filters)}
+				onclick={() => (show_advanced_filters = !show_advanced_filters)}
 				type="button"
 			>
 				{show_advanced_filters ? 'Hide' : 'Show'} Filters
 			</button>
 			<button
 				class="clear-all-btn"
-				on:click={clearAllFilters}
+				onclick={clear_all_filters}
 				type="button"
 				disabled={!search_query && !sort_field && active_filters.length === 0}
 			>
@@ -206,8 +208,8 @@
 			<input
 				type="text"
 				placeholder="Search data..."
-				value={searchQuery}
-				on:input={handleSearchChange}
+				bind:value={search_query}
+				oninput={handle_search_change}
 				class="search-input"
 			/>
 			<span class="search-icon">🔍</span>
@@ -218,16 +220,16 @@
 	<div class="sort-section">
 		<label class="sort-label">Sort by:</label>
 		<div class="sort-controls">
-			<select value={sortField} on:change={emitDataChange} class="sort-select">
+			<select bind:value={sort_field} onchange={emit_data_change} class="sort-select">
 				<option value="">No sorting</option>
-				{#each availableFields as field (field)}
+				{#each available_fields() as field (field)}
 					<option value={field}>{field}</option>
 				{/each}
 			</select>
 			{#if sortField}
 				<button
 					class="sort-direction-btn"
-					on:click={() => handle_sort_change(sort_field)}
+					onclick={() => handle_sort_change(sort_field)}
 					type="button"
 					title="Toggle sort direction"
 				>
@@ -242,7 +244,7 @@
 		<div class="filters-section">
 			<div class="filters-header">
 				<h5 class="filters-title">Advanced Filters</h5>
-				<button class="add-filter-btn" on:click={addFilter} type="button"> + Add Filter </button>
+				<button class="add-filter-btn" onclick={add_filter} type="button"> + Add Filter </button>
 			</div>
 
 			{#each activeFilters as filter, index (index)}
@@ -250,19 +252,19 @@
 					<div class="filter-controls">
 						<!-- Field Selection -->
 						<select
-							value={filter.field}
-							on:change={(e) => updateFilter(index, { field: e.currentTarget.value })}
+							bind:value={filter.field}
+							onchange={(e) => update_filter(index, { field: e.currentTarget.value })}
 							class="filter-field-select"
 						>
-							{#each availableFields as field (field)}
+							{#each available_fields() as field (field)}
 								<option value={field}>{field}</option>
 							{/each}
 						</select>
 
 						<!-- Operator Selection -->
 						<select
-							value={filter.operator}
-							on:change={(e) => updateFilter(index, { operator: e.currentTarget.value })}
+							bind:value={filter.operator}
+							onchange={(e) => update_filter(index, { operator: e.currentTarget.value })}
 							class="filter-operator-select"
 						>
 							<option value="contains">Contains</option>
@@ -279,7 +281,7 @@
 									type="number"
 									placeholder="Min"
 									value={Array.isArray(filter.value) ? filter.value[0] : ''}
-									on:input={(e) => {
+									oninput={(e) => {
 										const min = e.currentTarget.value;
 										const max = Array.isArray(filter.value) ? filter.value[1] : '';
 										update_filter(index, { value: [min, max] });
@@ -290,7 +292,7 @@
 									type="number"
 									placeholder="Max"
 									value={Array.isArray(filter.value) ? filter.value[1] : ''}
-									on:input={(e) => {
+									oninput={(e) => {
 										const max = e.currentTarget.value;
 										const min = Array.isArray(filter.value) ? filter.value[0] : '';
 										update_filter(index, { value: [min, max] });
@@ -305,7 +307,7 @@
 									: 'text'}
 								placeholder="Filter value..."
 								value={filter.value}
-								on:input={(e) => updateFilter(index, { value: e.currentTarget.value })}
+								oninput={(e) => update_filter(index, { value: e.currentTarget.value })}
 								class="filter-value-input"
 							/>
 						{/if}
@@ -315,7 +317,7 @@
 						<button
 							class="toggle-filter-btn"
 							class:active={filter.active}
-							on:click={() => toggle_filter(index)}
+							onclick={() => toggle_filter(index)}
 							type="button"
 							title={filter.active ? 'Disable filter' : 'Enable filter'}
 						>
@@ -323,7 +325,7 @@
 						</button>
 						<button
 							class="remove-filter-btn"
-							on:click={() => remove_filter(index)}
+							onclick={() => remove_filter(index)}
 							type="button"
 							title="Remove filter"
 						>

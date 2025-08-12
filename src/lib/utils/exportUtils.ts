@@ -201,7 +201,7 @@ export function exportToSCORM(data: ExportData): SCORMPackage {
 					html += `<div>${block.content}</div>`;
 					break;
 				case 'code':
-					html += `<pre><code>${escape_html(block.content.code)}</code></pre>`;
+					html += `<pre><code>${escapeHtml(block.content.code)}</code></pre>`;
 					break;
 				case 'image':
 					html += `<img src="${block.content.src}" alt="${block.content.alt || 'Image'}" style="max-width: 100%;">`;
@@ -249,7 +249,7 @@ export function exportToSCORM(data: ExportData): SCORMPackage {
 /**
  * Helper function to escape HTML
  */
-function escape_html(text: string): string {
+function escapeHtml(text: string): string {
 	const div = document.createElement('div');
 	div.textContent = text;
 	return div.innerHTML;

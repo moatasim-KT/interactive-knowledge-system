@@ -2,11 +2,21 @@
 	import type { ChartData, DataFilter, ChartInteraction } from '$lib/types/web-content.js';
 	import { createEventDispatcher, onMount } from 'svelte';
 
-	export let data: ChartData;
-	export let chartType: 'line' | 'bar' | 'scatter' | 'heatmap' = 'line';
-	export let filters: DataFilter[] = [];
-	export let interactions: ChartInteraction[] = [];
-	export let config: any = {};
+	interface Props {
+		data: ChartData;
+		chartType?: 'line' | 'bar' | 'scatter' | 'heatmap';
+		filters?: DataFilter[];
+		interactions?: ChartInteraction[];
+		config?: any;
+	}
+
+	let {
+		data,
+		chartType = 'line',
+		filters = [],
+		interactions = [],
+		config = {}
+	}: Props = $props();
 
 	const dispatch = createEventDispatcher();
 
@@ -28,14 +38,11 @@
 	let margin = config.layout?.margin || { top: 40, right: 40, bottom: 60, left: 60 };
 
 	// Calculate inner dimensions
-	// eslint-disable-next-line svelte/no-immutable-reactive-statements
-	$: inner_width = width - margin.left - margin.right;
-	// eslint-disable-next-line svelte/no-immutable-reactive-statements
-	$: inner_height = height - margin.top - margin.bottom;
+	const inner_width = $derived(() => width - margin.left - margin.right);
+	const inner_height = $derived(() => height - margin.top - margin.bottom);
 
 	// Process and filter data
-	let processed_data: any[] = [];
-	$: processed_data = process_chart_data(data, filters);
+	const processed_data = $derived(() => process_chart_data(data, filters));
 
 	// Chart type options
 	const chart_types = [
@@ -54,7 +61,7 @@
 	};
 
 	let current_color_scheme = 'default';
-	$: colors = color_schemes[current_color_scheme] || color_schemes.default;
+	const colors = $derived(() => color_schemes[current_color_scheme] || color_schemes.default);
 
 	function process_chart_data(raw_data: ChartData, active_filters: DataFilter[]): any[] {
 		if (!raw_data?.data) return [];

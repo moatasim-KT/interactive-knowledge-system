@@ -69,9 +69,9 @@ export const webContentState = $state({
 });
 
 /**
- * Derived state functions for computed values
+ * Derived state using Svelte 5 $derived rune
  */
-export function getFilteredSources() {
+export const filteredSources = $derived(() => {
     const { items } = webContentState.sources;
     const { searchQuery: uiSearchQuery, filters: uiFilters } = webContentState.ui;
 
@@ -101,31 +101,31 @@ export function getFilteredSources() {
     }
 
     return filtered;
-}
+});
 
-export function getContentStats() {
+export const contentStats = $derived(() => {
     const sources = Object.keys(webContentState.sources.items).length;
     const content = Object.keys(webContentState.content.items).length;
-    const active_jobs = (Object.values(webContentState.batch.jobs) as BatchProcessingJob[])
+    const activeJobs = (Object.values(webContentState.batch.jobs) as BatchProcessingJob[])
         .filter((job: BatchProcessingJob) => job.status === 'processing').length;
 
     return {
         totalSources: sources,
         totalContent: content,
-        activeJobs: active_jobs,
+        activeJobs,
         transformationOpportunities: webContentState.transformation.opportunities.length
     };
-}
+});
 
-export function getBatchProgress() {
-    const active_job = webContentState.batch.activeJob;
-    if (!active_job) return null;
+export const batchProgress = $derived(() => {
+    const activeJob = webContentState.batch.activeJob;
+    if (!activeJob) return null;
 
-    const completed = (active_job.results as ContentProcessingResult[])
+    const completed = (activeJob.results as ContentProcessingResult[])
         .filter((r: ContentProcessingResult) => r.success === true).length;
-    const failed = (active_job.results as ContentProcessingResult[])
+    const failed = (activeJob.results as ContentProcessingResult[])
         .filter((r: ContentProcessingResult) => r.success === false).length;
-    const total = active_job.urls.length;
+    const total = activeJob.urls.length;
 
     return {
         completed,
@@ -133,6 +133,22 @@ export function getBatchProgress() {
         total,
         percentage: total > 0 ? Math.round((completed + failed) / total * 100) : 0
     };
+});
+
+/**
+ * Legacy function exports for backward compatibility
+ * These will be deprecated in favor of the derived values above
+ */
+export function getFilteredSources() {
+    return filteredSources;
+}
+
+export function getContentStats() {
+    return contentStats;
+}
+
+export function getBatchProgress() {
+    return batchProgress;
 }
 
 /**

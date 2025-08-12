@@ -1,39 +1,53 @@
 <script lang="ts">
 	import type { DataFilter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	export let data: any[] = [];
-	export let filters: DataFilter[] = [];
-	export let groupBy: string = '';
-	export let sortBy: string = '';
-	export let sortDirection: 'asc' | 'desc' = 'asc';
+	interface Props {
+		data?: any[];
+		filters?: DataFilter[];
+		groupBy?: string;
+		sortBy?: string;
+		sortDirection?: 'asc' | 'desc';
+		onDataChange?: (event: {
+			data: any[];
+			filters: DataFilter[];
+			groupBy: string;
+			sortBy: string;
+			sortDirection: 'asc' | 'desc';
+			search: string;
+			page: number;
+			pageSize: number;
+		}) => void;
+		onExport?: (event: { format: string; data: any[] }) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let {
+		data = [],
+		filters = [],
+		groupBy = '',
+		sortBy = '',
+		sortDirection = 'asc',
+		onDataChange,
+		onExport
+	}: Props = $props();
 
 	// Data exploration state
-	let search_query = '';
-	let active_filters = [...filters];
-	let show_advanced_controls = false;
-	let selected_columns: string[] = [];
-	let group_by_field = groupBy;
-	let sort_field = sortBy;
-	let sort_direction = sortDirection;
-	let page_size = 50;
-	let current_page = 0;
+	let search_query = $state('');
+	let active_filters = $state([...filters]);
+	let show_advanced_controls = $state(false);
+	let selected_columns = $state<string[]>([]);
+	let group_by_field = $state(groupBy);
+	let sort_field = $state(sortBy);
+	let sort_direction = $state(sortDirection);
+	let page_size = $state(50);
+	let current_page = $state(0);
 
 	// Processed data
-	let processed_data: any[] = [];
-	let grouped_data: { [key: string]: any[] } = {};
-	let available_fields: string[] = [];
-	let field_types: { [key: string]: string } = {};
-	let data_summary: any = {};
-
-	$: available_fields = detect_fields(data);
-	$: field_types = detect_field_types(data);
-	$: processed_data = process_data(data, active_filters, search_query, sort_field, sort_direction);
-	$: grouped_data = group_by_field ? group_data(processed_data, group_by_field) : {};
-	$: data_summary = calculate_summary(processed_data);
-	$: paginated_data = paginate_data(processed_data, current_page, page_size);
+	const available_fields = $derived(() => detect_fields(data));
+	const field_types = $derived(() => detect_field_types(data));
+	const processed_data = $derived(() => process_data(data, active_filters, search_query, sort_field, sort_direction));
+	const grouped_data = $derived(() => group_by_field ? group_data(processed_data(), group_by_field) : {});
+	const data_summary = $derived(() => calculate_summary(processed_data()));
+	const paginated_data = $derived(() => paginate_data(processed_data(), current_page, page_size));
 
 	// Aggregation functions
 	const aggregation_functions = [
@@ -45,7 +59,7 @@
 		{ value: 'median', label: 'Median', icon: '📈' }
 	];
 
-	let selected_aggregation = 'count';
+	let selected_aggregation = $state('count');
 
 	function detect_fields(raw_data: any[]): string[] {
 		if (!raw_data || !raw_data.length) return [];
@@ -63,8 +77,9 @@
 
 		const types: { [key: string]: string } = {};
 		const sample_size = Math.min(100, raw_data.length);
+		const fields = available_fields();
 
-		available_fields.forEach((field) => {
+		fields.forEach((field) => {
 			const sample_values = raw_data
 				.slice(0, sample_size)
 				.map((item) => item[field])
@@ -111,8 +126,9 @@
 		// Apply search filter
 		if (search.trim()) {
 			const search_lower = search.toLowerCase();
+			const fields = available_fields();
 			processed = processed.filter((item) => {
-				return available_fields.some((field) => {
+				return fields.some((field) => {
 					const value = String(item[field] || '').toLowerCase();
 					return value.includes(search_lower);
 				});
@@ -150,14 +166,15 @@
 
 		// Apply sorting
 		if (sort_by) {
+			const types = field_types();
 			processed.sort((a, b) => {
 				const a_val = a[sort_by];
 				const b_val = b[sort_by];
 
 				let comparison = 0;
-				if (field_types[sort_by] === 'number') {
+				if (types[sort_by] === 'number') {
 					comparison = Number(a_val) - Number(b_val);
-				} else if (field_types[sort_by] === 'date') {
+				} else if (types[sort_by] === 'date') {
 					comparison = new Date(a_val).getTime() - new Date(b_val).getTime();
 				} else {
 					comparison = String(a_val).localeCompare(String(b_val));
@@ -194,14 +211,17 @@
 			fields: {}
 		};
 
-		available_fields.forEach((field) => {
+		const fields = available_fields();
+		const types = field_types();
+
+		fields.forEach((field) => {
 			const values = data.map((item) => item[field]).filter((v) => v != null);
 			const field_summary: any = {
 				non_null_count: values.length,
 				null_count: data.length - values.length
 			};
 
-			if (field_types[field] === 'number') {
+			if (types[field] === 'number') {
 				const numeric_values = values.map((v) => Number(v)).filter((v) => !isNaN(v));
 				if (numeric_values.length > 0) {
 					field_summary.min = Math.min(...numeric_values);
@@ -292,9 +312,11 @@
 	}
 
 	function add_filter() {
+		const fields = available_fields();
+		const types = field_types();
 		const new_filter: DataFilter = {
-			field: available_fields[0] || 'value',
-			type: field_types[available_fields[0]] || 'text',
+			field: fields[0] || 'value',
+			type: types[fields[0]] || 'text',
 			operator: 'contains',
 			value: '',
 			active: true
@@ -334,13 +356,14 @@
 	function change_page(new_page: number) {
 		current_page = Math.max(
 			0,
-			Math.min(new_page, Math.ceil(processed_data.length / page_size) - 1)
+			Math.min(new_page, Math.ceil(processed_data().length / page_size) - 1)
 		);
 		emit_data_change();
 	}
 
 	function export_data() {
-		const csv_content = convert_to_csv(processed_data);
+		const data_to_export = processed_data();
+		const csv_content = convert_to_csv(data_to_export);
 		const blob = new Blob([csv_content], { type: 'text/csv' });
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement('a');
@@ -349,15 +372,16 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		dispatch('export', { format: 'csv', data: processed_data });
+		onExport?.({ format: 'csv', data: data_to_export });
 	}
 
 	function convert_to_csv(data: any[]): string {
 		if (!data.length) return '';
 
-		const headers = available_fields.join(',');
+		const fields = available_fields();
+		const headers = fields.join(',');
 		const rows = data.map((item) =>
-			available_fields
+			fields
 				.map((field) => {
 					const value = item[field];
 					return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
@@ -369,8 +393,8 @@
 	}
 
 	function emit_data_change() {
-		dispatch('dataChange', {
-			data: processed_data,
+		onDataChange?.({
+			data: processed_data(),
 			filters: active_filters,
 			groupBy: group_by_field,
 			sortBy: sort_field,
@@ -381,10 +405,12 @@
 		});
 	}
 
-	// Emit initial data
-	$: if (processed_data) {
-		emit_data_change();
-	}
+	// Emit data changes when processed data changes
+	$effect(() => {
+		if (processed_data()) {
+			emit_data_change();
+		}
+	});
 </script>
 
 <div class="data-explorer">
@@ -392,22 +418,22 @@
 	<div class="explorer-header">
 		<div class="header-title">
 			<h3>Data Explorer</h3>
-			<span class="data-count">{processed_data.length} of {data.length} rows</span>
+			<span class="data-count">{processed_data().length} of {data.length} rows</span>
 		</div>
 
 		<div class="header-actions">
 			<button
 				class="toggle-btn"
 				class:active={show_advanced_controls}
-				on:click={() => (show_advanced_controls = !show_advanced_controls)}
+				onclick={() => (show_advanced_controls = !show_advanced_controls)}
 				type="button"
 			>
 				⚙️ Advanced
 			</button>
-			<button class="export-btn" on:click={export_data} type="button"> 💾 Export CSV </button>
+			<button class="export-btn" onclick={export_data} type="button"> 💾 Export CSV </button>
 			<button
 				class="clear-btn"
-				on:click={clear_all_filters}
+				onclick={clear_all_filters}
 				disabled={!search_query && !sort_field && !group_by_field && active_filters.length === 0}
 				type="button"
 			>
@@ -422,8 +448,8 @@
 			<input
 				type="text"
 				placeholder="Search across all fields..."
-				value={search_query}
-				on:input={handle_search_change}
+				bind:value={search_query}
+				oninput={handle_search_change}
 				class="search-input"
 			/>
 			<span class="search-icon">🔍</span>
@@ -432,10 +458,10 @@
 		<div class="quick-filters">
 			<div class="control-group">
 				<label>Group by:</label>
-				<select value={group_by_field} on:change={handle_group_change} class="group-select">
+				<select bind:value={group_by_field} onchange={handle_group_change} class="group-select">
 					<option value="">No grouping</option>
-					{#each available_fields as field (field)}
-						<option value={field}>{field} ({field_types[field]})</option>
+					{#each available_fields() as field (field)}
+						<option value={field}>{field} ({field_types()[field]})</option>
 					{/each}
 				</select>
 			</div>
@@ -443,22 +469,22 @@
 			<div class="control-group">
 				<label>Sort by:</label>
 				<select
-					value={sort_field}
-					on:change={(e) => {
+					bind:value={sort_field}
+					onchange={(e) => {
 						sort_field = e.currentTarget.value;
 						emit_data_change();
 					}}
 					class="sort-select"
 				>
 					<option value="">No sorting</option>
-					{#each available_fields as field (field)}
+					{#each available_fields() as field (field)}
 						<option value={field}>{field}</option>
 					{/each}
 				</select>
 				{#if sort_field}
 					<button
 						class="sort-direction-btn"
-						on:click={() => handle_sort_change(sort_field)}
+						onclick={() => handle_sort_change(sort_field)}
 						title="Toggle sort direction"
 						type="button"
 					>
@@ -475,33 +501,33 @@
 			<div class="filters-section">
 				<div class="section-header">
 					<h4>Advanced Filters</h4>
-					<button class="add-filter-btn" on:click={add_filter} type="button"> + Add Filter </button>
+					<button class="add-filter-btn" onclick={add_filter} type="button"> + Add Filter </button>
 				</div>
 
 				{#each active_filters as filter, index (index)}
 					<div class="filter-row" class:inactive={!filter.active}>
 						<select
-							value={filter.field}
-							on:change={(e) =>
+							bind:value={filter.field}
+							onchange={(e) =>
 								update_filter(index, {
 									field: e.currentTarget.value,
-									type: field_types[e.currentTarget.value]
+									type: field_types()[e.currentTarget.value]
 								})}
 							class="filter-field-select"
 						>
-							{#each available_fields as field (field)}
-								<option value={field}>{field} ({field_types[field]})</option>
+							{#each available_fields() as field (field)}
+								<option value={field}>{field} ({field_types()[field]})</option>
 							{/each}
 						</select>
 
 						<select
-							value={filter.operator}
-							on:change={(e) => update_filter(index, { operator: e.currentTarget.value })}
+							bind:value={filter.operator}
+							onchange={(e) => update_filter(index, { operator: e.currentTarget.value })}
 							class="filter-operator-select"
 						>
 							<option value="contains">Contains</option>
 							<option value="equals">Equals</option>
-							{#if field_types[filter.field] === 'number'}
+							{#if field_types()[filter.field] === 'number'}
 								<option value="greater">Greater than</option>
 								<option value="less">Less than</option>
 								<option value="between">Between</option>
@@ -514,7 +540,7 @@
 									type="number"
 									placeholder="Min"
 									value={Array.isArray(filter.value) ? filter.value[0] : ''}
-									on:input={(e) => {
+									oninput={(e) => {
 										const min = e.currentTarget.value;
 										const max = Array.isArray(filter.value) ? filter.value[1] : '';
 										update_filter(index, { value: [min, max] });
@@ -525,7 +551,7 @@
 									type="number"
 									placeholder="Max"
 									value={Array.isArray(filter.value) ? filter.value[1] : ''}
-									on:input={(e) => {
+									oninput={(e) => {
 										const max = e.currentTarget.value;
 										const min = Array.isArray(filter.value) ? filter.value[0] : '';
 										update_filter(index, { value: [min, max] });
@@ -535,14 +561,14 @@
 							</div>
 						{:else}
 							<input
-								type={field_types[filter.field] === 'number'
+								type={field_types()[filter.field] === 'number'
 									? 'number'
-									: field_types[filter.field] === 'date'
+									: field_types()[filter.field] === 'date'
 										? 'date'
 										: 'text'}
 								placeholder="Filter value..."
-								value={filter.value}
-								on:input={(e) => update_filter(index, { value: e.currentTarget.value })}
+								bind:value={filter.value}
+								oninput={(e) => update_filter(index, { value: e.currentTarget.value })}
 								class="filter-value-input"
 							/>
 						{/if}
@@ -551,7 +577,7 @@
 							<button
 								class="toggle-filter-btn"
 								class:active={filter.active}
-								on:click={() => toggle_filter(index)}
+								onclick={() => toggle_filter(index)}
 								title={filter.active ? 'Disable filter' : 'Enable filter'}
 								type="button"
 							>
@@ -559,7 +585,7 @@
 							</button>
 							<button
 								class="remove-filter-btn"
-								on:click={() => remove_filter(index)}
+								onclick={() => remove_filter(index)}
 								title="Remove filter"
 								type="button"
 							>
@@ -574,15 +600,15 @@
 			<div class="summary-section">
 				<h4>Data Summary</h4>
 				<div class="summary-grid">
-					{#each available_fields as field (field)}
+					{#each available_fields() as field (field)}
 						<div class="field-summary">
 							<div class="field-header">
 								<strong>{field}</strong>
-								<span class="field-type">({field_types[field]})</span>
+								<span class="field-type">({field_types()[field]})</span>
 							</div>
 							<div class="field-stats">
-								{#if data_summary.fields?.[field]}
-									{@const stats = data_summary.fields[field]}
+								{#if data_summary().fields?.[field]}
+									{@const stats = data_summary().fields[field]}
 									<div class="stat-item">Non-null: {stats.non_null_count}</div>
 									{#if stats.unique_count !== undefined}
 										<div class="stat-item">Unique: {stats.unique_count}</div>
@@ -608,7 +634,7 @@
 	{/if}
 
 	<!-- Grouped Data Display -->
-	{#if group_by_field && Object.keys(grouped_data).length > 0}
+	{#if group_by_field && Object.keys(grouped_data()).length > 0}
 		<div class="grouped-data">
 			<h4>Grouped by {group_by_field}</h4>
 			<div class="aggregation-controls">
@@ -621,7 +647,7 @@
 			</div>
 
 			<div class="groups-container">
-				{#each Object.entries(grouped_data) as [group_key, group_items] (group_key)}
+				{#each Object.entries(grouped_data()) as [group_key, group_items] (group_key)}
 					<div class="group-item">
 						<div class="group-header">
 							<h5>{group_key}</h5>
@@ -630,7 +656,7 @@
 
 						{#if selected_aggregation !== 'count'}
 							<div class="group-aggregations">
-								{#each available_fields.filter((f) => field_types[f] === 'number') as field (field)}
+								{#each available_fields().filter((f) => field_types()[f] === 'number') as field (field)}
 									<div class="aggregation-result">
 										<span class="agg-field">{field}:</span>
 										<span class="agg-value"
@@ -653,7 +679,7 @@
 		<div class="table-header">
 			<h4>Data Table</h4>
 			<div class="pagination-info">
-				Page {current_page + 1} of {Math.ceil(processed_data.length / page_size)}
+				Page {current_page + 1} of {Math.ceil(processed_data().length / page_size)}
 			</div>
 		</div>
 
@@ -661,15 +687,15 @@
 			<table class="data-table">
 				<thead>
 					<tr>
-						{#each available_fields as field (field)}
+						{#each available_fields() as field (field)}
 							<th
 								class="sortable-header"
 								class:sorted={sort_field === field}
-								on:click={() => handle_sort_change(field)}
+								onclick={() => handle_sort_change(field)}
 							>
 								<div class="header-content">
 									<span class="field-name">{field}</span>
-									<span class="field-type">({field_types[field]})</span>
+									<span class="field-type">({field_types()[field]})</span>
 									{#if sort_field === field}
 										<span class="sort-indicator">{sort_direction === 'asc' ? '↑' : '↓'}</span>
 									{/if}
@@ -679,13 +705,13 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each paginated_data as row, index (index)}
+					{#each paginated_data() as row, index (index)}
 						<tr>
-							{#each available_fields as field (field)}
-								<td class="data-cell" class:numeric={field_types[field] === 'number'}>
-									{#if field_types[field] === 'number'}
+							{#each available_fields() as field (field)}
+								<td class="data-cell" class:numeric={field_types()[field] === 'number'}>
+									{#if field_types()[field] === 'number'}
 										{typeof row[field] === 'number' ? row[field].toFixed(2) : row[field]}
-									{:else if field_types[field] === 'date'}
+									{:else if field_types()[field] === 'date'}
 										{row[field] ? new Date(row[field]).toLocaleDateString() : ''}
 									{:else}
 										{row[field] || ''}
@@ -699,25 +725,25 @@
 		</div>
 
 		<!-- Pagination -->
-		{#if Math.ceil(processed_data.length / page_size) > 1}
+		{#if Math.ceil(processed_data().length / page_size) > 1}
 			<div class="pagination">
 				<button
 					class="page-btn"
 					disabled={current_page === 0}
-					on:click={() => change_page(current_page - 1)}
+					onclick={() => change_page(current_page - 1)}
 					type="button"
 				>
 					← Previous
 				</button>
 
 				<div class="page-numbers">
-					{#each Array(Math.min(5, Math.ceil(processed_data.length / page_size))) as _, i (i)}
+					{#each Array(Math.min(5, Math.ceil(processed_data().length / page_size))) as _, i (i)}
 						{@const page_num = Math.max(0, current_page - 2) + i}
-						{#if page_num < Math.ceil(processed_data.length / page_size)}
+						{#if page_num < Math.ceil(processed_data().length / page_size)}
 							<button
 								class="page-number-btn"
 								class:active={page_num === current_page}
-								on:click={() => change_page(page_num)}
+								onclick={() => change_page(page_num)}
 								type="button"
 							>
 								{page_num + 1}
@@ -728,8 +754,8 @@
 
 				<button
 					class="page-btn"
-					disabled={current_page >= Math.ceil(processed_data.length / page_size) - 1}
-					on:click={() => change_page(current_page + 1)}
+					disabled={current_page >= Math.ceil(processed_data().length / page_size) - 1}
+					onclick={() => change_page(current_page + 1)}
 					type="button"
 				>
 					Next →

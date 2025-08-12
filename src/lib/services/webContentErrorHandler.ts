@@ -34,27 +34,27 @@ export class WebContentErrorHandler {
 	 * Handle and categorize errors from web content operations
 	 */
 	handleError(error: any, context: string, operation: string): WebContentError {
-		const web_content_error = this.categorizeError(error, context, operation);
+		const webContentError = this.categorizeError(error, context, operation);
 
 		// Log the error
 		logger.error(`${operation} failed in ${context}:`, {
-			code: web_content_error.code,
-			message: web_content_error.message,
-			details: web_content_error.details
+			code: webContentError.code,
+			message: webContentError.message,
+			details: webContentError.details
 		});
 
 		// Add to history
-		this.addToHistory(web_content_error);
+		this.addToHistory(webContentError);
 
 		// Show user notification
-		this.showUserNotification(web_content_error);
+		this.showUserNotification(webContentError);
 
 		// Attempt recovery if possible
-		if (web_content_error.recoverable) {
-			this.attemptRecovery(web_content_error, context, operation);
+		if (webContentError.recoverable) {
+			this.attemptRecovery(webContentError, context, operation);
 		}
 
-		return web_content_error;
+		return webContentError;
 	}
 
 	/**
@@ -62,7 +62,7 @@ export class WebContentErrorHandler {
 	 */
 	private categorizeError(error: any, context: string, operation: string): WebContentError {
 		const timestamp = new Date();
-		const base_error = {
+		const baseError = {
 			details: { context, operation, originalError: error },
 			timestamp
 		};
@@ -70,7 +70,7 @@ export class WebContentErrorHandler {
 		// Network errors
 		if (error instanceof TypeError && error.message.includes('fetch')) {
 			return {
-				...base_error,
+				...baseError,
 				code: 'NETWORK_ERROR',
 				message: 'Network connection failed',
 				recoverable: true,
@@ -82,7 +82,7 @@ export class WebContentErrorHandler {
 		// Timeout errors
 		if (error.name === 'AbortError' || error.message.includes('timeout')) {
 			return {
-				...base_error,
+				...baseError,
 				code: 'TIMEOUT_ERROR',
 				message: 'Request timed out',
 				recoverable: true,
@@ -96,7 +96,7 @@ export class WebContentErrorHandler {
 			const status = error.status;
 			if (status === 404) {
 				return {
-					...base_error,
+					...baseError,
 					code: 'NOT_FOUND',
 					message: 'Content not found',
 					recoverable: false,
@@ -105,7 +105,7 @@ export class WebContentErrorHandler {
 				};
 			} else if (status === 403) {
 				return {
-					...base_error,
+					...baseError,
 					code: 'ACCESS_DENIED',
 					message: 'Access denied',
 					recoverable: false,
@@ -114,7 +114,7 @@ export class WebContentErrorHandler {
 				};
 			} else if (status === 429) {
 				return {
-					...base_error,
+					...baseError,
 					code: 'RATE_LIMITED',
 					message: 'Rate limit exceeded',
 					recoverable: true,
@@ -123,7 +123,7 @@ export class WebContentErrorHandler {
 				};
 			} else if (status >= 500) {
 				return {
-					...base_error,
+					...baseError,
 					code: 'SERVER_ERROR',
 					message: 'Server error',
 					recoverable: true,
@@ -136,7 +136,7 @@ export class WebContentErrorHandler {
 		// Content extraction errors
 		if (context.includes('extraction') || context.includes('parsing')) {
 			return {
-				...base_error,
+				...baseError,
 				code: 'EXTRACTION_ERROR',
 				message: 'Failed to extract content',
 				recoverable: true,
@@ -148,7 +148,7 @@ export class WebContentErrorHandler {
 		// Storage errors
 		if (context.includes('storage') || error.name === 'QuotaExceededError') {
 			return {
-				...base_error,
+				...baseError,
 				code: 'STORAGE_ERROR',
 				message: 'Storage operation failed',
 				recoverable: true,
@@ -160,7 +160,7 @@ export class WebContentErrorHandler {
 		// Transformation errors
 		if (context.includes('transformation') || context.includes('analysis')) {
 			return {
-				...base_error,
+				...baseError,
 				code: 'TRANSFORMATION_ERROR',
 				message: 'Content transformation failed',
 				recoverable: true,
@@ -172,7 +172,7 @@ export class WebContentErrorHandler {
 		// URL validation errors
 		if (error.message?.includes('Invalid URL') || context.includes('validation')) {
 			return {
-				...base_error,
+				...baseError,
 				code: 'INVALID_URL',
 				message: 'Invalid URL provided',
 				recoverable: false,
@@ -183,7 +183,7 @@ export class WebContentErrorHandler {
 
 		// Generic errors
 		return {
-			...base_error,
+			...baseError,
 			code: 'UNKNOWN_ERROR',
 			message: error.message || 'An unknown error occurred',
 			recoverable: false,
@@ -207,10 +207,10 @@ export class WebContentErrorHandler {
 	 * Show appropriate user notification
 	 */
 	private showUserNotification(error: WebContentError): void {
-		const notification_type = this.getNotificationType(error.code);
+		const notificationType = this.getNotificationType(error.code);
 
 		webContentActions.addNotification({
-			type: notification_type,
+			type: notificationType,
 			message: error.userMessage
 		});
 	}
@@ -272,15 +272,15 @@ export class WebContentErrorHandler {
 	 * Schedule retry with exponential backoff
 	 */
 	private scheduleRetry(error: WebContentError, context: string, operation: string): void {
-		const retry_count = this.getRetryCount(error.code);
-		const delay = Math.min(1000 * Math.pow(2, retry_count), 30000); // Max 30 seconds
+		const retryCount = this.getRetryCount(error.code);
+		const delay = Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
 
-		logger.info(`Scheduling retry ${retry_count + 1} for ${error.code} in ${delay}ms`);
+		logger.info(`Scheduling retry ${retryCount + 1} for ${error.code} in ${delay}ms`);
 
 		setTimeout(() => {
 			webContentActions.addNotification({
 				type: 'info',
-				message: `Retrying ${operation}... (attempt ${retry_count + 1})`
+				message: `Retrying ${operation}... (attempt ${retryCount + 1})`
 			});
 		}, delay);
 	}
@@ -385,12 +385,12 @@ export class WebContentErrorHandler {
 	/**
 	 * Check if an operation should be retried based on error history
 	 */
-	shouldRetry(errorCode: string, max_retries = 3): boolean {
-		const recent_errors = this.errorHistory
+	shouldRetry(errorCode: string, maxRetries = 3): boolean {
+		const recentErrors = this.errorHistory
 			.filter(e => e.code === errorCode)
 			.filter(e => Date.now() - e.timestamp.getTime() < 300000); // Last 5 minutes
 
-		return recent_errors.length < max_retries;
+		return recentErrors.length < maxRetries;
 	}
 
 	/**

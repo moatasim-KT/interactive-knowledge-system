@@ -4,31 +4,43 @@
 		actions,
 		getFilteredContent,
 		getProgressStats
-	} from '$lib/stores/appState.svelte.js';
-	import '$lib/stores/effects.svelte.js'; // Import effects to activate them
-	import type { KnowledgeNode } from '$lib/types/index.js';
+	} from '$lib/stores/appState.svelte.ts';
+	import '$lib/stores/effects.svelte.ts'; // Import effects to activate them
+	import type { KnowledgeNode } from '$lib/types/index';
 	import { goto } from '$app/navigation';
-	import ResponsiveLayout from '$lib/components/layout/ResponsiveLayout.svelte';
-	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Card from '$lib/components/ui/Card.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import Grid from '$lib/components/layout/Grid.svelte';
-	import Badge from '$lib/components/ui/Badge.svelte';
-	import ProgressBar from '$lib/components/ui/ProgressBar.svelte';
-	import Tooltip from '$lib/components/ui/Tooltip.svelte';
-	import SyncStatus from '$lib/components/SyncStatus.svelte';
-	import { syncService } from '$lib/services/syncService.js';
+	import { ResponsiveLayout, Grid } from '$lib/components/layout';
+	import { 
+		ToastContainer, 
+		Button, 
+		Card, 
+		Input, 
+		Badge, 
+		ProgressBar, 
+		Tooltip 
+	} from '$lib/components/ui';
+	import { SyncStatus, ErrorBoundary } from '$lib/components';
+	import { syncService } from '$lib/services/syncService';
 	import '$lib/styles/design-system.css';
+
+	// Svelte 5 props
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+	
+	let { children }: Props = $props();
+
+	// Get derived values using $derived
+	const filteredContentValue = $derived(() => getFilteredContent());
+	const progressStatsValue = $derived(() => getProgressStats());
 
 	// Initialize sync service
 	syncService.initialize();
 
 	// Initialize some sample data for demonstration
-	const sample_node = {
+	const sample_node: KnowledgeNode = {
 		id: 'sample-1',
 		title: 'Introduction to TypeScript',
-		type: 'module',
+		type: 'module' as const,
 		metadata: {
 			difficulty: 2,
 			estimatedTime: 30,
@@ -44,10 +56,10 @@
 	// Add sample data to state
 	actions.addKnowledgeNode(sample_node);
 
-	let sidebar_open = $state(true);
-	let search_query = $state('');
+	let sidebarOpen = $state(true);
+	let searchQuery = $state('');
 
-	function toggle_theme() {
+	function toggleTheme() {
 		const html = document.documentElement;
 		const current_theme = html.getAttribute('data-theme');
 		const new_theme = current_theme === 'dark' ? 'light' : 'dark';
@@ -62,6 +74,7 @@
 	}
 </script>
 
+<ErrorBoundary>
 <ResponsiveLayout bind:sidebarOpen>
 	{#snippet header()}
 		<div class="flex items-center justify-between p-4">
@@ -204,16 +217,15 @@
 				</Button>
 
 				<div class="space-y-1">
-					{#each getFilteredContent().slice(0, 8) as node, index (node.id)}
+					{#each filteredContentValue().slice(0, 8) as node (node.id)}
 						<Card
 							interactive
 							padding="sm"
 							class="text-sm animate-slide-in-left transition-all hover:scale-[1.02] hover:-translate-y-0.5 group"
-							style="animation-delay: {index * 50}ms"
 							onclick={() => {
 								actions.setCurrentNode(node);
 								goto(`/knowledge/${node.id}`);
-								if (window.innerWidth < 1024) sidebar_open = false;
+								if (window.innerWidth < 1024) sidebarOpen = false;
 							}}
 						>
 							<div class="flex items-center justify-between">
@@ -231,7 +243,7 @@
 											value={node.progress.score}
 											size="sm"
 											class="w-12"
-											variant="primary"
+											variant="default"
 										/>
 									{/if}
 								</div>
@@ -240,7 +252,7 @@
 					{/each}
 				</div>
 
-				{#if getFilteredContent().length > 8}
+				{#if filteredContentValue().length > 8}
 					<Button
 						variant="outline"
 						size="sm"
@@ -248,7 +260,7 @@
 						onclick={() => goto('/knowledge')}
 						class="mt-3"
 					>
-						View All ({getFilteredContent().length - 8} more)
+						View All ({filteredContentValue().length - 8} more)
 					</Button>
 				{/if}
 			</div>
@@ -257,7 +269,8 @@
 
 	<!-- Main Content -->
 	<div class="p-4 md:p-6 lg:p-8">
-		{#if appState.ui.currentView === 'dashboard'}
+		<ErrorBoundary>
+			{#if appState.ui.currentView === 'dashboard'}
 			<div class="space-y-6">
 				<div class="flex items-center justify-between">
 					<h2 class="text-2xl font-bold text-text-primary">Dashboard</h2>
@@ -268,11 +281,10 @@
 						variant="elevated"
 						padding="lg"
 						class="animate-slide-in-up hover:scale-105 transition-all duration-300 group"
-						style="animation-delay: 0ms"
 					>
 						<div class="text-center">
 							<div class="text-3xl font-bold text-primary-600 mb-2 group-hover:animate-pulse">
-								{getProgressStats().totalModules}
+								{progressStatsValue().totalModules}
 							</div>
 							<div class="text-sm text-text-secondary">Total Modules</div>
 						</div>
@@ -282,11 +294,10 @@
 						variant="elevated"
 						padding="lg"
 						class="animate-slide-in-up hover:scale-105 transition-all duration-300 group"
-						style="animation-delay: 100ms"
 					>
 						<div class="text-center">
 							<div class="text-3xl font-bold text-success-600 mb-2 group-hover:animate-bounce">
-								{getProgressStats().completedModules}
+								{progressStatsValue().completedModules}
 							</div>
 							<div class="text-sm text-text-secondary">Completed</div>
 						</div>
@@ -296,16 +307,15 @@
 						variant="elevated"
 						padding="lg"
 						class="animate-slide-in-up hover:scale-105 transition-all duration-300 group"
-						style="animation-delay: 200ms"
 					>
 						<div class="text-center">
 							<div class="text-3xl font-bold text-warning-600 mb-2 group-hover:animate-wiggle">
-								{getProgressStats().completionRate.toFixed(1)}%
+								{progressStatsValue().completionRate.toFixed(1)}%
 							</div>
 							<div class="text-sm text-text-secondary">Completion Rate</div>
 							<div class="mt-2">
 								<ProgressBar
-									value={getProgressStats().completionRate}
+									value={progressStatsValue().completionRate}
 									variant="warning"
 									size="sm"
 									animated
@@ -319,14 +329,13 @@
 						variant="elevated"
 						padding="lg"
 						class="animate-slide-in-up hover:scale-105 transition-all duration-300 group"
-						style="animation-delay: 300ms"
 					>
 						<div class="text-center">
 							<div class="text-3xl font-bold text-error-600 mb-2 group-hover:animate-heartbeat">
-								{getProgressStats().currentStreak}
+								{progressStatsValue().currentStreak}
 							</div>
 							<div class="text-sm text-text-secondary">Day Streak</div>
-							{#if getProgressStats().currentStreak > 0}
+							{#if progressStatsValue().currentStreak > 0}
 								<div class="mt-2">
 									<Badge variant="error" size="sm" class="animate-glow">🔥 On Fire!</Badge>
 								</div>
@@ -403,31 +412,35 @@
 					<div class="space-y-3">
 						<div class="flex justify-between">
 							<span class="text-text-secondary">Total Modules:</span>
-							<span class="font-medium">{getProgressStats().totalModules}</span>
+							<span class="font-medium">{progressStatsValue().totalModules}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-text-secondary">Completed:</span>
-							<span class="font-medium text-success-600">{getProgressStats().completedModules}</span
+							<span class="font-medium text-success-600">{progressStatsValue().completedModules}</span
 							>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-text-secondary">Average Score:</span>
-							<span class="font-medium">{getProgressStats().averageScore.toFixed(1)}%</span>
+							<span class="font-medium">{progressStatsValue().averageScore.toFixed(1)}%</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-text-secondary">Current Streak:</span>
 							<span class="font-medium text-warning-600"
-								>{getProgressStats().currentStreak} days</span
+								>{progressStatsValue().currentStreak} days</span
 							>
 						</div>
 					</div>
 				</Card>
 			</div>
 		{/if}
+		</ErrorBoundary>
 	</div>
 
-	{@render children?.()}
+	<ErrorBoundary>
+		{@render children?.()}
+	</ErrorBoundary>
 </ResponsiveLayout>
+</ErrorBoundary>
 
 <!-- Toast Notifications -->
 <ToastContainer position="top-right" />

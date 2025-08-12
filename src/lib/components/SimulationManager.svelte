@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SimulationBlock, SystemDiagramBlock } from '$lib/types/web-content.js';
-	import SimulationBlock from './SimulationBlock.svelte';
-	import SystemDiagramBlock from './SystemDiagramBlock.svelte';
+	import SimulationBlockComponent from './SimulationBlock.svelte';
+	import SystemDiagramBlockComponent from './SystemDiagramBlock.svelte';
 	import {
 		physicsSimulations,
 		chemistrySimulations,
@@ -12,22 +12,33 @@
 		type SimulationTemplate,
 		type DiagramTemplate
 	} from '$lib/utils/simulationTemplates.js';
-	import { createEventDispatcher } from 'svelte';
 
-	export let mode: 'simulation' | 'diagram' | 'both' = 'both';
-	export let domain: 'physics' | 'chemistry' | 'engineering' | 'all' = 'all';
-	export let editable = true;
+	interface Props {
+		mode?: 'simulation' | 'diagram' | 'both';
+		domain?: 'physics' | 'chemistry' | 'engineering' | 'all';
+		editable?: boolean;
+		onSimulationCreate?: (simulation: SimulationBlock) => void;
+		onDiagramCreate?: (diagram: SystemDiagramBlock) => void;
+		onSimulationEvent?: (event: any) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { 
+		mode = 'both', 
+		domain = 'all', 
+		editable = true,
+		onSimulationCreate,
+		onDiagramCreate,
+		onSimulationEvent
+	}: Props = $props();
 
-	let selected_template: SimulationTemplate | DiagramTemplate | null = null;
-	let current_simulation: SimulationBlock | null = null;
-	let current_diagram: SystemDiagramBlock | null = null;
-	let view_mode: 'template-selection' | 'simulation' | 'diagram' = 'template-selection';
+	let selected_template = $state<SimulationTemplate | DiagramTemplate | null>(null);
+	let current_simulation = $state<SimulationBlock | null>(null);
+	let current_diagram = $state<SystemDiagramBlock | null>(null);
+	let view_mode = $state<'template-selection' | 'simulation' | 'diagram'>('template-selection');
 
 	// Get available templates based on domain and mode
-	$: available_simulation_templates = get_simulation_templates(domain);
-	$: available_diagram_templates = get_diagram_templates(domain);
+	const available_simulation_templates = $derived(() => get_simulation_templates(domain));
+	const available_diagram_templates = $derived(() => get_diagram_templates(domain));
 
 	function get_simulation_templates(current_domain: string): SimulationTemplate[] {
 		const all_templates = [
@@ -51,7 +62,7 @@
 		const block_id = `sim-${Date.now()}`;
 		current_simulation = createSimulationFromTemplate(template.id, block_id);
 		view_mode = 'simulation';
-		dispatch('simulationCreated', { simulation: current_simulation, template });
+		onSimulationCreate?.(current_simulation);
 	}
 
 	// Create diagram from template
@@ -59,7 +70,7 @@
 		const block_id = `diagram-${Date.now()}`;
 		current_diagram = createDiagramFromTemplate(template.id, block_id);
 		view_mode = 'diagram';
-		dispatch('diagramCreated', { diagram: current_diagram, template });
+		onDiagramCreate?.(current_diagram);
 	}
 
 	// Handle template selection
@@ -79,17 +90,17 @@
 	function back_to_templates() {
 		view_mode = 'template-selection';
 		selected_template = null;
-		dispatch('backToTemplates');
+		// Back to templates - no callback needed
 	}
 
 	// Handle simulation events
-	function handle_simulation_event(event: CustomEvent) {
-		dispatch('simulationEvent', event.detail);
+	function handle_simulation_event(event: any) {
+		onSimulationEvent?.(event);
 	}
 
 	// Handle diagram events
-	function handle_diagram_event(event: CustomEvent) {
-		dispatch('diagramEvent', event.detail);
+	function handle_diagram_event(event: any) {
+		onSimulationEvent?.(event);
 	}
 </script>
 
@@ -124,7 +135,7 @@
 					<div class="template-section">
 						<h3 class="section-title">Simulations</h3>
 						<div class="template-cards">
-							{#each available_simulation_templates as template (template.id)}
+							{#each available_simulation_templates() as template (template.id)}
 								<div class="template-card simulation-card">
 									<div class="card-header">
 										<h4 class="card-title">{template.name}</h4>
@@ -144,7 +155,7 @@
 									</div>
 									<button
 										class="card-button simulation-button"
-										on:click={() => select_template(template, 'simulation')}
+										onclick={() => select_template(template, 'simulation')}
 										type="button"
 									>
 										Create Simulation
@@ -159,7 +170,7 @@
 					<div class="template-section">
 						<h3 class="section-title">System Diagrams</h3>
 						<div class="template-cards">
-							{#each available_diagram_templates as template (template.id)}
+							{#each available_diagram_templates() as template (template.id)}
 								<div class="template-card diagram-card">
 									<div class="card-header">
 										<h4 class="card-title">{template.name}</h4>
@@ -174,7 +185,7 @@
 									</div>
 									<button
 										class="card-button diagram-button"
-										on:click={() => select_template(template, 'diagram')}
+										onclick={() => select_template(template, 'diagram')}
 										type="button"
 									>
 										Create Diagram
@@ -189,42 +200,42 @@
 	{:else if view_mode === 'simulation' && current_simulation}
 		<div class="simulation-view">
 			<div class="view-header">
-				<button class="back-button" on:click={back_to_templates} type="button">
+				<button class="back-button" onclick={back_to_templates} type="button">
 					← Back to Templates
 				</button>
 				<h2 class="view-title">Simulation: {current_simulation.content.simulationType}</h2>
 			</div>
-			<SimulationBlock
+			<SimulationBlockComponent
 				block={current_simulation}
 				{editable}
-				on:parameterChange={handle_simulation_event}
-				on:simulationStart={handle_simulation_event}
-				on:simulationPause={handle_simulation_event}
-				on:simulationStop={handle_simulation_event}
-				on:simulationReset={handle_simulation_event}
-				on:simulationStep={handle_simulation_event}
-				on:simulationError={handle_simulation_event}
-				on:simulationExport={handle_simulation_event}
-				on:simulationReportExport={handle_simulation_event}
+				onParameterChange={handle_simulation_event}
+				onSimulationStart={handle_simulation_event}
+				onSimulationPause={handle_simulation_event}
+				onSimulationStop={handle_simulation_event}
+				onSimulationReset={handle_simulation_event}
+				onSimulationStep={handle_simulation_event}
+				onSimulationError={handle_simulation_event}
+				onSimulationExport={handle_simulation_event}
+				onSimulationReportExport={handle_simulation_event}
 			/>
 		</div>
 	{:else if view_mode === 'diagram' && current_diagram}
 		<div class="diagram-view">
 			<div class="view-header">
-				<button class="back-button" on:click={back_to_templates} type="button">
+				<button class="back-button" onclick={back_to_templates} type="button">
 					← Back to Templates
 				</button>
 				<h2 class="view-title">Diagram: {current_diagram.content.diagramType}</h2>
 			</div>
-			<SystemDiagramBlock
+			<SystemDiagramBlockComponent
 				block={current_diagram}
 				{editable}
-				on:parameterChange={handle_diagram_event}
-				on:elementClick={handle_diagram_event}
-				on:elementHover={handle_diagram_event}
-				on:diagramReset={handle_diagram_event}
-				on:diagramExport={handle_diagram_event}
-				on:diagramError={handle_diagram_event}
+				onParameterChange={handle_diagram_event}
+				onElementClick={handle_diagram_event}
+				onElementHover={handle_diagram_event}
+				onDiagramReset={handle_diagram_event}
+				onDiagramExport={handle_diagram_event}
+				onDiagramError={handle_diagram_event}
 			/>
 		</div>
 	{/if}

@@ -16,62 +16,62 @@ export type SortBy = 'relevance' | 'date' | 'usage' | 'quality' | 'title';
  * Filters used for searching sources
  */
 export interface SourceFilters {
-    domain?: string;
-    category?: string;
-    status?: WebContentSource['status'];
-    tags?: string[];
-    dateRange?: { start: Date; end: Date };
+	domain?: string;
+	category?: string;
+	status?: WebContentSource['status'];
+	tags?: string[];
+	dateRange?: { start: Date; end: Date };
 }
 
 /**
  * Search result with relevance scoring
  */
 export interface SearchResult {
-    source: WebContentSource;
-    relevanceScore: number;
-    matchedFields: string[];
-    highlights: Record<string, string>;
+	source: WebContentSource;
+	relevanceScore: number;
+	matchedFields: string[];
+	highlights: Record<string, string>;
 }
 
 /**
  * Advanced search configuration
  */
 export interface AdvancedSearchConfig {
-    query: string;
-    filters: SourceFilters;
-    sortBy: SortBy;
-    sortOrder: 'asc' | 'desc';
-    limit?: number;
-    offset?: number;
+	query: string;
+	filters: SourceFilters;
+	sortBy: SortBy;
+	sortOrder: 'asc' | 'desc';
+	limit?: number;
+	offset?: number;
 }
 
 /**
  * Categorization result
  */
 export interface CategorizationResult {
-    categories: {
-        [category: string]: {
-            count: number;
-            sources: WebContentSource[];
-            subcategories?: { [key: string]: number };
-        };
-    };
-    uncategorized: WebContentSource[];
-    totalSources: number;
+	categories: {
+		[category: string]: {
+			count: number;
+			sources: WebContentSource[];
+			subcategories?: { [key: string]: number };
+		};
+	};
+	uncategorized: WebContentSource[];
+	totalSources: number;
 }
 
 /**
  * Tag analysis result
  */
 export interface TagAnalysis {
-    tags: Record<string, {
-        count: number;
-        sources: string[]; // source IDs
-        relatedTags: string[];
-        category?: string;
-    }>;
-    tagClusters: Record<string, string[]>;
-    totalTags: number;
+	tags: Record<string, {
+		count: number;
+		sources: string[]; // source IDs
+		relatedTags: string[];
+		category?: string;
+	}>;
+	tagClusters: Record<string, string[]>;
+	totalTags: number;
 }
 
 /**
@@ -84,9 +84,9 @@ export class SourceLibrary {
 	private tagIndex: Map<string, Set<string>> = new Map(); // tag -> source IDs
 	private domainIndex: Map<string, Set<string>> = new Map(); // domain -> source IDs
 	private isIndexed = false;
-    private logger = createLogger('source-library');
+	private logger = createLogger('source-library');
 
-	private constructor() {}
+	private constructor() { }
 
 	static getInstance(): SourceLibrary {
 		if (!SourceLibrary.instance) {
@@ -95,34 +95,34 @@ export class SourceLibrary {
 		return SourceLibrary.instance;
 	}
 
-    /**
-     * Build search indices for fast searching
-     */
-    async buildIndices(): Promise<void> {
-        if (this.isIndexed) return;
+	/**
+	 * Build search indices for fast searching
+	 */
+	async buildIndices(): Promise<void> {
+		if (this.isIndexed) return;
 
-        this.logger.info('Building search indices...');
+		this.logger.info('Building search indices...');
 
-        try {
-            // Clear existing indices
-            this.searchIndex.clear();
-            this.categoryIndex.clear();
-            this.tagIndex.clear();
-            this.domainIndex.clear();
+		try {
+			// Clear existing indices
+			this.searchIndex.clear();
+			this.categoryIndex.clear();
+			this.tagIndex.clear();
+			this.domainIndex.clear();
 
-            // Fetch all sources
-            const { sources } = await sourceManager.listSources();
+			// Fetch all sources
+			const { sources } = await sourceManager.listSources();
 
-            // Index each source
-            sources.forEach((s) => this.indexSource(s));
+			// Index each source
+			sources.forEach((s) => this.indexSource(s));
 
-            this.isIndexed = true;
-            this.logger.info(`Search indices built with ${sources.length} sources`);
-        } catch (error) {
-            this.logger.error('Failed to build search indices:', error);
-            throw error;
-        }
-    }
+			this.isIndexed = true;
+			this.logger.info(`Search indices built with ${sources.length} sources`);
+		} catch (error) {
+			this.logger.error('Failed to build search indices:', error);
+			throw error;
+		}
+	}
 
 	private indexSource(source: WebContentSource): void {
 		if (!source?.id) return;
@@ -151,9 +151,9 @@ export class SourceLibrary {
 				.map(([key, value]) => `${key}:${value}`)
 				.join(' ')
 		]
-		.filter(Boolean)
-		.join(' ')
-		.toLowerCase();
+			.filter(Boolean)
+			.join(' ')
+			.toLowerCase();
 
 		// Index words
 		const words = searchableText.split(/\s+/);
@@ -388,13 +388,13 @@ export class SourceLibrary {
 		if (!query.trim()) return {};
 
 		const highlights: { [field: string]: string } = {};
-		const query_words = this.tokenizeText(query.toLowerCase());
+		const queryWords = this.tokenizeText(query.toLowerCase());
 
 		// Highlight title
-		highlights.title = this.highlightText(source.title, query_words);
+		highlights.title = this.highlightText(source.title, queryWords);
 
 		// Highlight description
-		highlights.description = this.highlightText(source.metadata.description, query_words);
+		highlights.description = this.highlightText(source.metadata.description, queryWords);
 
 		return highlights;
 	}

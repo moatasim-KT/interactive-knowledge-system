@@ -18,17 +18,17 @@ class ProgressPersistenceService {
 
 		try {
 			// Load all user progress from storage
-			const user_progress = await progressStorage.getUserProgress(userId);
-			const progress_map = new Map<string, UserProgress>();
+			const userProgress = await progressStorage.getUserProgress(userId);
+			const progressMap = new Map<string, UserProgress>();
 
-			for (const progress of user_progress) {
-				progress_map.set(progress.moduleId, progress);
+			for (const progress of userProgress) {
+				progressMap.set(progress.moduleId, progress);
 			}
 
 			// Update app state
-			actions.loadUserProgress(progress_map);
+			actions.loadUserProgress(progressMap);
 
-			console.log(`Loaded ${user_progress.length} progress records for user ${userId}`);
+			console.log(`Loaded ${userProgress.length} progress records for user ${userId}`);
 		} catch (error) {
 			console.error('Failed to load user progress:', error);
 		}
@@ -57,7 +57,7 @@ class ProgressPersistenceService {
 	async flushSaveQueue() {
 		if (this.saveQueue.size === 0) return;
 
-		const modules_to_save = Array.from(this.saveQueue);
+		const modulesToSave = Array.from(this.saveQueue);
 		this.saveQueue.clear();
 
 		if (this.saveTimer) {
@@ -66,19 +66,19 @@ class ProgressPersistenceService {
 		}
 
 		try {
-			const save_promises = modules_to_save.map(async (moduleId) => {
+			const savePromises = modulesToSave.map(async (moduleId) => {
 				const progress = appState.progress.userProgress.get(moduleId);
 				if (progress) {
 					await progressStorage.updateProgress(progress);
 				}
 			});
 
-			await Promise.all(save_promises);
-			console.log(`Saved progress for ${modules_to_save.length} modules`);
+			await Promise.all(savePromises);
+			console.log(`Saved progress for ${modulesToSave.length} modules`);
 		} catch (error) {
 			console.error('Failed to save progress:', error);
 			// Re-queue failed saves
-			modules_to_save.forEach((moduleId) => this.saveQueue.add(moduleId));
+			modulesToSave.forEach((moduleId) => this.saveQueue.add(moduleId));
 		}
 	}
 
@@ -166,15 +166,15 @@ export const progressPersistence = new ProgressPersistenceService();
 
 // Auto-save functionality (only in browser environment)
 if (typeof window !== 'undefined') {
-	let previous_progress_map = new Map<string, UserProgress>();
+	let previousProgressMap = new Map<string, UserProgress>();
 
 	// Auto-save effect - watches for changes in progress and queues saves
 	$effect(() => {
-		const current_progress_map = appState.progress.userProgress;
+		const currentProgressMap = appState.progress.userProgress;
 
 		// Check for changes and queue saves
-		for (const [module_id, progress] of current_progress_map) {
-			const previous = previous_progress_map.get(module_id);
+		for (const [moduleId, progress] of currentProgressMap) {
+			const previous = previousProgressMap.get(moduleId);
 
 			// If progress changed, queue for saving
 			if (
@@ -185,19 +185,19 @@ if (typeof window !== 'undefined') {
 				previous.bookmarked !== progress.bookmarked ||
 				previous.notes !== progress.notes
 			) {
-				progressPersistence.queueSave(module_id);
+				progressPersistence.queueSave(moduleId);
 			}
 		}
 
 		// Update previous state
-		previous_progress_map = new Map(current_progress_map);
+		previousProgressMap = new Map(currentProgressMap);
 	});
 
 	// Auto-initialize when user changes
 	$effect(() => {
-		const user_id = appState.user.id;
-		if (user_id) {
-			progressPersistence.initialize(user_id);
+		const userId = appState.user.id;
+		if (userId) {
+			progressPersistence.initialize(userId);
 		}
 	});
 

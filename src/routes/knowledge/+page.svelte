@@ -1,15 +1,18 @@
 <script lang="ts">
-	import { appState, actions, getProgressStats } from '$lib/stores/appState.svelte.js';
-	import type { KnowledgeNode } from '$lib/types/knowledge.js';
+	import { appState, actions, getProgressStats } from '$lib/stores/appState.svelte.ts';
+
+	// Get derived values
+	const progressStatsValue = $derived(() => getProgressStats());
+	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
 
 	// Get filtered content for overview
-	const all_nodes = $derived(() => Array.from(appState.content.nodes.values()));
-	const root_nodes = $derived(() => all_nodes.filter((node) => !node.parent));
-	const recent_nodes = $derived(() =>
-		all_nodes
-			.filter((node) => node.progress?.lastAccessed)
+	const allNodes = $derived(() => Array.from(appState.content.nodes.values()));
+	const rootNodes = $derived(() => allNodes().filter((node: KnowledgeNode) => !node.parent));
+	const recentNodes = $derived(() =>
+		allNodes()
+			.filter((node: KnowledgeNode) => node.progress?.lastAccessed)
 			.sort(
-				(a, b) =>
+				(a: KnowledgeNode, b: KnowledgeNode) =>
 					new Date(b.progress!.lastAccessed).getTime() -
 					new Date(a.progress!.lastAccessed).getTime()
 			)
@@ -54,9 +57,9 @@
 			<div class="stat-icon">📊</div>
 			<div class="stat-content">
 				<h3>Progress</h3>
-				<div class="stat-value">{getProgressStats().completionRate.toFixed(1)}%</div>
+				<div class="stat-value">{progressStatsValue().completionRate.toFixed(1)}%</div>
 				<div class="stat-label">
-					{getProgressStats().completedModules} of {getProgressStats().totalModules} completed
+					{progressStatsValue().completedModules} of {progressStatsValue().totalModules} completed
 				</div>
 			</div>
 		</div>
@@ -65,7 +68,7 @@
 			<div class="stat-icon">🎯</div>
 			<div class="stat-content">
 				<h3>Average Score</h3>
-				<div class="stat-value">{getProgressStats().averageScore.toFixed(1)}%</div>
+				<div class="stat-value">{progressStatsValue().averageScore.toFixed(1)}%</div>
 				<div class="stat-label">Across completed modules</div>
 			</div>
 		</div>
@@ -74,7 +77,7 @@
 			<div class="stat-icon">🔥</div>
 			<div class="stat-content">
 				<h3>Current Streak</h3>
-				<div class="stat-value">{getProgressStats().currentStreak}</div>
+				<div class="stat-value">{progressStatsValue().currentStreak}</div>
 				<div class="stat-label">Days of continuous learning</div>
 			</div>
 		</div>
@@ -83,7 +86,7 @@
 			<div class="stat-icon">📚</div>
 			<div class="stat-content">
 				<h3>Total Content</h3>
-				<div class="stat-value">{all_nodes.length}</div>
+				<div class="stat-value">{allNodes().length}</div>
 				<div class="stat-label">Knowledge nodes</div>
 			</div>
 		</div>
@@ -92,9 +95,9 @@
 	<div class="overview-sections">
 		<section class="overview-section">
 			<h2>📁 Root Categories</h2>
-			{#if root_nodes.length > 0}
+			{#if rootNodes().length > 0}
 				<div class="node-grid">
-					{#each rootNodes as node (node.id)}
+					{#each rootNodes() as node (node.id)}
 						<button class="node-card" onclick={() => select_node(node)}>
 							<div class="node-card-header">
 								<span class="node-icon">{get_node_type_icon(node.type)}</span>
@@ -128,11 +131,11 @@
 			{/if}
 		</section>
 
-		{#if recent_nodes.length > 0}
+		{#if recentNodes().length > 0}
 			<section class="overview-section">
 				<h2>🕒 Recently Accessed</h2>
 				<div class="recent-list">
-					{#each recentNodes as node (node.id)}
+					{#each recentNodes() as node (node.id)}
 						<button class="recent-item" onclick={() => select_node(node)}>
 							<div class="recent-icon">{get_node_type_icon(node.type)}</div>
 							<div class="recent-content">
@@ -166,7 +169,7 @@
 					class="action-card"
 					onclick={() => {
 						appState.content.searchQuery = '';
-						document.querySelector('input[placeholder*="Search"]')?.focus();
+						(document.querySelector('input[placeholder*="Search"]') as HTMLInputElement)?.focus();
 					}}
 				>
 					<div class="action-icon">🔍</div>
@@ -184,8 +187,8 @@
 					class="action-card"
 					onclick={() => {
 						// Find incomplete modules
-						const incomplete = all_nodes.filter(
-							(node) => node.type !== 'folder' && !node.progress?.completed
+						const incomplete = allNodes().filter(
+							(node: KnowledgeNode) => node.type !== 'folder' && !node.progress?.completed
 						);
 						if (incomplete.length > 0) {
 							select_node(incomplete[0]);

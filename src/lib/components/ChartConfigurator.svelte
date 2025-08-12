@@ -7,8 +7,12 @@
 	} from '$lib/types/web-content.js';
 	import { createEventDispatcher } from 'svelte';
 
-	export let config: VisualizationConfig;
-	export let chartType: string = 'line';
+	interface Props {
+		config: VisualizationConfig;
+		chartType?: string;
+	}
+
+	let { config, chartType = 'line' }: Props = $props();
 
 	const dispatch = createEventDispatcher();
 
@@ -207,9 +211,11 @@
 	}
 
 	// Reactive updates
-	$: if (layout_config || style_config || animation_config) {
-		update_config();
-	}
+	$effect(() => {
+		if (layout_config || style_config || animation_config) {
+			update_config();
+		}
+	});
 </script>
 
 <div class="chart-configurator">

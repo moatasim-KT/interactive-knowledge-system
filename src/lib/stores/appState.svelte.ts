@@ -1,4 +1,4 @@
-import type { KnowledgeNode, UserSettings, UserProgress, SearchResult } from '../types/index.js';
+import type { KnowledgeNode, UserSettings, UserProgress, SearchResult } from '../types/index';
 
 /**
  * Global application state using Svelte 5 runes
@@ -51,7 +51,7 @@ export const appState = $state({
 });
 
 /**
- * Derived state functions for computed values
+ * Derived state functions using Svelte 5 $derived rune
  */
 // Filtered content based on search query
 export function getFilteredContent() {
@@ -69,21 +69,21 @@ export function getFilteredContent() {
 // Progress statistics
 export function getProgressStats() {
 	const { completedModules, userProgress } = appState.progress;
-	const total_modules = appState.content.nodes.size;
-	const completion_rate = total_modules > 0 ? (completedModules.size / total_modules) * 100 : 0;
+	const totalModules = appState.content.nodes.size;
+	const completionRate = totalModules > 0 ? (completedModules.size / totalModules) * 100 : 0;
 
-	let average_score = 0;
-	const progress_array = Array.from(userProgress.values());
-	if (progress_array.length > 0) {
-		const total_score = progress_array.reduce((sum, progress) => sum + (progress.score || 0), 0);
-		average_score = total_score / progress_array.length;
+	let averageScore = 0;
+	const progressArray = Array.from(userProgress.values());
+	if (progressArray.length > 0) {
+		const totalScore = progressArray.reduce((sum, progress) => sum + (progress.score || 0), 0);
+		averageScore = totalScore / progressArray.length;
 	}
 
 	return {
-		totalModules: total_modules,
+		totalModules,
 		completedModules: completedModules.size,
-		completionRate: completion_rate,
-		averageScore: average_score,
+		completionRate,
+		averageScore,
 		currentStreak: appState.progress.currentStreak
 	};
 }
@@ -101,6 +101,11 @@ export function getUserPreferences() {
 		}
 	);
 }
+
+// Export aliases for consistency
+export const filteredContent = getFilteredContent;
+export const progressStats = getProgressStats;
+export const userPreferences = getUserPreferences;
 
 /**
  * Actions for state mutations
@@ -138,13 +143,13 @@ export const actions = {
 	},
 
 	// Progress actions
-	markModuleCompleted: (module_id: string, score?: number) => {
-		appState.progress.completedModules.add(module_id);
+	markModuleCompleted: (moduleId: string, score?: number) => {
+		appState.progress.completedModules.add(moduleId);
 
-		const existing = appState.progress.userProgress.get(module_id);
+		const existing = appState.progress.userProgress.get(moduleId);
 		const progress: UserProgress = {
 			userId: appState.user.id,
-			moduleId: module_id,
+			moduleId,
 			status: 'completed',
 			score,
 			timeSpent: existing?.timeSpent || 0,
@@ -155,14 +160,14 @@ export const actions = {
 			completedAt: new Date()
 		};
 
-		appState.progress.userProgress.set(module_id, progress);
+		appState.progress.userProgress.set(moduleId, progress);
 	},
 
-	startModule: (module_id: string) => {
-		const existing = appState.progress.userProgress.get(module_id);
+	startModule: (moduleId: string) => {
+		const existing = appState.progress.userProgress.get(moduleId);
 		const progress: UserProgress = {
 			userId: appState.user.id,
-			moduleId: module_id,
+			moduleId,
 			status: 'in-progress',
 			timeSpent: existing?.timeSpent || 0,
 			lastAccessed: new Date(),
@@ -172,40 +177,40 @@ export const actions = {
 			startedAt: existing?.startedAt || new Date()
 		};
 
-		appState.progress.userProgress.set(module_id, progress);
+		appState.progress.userProgress.set(moduleId, progress);
 	},
 
-	updateTimeSpent: (module_id: string, additional_time: number) => {
-		const existing = appState.progress.userProgress.get(module_id);
+	updateTimeSpent: (moduleId: string, additionalTime: number) => {
+		const existing = appState.progress.userProgress.get(moduleId);
 		if (existing) {
-			existing.timeSpent += additional_time;
+			existing.timeSpent += additionalTime;
 			existing.lastAccessed = new Date();
-			appState.progress.userProgress.set(module_id, existing);
+			appState.progress.userProgress.set(moduleId, existing);
 		}
 	},
 
-	loadUserProgress: (progress_map: Map<string, UserProgress>) => {
-		appState.progress.userProgress = progress_map;
+	loadUserProgress: (progressMap: Map<string, UserProgress>) => {
+		appState.progress.userProgress = progressMap;
 
 		// Update completed modules set
 		appState.progress.completedModules.clear();
-		for (const [module_id, progress] of progress_map) {
+		for (const [moduleId, progress] of progressMap) {
 			if (progress.status === 'completed') {
-				appState.progress.completedModules.add(module_id);
+				appState.progress.completedModules.add(moduleId);
 			}
 		}
 
 		// Update total time spent
-		appState.progress.totalTimeSpent = Array.from(progress_map.values()).reduce(
+		appState.progress.totalTimeSpent = Array.from(progressMap.values()).reduce(
 			(total, progress) => total + progress.timeSpent,
 			0
 		);
 	},
 
-	updateUserProgress: (module_id: string, updates: Partial<UserProgress>) => {
-		const existing = appState.progress.userProgress.get(module_id);
+	updateUserProgress: (moduleId: string, updates: Partial<UserProgress>) => {
+		const existing = appState.progress.userProgress.get(moduleId);
 		if (existing) {
-			appState.progress.userProgress.set(module_id, { ...existing, ...updates });
+			appState.progress.userProgress.set(moduleId, { ...existing, ...updates });
 		}
 	},
 
@@ -237,26 +242,26 @@ export const actions = {
 	},
 
 	// Sync actions
-	setOnlineStatus: (is_online: boolean) => {
-		appState.sync.isOnline = is_online;
+	setOnlineStatus: (isOnline: boolean) => {
+		appState.sync.isOnline = isOnline;
 	},
 
-	addPendingChange: (change_id: string) => {
-		if (!appState.sync.pendingChanges.includes(change_id)) {
-			appState.sync.pendingChanges.push(change_id);
+	addPendingChange: (changeId: string) => {
+		if (!appState.sync.pendingChanges.includes(changeId)) {
+			appState.sync.pendingChanges.push(changeId);
 		}
 	},
 
-	removePendingChange: (change_id: string) => {
-		const index = appState.sync.pendingChanges.indexOf(change_id);
+	removePendingChange: (changeId: string) => {
+		const index = appState.sync.pendingChanges.indexOf(changeId);
 		if (index > -1) {
 			appState.sync.pendingChanges.splice(index, 1);
 		}
 	},
 
-	setSyncStatus: (is_syncing: boolean) => {
-		appState.sync.isSyncing = is_syncing;
-		if (!is_syncing) {
+	setSyncStatus: (isSyncing: boolean) => {
+		appState.sync.isSyncing = isSyncing;
+		if (!isSyncing) {
 			appState.sync.lastSync = new Date();
 		}
 	}

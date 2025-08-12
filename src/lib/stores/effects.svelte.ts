@@ -6,29 +6,29 @@ import { appState, actions } from './appState.svelte.js';
 
 // Auto-save effect when content changes
 $effect(() => {
-	const current_node = appState.content.currentNode;
-	if (current_node && appState.user.settings?.preferences.autoSave) {
+	const currentNode = appState.content.currentNode;
+	if (currentNode && appState.user.settings?.preferences.autoSave) {
 		// Debounce auto-save to avoid excessive saves
-		const timeout_id = setTimeout(() => {
-			save_to_local_storage(current_node);
+		const timeoutId = setTimeout(() => {
+			saveToLocalStorage(currentNode);
 		}, 1000);
 
-		return () => clearTimeout(timeout_id);
+		return () => clearTimeout(timeoutId);
 	}
 });
 
 // Online status monitoring
 $effect(() => {
 	if (typeof window !== 'undefined') {
-		const handle_online = () => actions.setOnlineStatus(true);
-		const handle_offline = () => actions.setOnlineStatus(false);
+		const handleOnline = () => actions.setOnlineStatus(true);
+		const handleOffline = () => actions.setOnlineStatus(false);
 
-		window.addEventListener('online', handle_online);
-		window.addEventListener('offline', handle_offline);
+		window.addEventListener('online', handleOnline);
+		window.addEventListener('offline', handleOffline);
 
 		return () => {
-			window.removeEventListener('online', handle_online);
-			window.removeEventListener('offline', handle_offline);
+			window.removeEventListener('online', handleOnline);
+			window.removeEventListener('offline', handleOffline);
 		};
 	}
 });
@@ -37,7 +37,7 @@ $effect(() => {
 $effect(() => {
 	if (appState.sync.isOnline && appState.sync.pendingChanges.length > 0) {
 		// Trigger sync of pending changes
-		sync_pending_changes();
+		syncPendingChanges();
 	}
 });
 
@@ -67,7 +67,7 @@ $effect(() => {
 /**
  * Helper functions for effects
  */
-async function save_to_local_storage(node: any) {
+async function saveToLocalStorage(node: any) {
 	try {
 		// This will be implemented in the storage layer task
 		console.log('Auto-saving node:', node.id);
@@ -84,7 +84,7 @@ async function save_to_local_storage(node: any) {
 	}
 }
 
-async function sync_pending_changes() {
+async function syncPendingChanges() {
 	if (appState.sync.isSyncing) return;
 
 	actions.setSyncStatus(true);
@@ -94,8 +94,8 @@ async function sync_pending_changes() {
 		console.log('Syncing pending changes:', appState.sync.pendingChanges);
 
 		// Clear pending changes after successful sync
-		appState.sync.pendingChanges.forEach((change_id) => {
-			actions.removePendingChange(change_id);
+		appState.sync.pendingChanges.forEach((changeId) => {
+			actions.removePendingChange(changeId);
 		});
 
 		actions.addNotification({

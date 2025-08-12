@@ -12,15 +12,47 @@
         "target": "ES2022",
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
         "baseUrl": ".",
         "paths": {
+            "$lib": [
+                "src/lib"
+            ],
+            "$lib/*": [
+                "src/lib/*"
+            ],
+            "$app/*": [
+                ".svelte-kit/generated/client/app/*"
+            ],
+            "@/*": [
+                "src/*"
+            ],
             "@modelcontextprotocol/sdk/*": [
                 "node_modules/@modelcontextprotocol/sdk/dist/esm/*"
             ]
         },
-        "lib": ["ES2022", "DOM", "DOM.Iterable"],
-        "types": ["vitest/globals", "node"]
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "types": [
+            "vitest/globals",
+            "node",
+            "@sveltejs/kit"
+        ]
     },
-    "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],
-    "exclude": ["node_modules"]
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.svelte",
+        "src/**/*.d.ts",
+        ".svelte-kit/generated/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "build",
+        "dist"
+    ]
 }

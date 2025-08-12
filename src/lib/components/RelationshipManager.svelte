@@ -242,13 +242,13 @@
 	{/if}
 
 	<!-- Add Relationship Form -->
-	{#if showAddRelationship}
+	{#if show_add_relationship}
 		<div class="add-relationship-form">
 			<h4>Add New Relationship</h4>
 
 			<div class="form-group">
 				<label for="module-select">Related Module:</label>
-				<select id="module-select" bind:value={selectedModule}>
+				<select id="module-select" bind:value={selected_module}>
 					<option value="">Select a module...</option>
 					{#each get_available_modules() as module}
 						<option value={module.id}>{module.title}</option>
@@ -258,8 +258,8 @@
 
 			<div class="form-group">
 				<label for="relationship-type">Relationship Type:</label>
-				<select id="relationship-type" bind:value={selectedRelationType}>
-					{#each relationshipTypes as type}
+				<select id="relationship-type" bind:value={selected_relation_type}>
+					{#each relationship_types as type}
 						<option value={type.value}>{type.label}</option>
 					{/each}
 				</select>
@@ -276,7 +276,7 @@
 					min="0.1"
 					max="1.0"
 					step="0.1"
-					bind:value={relationshipStrength}
+					bind:value={relationship_strength}
 				/>
 				<span class="strength-value">{relationship_strength.toFixed(1)}</span>
 			</div>

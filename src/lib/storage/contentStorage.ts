@@ -14,7 +14,7 @@ export class ContentStorage {
 	 */
 	async createModule(module: ContentModule): Promise<ContentModule> {
 		const now = new Date();
-		const full_module = {
+		const fullModule = {
 			...module,
 			metadata: {
 				author: 'current-user', // TODO: Get from user context
@@ -29,8 +29,8 @@ export class ContentStorage {
 			}
 		};
 
-		await storage.add('modules', full_module, 'Initial creation');
-		return full_module;
+		await storage.add('modules', fullModule, 'Initial creation');
+		return fullModule;
 	}
 
 	/**
@@ -51,7 +51,7 @@ export class ContentStorage {
 	 * Update a content module
 	 */
 	async updateModule(module: ContentModule, changeDescription?: string): Promise<void> {
-		const updated_module = {
+		const updatedModule = {
 			...module,
 			metadata: {
 				...module.metadata,
@@ -60,7 +60,7 @@ export class ContentStorage {
 			}
 		};
 
-		await storage.put('modules', updated_module, changeDescription || 'Module updated');
+		await storage.put('modules', updatedModule, changeDescription || 'Module updated');
 	}
 
 	/**
@@ -74,8 +74,8 @@ export class ContentStorage {
 	 * Search modules by title
 	 */
 	async searchModulesByTitle(title: string): Promise<ContentModule[]> {
-		const all_modules = await storage.getAll('modules');
-		return all_modules.filter((module) => module.title.toLowerCase().includes(title.toLowerCase()));
+		const allModules = await storage.getAll('modules');
+		return allModules.filter((module) => module.title.toLowerCase().includes(title.toLowerCase()));
 	}
 
 	/**
@@ -125,21 +125,21 @@ export class ContentStorage {
 	 * Restore a module to a previous version
 	 */
 	async restoreModuleVersion(moduleId: string, version: number): Promise<void> {
-		const version_record = await storage.getVersion(moduleId, version);
-		if (!version_record) {
+		const versionRecord = await storage.getVersion(moduleId, version);
+		if (!versionRecord) {
 			throw new Error(`Version ${version} not found for module ${moduleId}`);
 		}
 
-		const restored_module = {
-			...version_record.data,
+		const restoredModule = {
+			...versionRecord.data,
 			metadata: {
-				...version_record.data.metadata,
+				...versionRecord.data.metadata,
 				modified: new Date(),
-				version: version_record.data.metadata.version + 1
+				version: versionRecord.data.metadata.version + 1
 			}
 		};
 
-		await storage.put('modules', restored_module, `Restored to version ${version}`);
+		await storage.put('modules', restoredModule, `Restored to version ${version}`);
 	}
 }
 
@@ -186,8 +186,8 @@ export class PathStorage {
 	 * Search paths by name
 	 */
 	async searchPathsByName(name: string): Promise<LearningPath[]> {
-		const all_paths = await storage.getAll('paths');
-		return all_paths.filter((path) => path.name.toLowerCase().includes(name.toLowerCase()));
+		const allPaths = await storage.getAll('paths');
+		return allPaths.filter((path) => path.name.toLowerCase().includes(name.toLowerCase()));
 	}
 
 	/**

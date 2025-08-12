@@ -269,10 +269,8 @@
 		if (content.language === 'javascript' || content.language === 'typescript') {
 			// Basic JavaScript formatting
 			formattedCode = formattedCode
-				.replace(/;/g, ';
-')
-				.replace(/{/g, '{
-')
+				.replace(/;/g, ';\n')
+				.replace(/{/g, '{\n')
 				.replace(/}/g, '\n}')
 				.replace(/\n\s*\n/g, '\n');
 		}
@@ -408,16 +406,17 @@
 							{/if}
 						</div>
 
-					{#if version.id !== 'current' && !readonly}
-						<button
-							onclick={() => restoreVersion(version.id)}
-							class="restore-btn"
-							title="Restore this version"
-						>
-							↶
-						</button>
-					{/if}
-					{/each}
+						{#if version.id !== 'current' && !readonly}
+							<button
+								onclick={() => restoreVersion(version.id)}
+								class="restore-btn"
+								title="Restore this version"
+							>
+								↶
+							</button>
+						{/if}
+					</div>
+				{/each}
 				</div>
 			</div>
 		{/if}

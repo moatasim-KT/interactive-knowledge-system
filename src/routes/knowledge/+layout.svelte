@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import KnowledgeTree from '$lib/components/KnowledgeTree.svelte';
+	import { appState, actions } from '$lib/stores/appState.svelte.ts';
+	import { KnowledgeTree } from '$lib/components';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -21,7 +21,7 @@
 					title: 'Programming Basics',
 					type: 'folder' as const,
 					metadata: {
-						difficulty: 1,
+						difficulty: 1 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 0,
 						prerequisites: [],
 						tags: ['programming', 'basics']
@@ -33,7 +33,7 @@
 					type: 'module' as const,
 					parent: 'programming-basics',
 					metadata: {
-						difficulty: 2,
+						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 45,
 						prerequisites: [],
 						tags: ['javascript', 'fundamentals']
@@ -45,7 +45,7 @@
 					type: 'lesson' as const,
 					parent: 'javascript-fundamentals',
 					metadata: {
-						difficulty: 1,
+						difficulty: 1 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 15,
 						prerequisites: [],
 						tags: ['javascript', 'variables', 'types']
@@ -57,7 +57,7 @@
 					type: 'lesson' as const,
 					parent: 'javascript-fundamentals',
 					metadata: {
-						difficulty: 2,
+						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 20,
 						prerequisites: ['variables-and-types'],
 						tags: ['javascript', 'functions']
@@ -68,7 +68,7 @@
 					title: 'Web Development',
 					type: 'folder' as const,
 					metadata: {
-						difficulty: 3,
+						difficulty: 3 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 0,
 						prerequisites: ['programming-basics'],
 						tags: ['web', 'development']
@@ -80,7 +80,7 @@
 					type: 'module' as const,
 					parent: 'web-development',
 					metadata: {
-						difficulty: 2,
+						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
 						estimatedTime: 60,
 						prerequisites: [],
 						tags: ['html', 'css', 'web']

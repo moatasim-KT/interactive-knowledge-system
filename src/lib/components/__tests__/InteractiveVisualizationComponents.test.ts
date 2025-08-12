@@ -10,7 +10,7 @@ import type {
 } from '$lib/types/web-content.js';
 
 describe('Interactive Visualization Components', () => {
-	const mock_visualization_block = {
+	const mockVisualizationBlock = {
 		id: 'test-viz-1',
 		type: 'interactive-visualization',
 		content: {
@@ -65,7 +65,7 @@ describe('Interactive Visualization Components', () => {
 		}
 	};
 
-	const mock_chart_block = {
+	const mockChartBlock = {
 		id: 'test-chart-1',
 		type: 'interactive-chart',
 		content: {
@@ -98,7 +98,7 @@ describe('Interactive Visualization Components', () => {
 		}
 	};
 
-	const mock_simulation_block = {
+	const mockSimulationBlock = {
 		id: 'test-sim-1',
 		type: 'simulation',
 		content: {
@@ -141,7 +141,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('renders InteractiveVisualizationBlock without crashing', () => {
 		const { container } = render(InteractiveVisualizationBlock, {
-			props: { block: mock_visualization_block }
+			props: { block: mockVisualizationBlock }
 		});
 
 		expect(container.querySelector('.interactive-visualization-block')).toBeTruthy();
@@ -150,7 +150,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('renders InteractiveChartBlock without crashing', () => {
 		const { container } = render(InteractiveChartBlock, {
-			props: { block: mock_chart_block }
+			props: { block: mockChartBlock }
 		});
 
 		expect(container.querySelector('.interactive-chart-block')).toBeTruthy();
@@ -159,7 +159,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('renders SimulationBlock without crashing', () => {
 		const { container } = render(SimulationBlock, {
-			props: { block: mock_simulation_block }
+			props: { block: mockSimulationBlock }
 		});
 
 		expect(container.querySelector('.simulation-block')).toBeTruthy();
@@ -168,7 +168,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('displays parameter controls when parameters are provided', () => {
 		const { container } = render(InteractiveVisualizationBlock, {
-			props: { block: mock_visualization_block }
+			props: { block: mockVisualizationBlock }
 		});
 
 		expect(container.querySelector('.parameter-section')).toBeTruthy();
@@ -177,7 +177,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('displays data manipulation controls', () => {
 		const { container } = render(InteractiveVisualizationBlock, {
-			props: { block: mock_visualization_block }
+			props: { block: mockVisualizationBlock }
 		});
 
 		expect(container.querySelector('.data-manipulation-section')).toBeTruthy();
@@ -186,7 +186,7 @@ describe('Interactive Visualization Components', () => {
 
 	it('shows source attribution when provided', () => {
 		const { container } = render(InteractiveVisualizationBlock, {
-			props: { block: mock_visualization_block }
+			props: { block: mockVisualizationBlock }
 		});
 
 		expect(container.querySelector('.source-attribution')).toBeTruthy();

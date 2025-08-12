@@ -87,8 +87,8 @@ export function importFromJSON(jsonString: string): ImportResult {
 		const valid_modules: ContentModule[] = [];
 		data.modules.forEach((module, index) => {
 			try {
-				const validated_module = validate_module(module);
-				valid_modules.push(validated_module);
+				const validatedModule = validateModule(module);
+				valid_modules.push(validatedModule);
 			} catch (error) {
 				result.errors.push(
 					`Module ${index}: ${error instanceof Error ? error.message : 'Invalid module'}`
@@ -100,8 +100,8 @@ export function importFromJSON(jsonString: string): ImportResult {
 		const valid_progress: UserProgress[] = [];
 		data.progress.forEach((progress, index) => {
 			try {
-				const validated_progress = validate_progress(progress);
-				valid_progress.push(validated_progress);
+				const validatedProgress = validateProgress(progress);
+				valid_progress.push(validatedProgress);
 			} catch (error) {
 				result.warnings.push(
 					`Progress ${index}: ${error instanceof Error ? error.message : 'Invalid progress'}`
@@ -167,13 +167,13 @@ export function importFromMarkdown(
 				// Save previous module if exists
 				if (current_module) {
 					current_module.blocks = current_blocks;
-					modules.push(create_module_from_partial(current_module, config));
+					modules.push(createModuleFromPartial(current_module, config));
 					current_blocks = [];
 				}
 
 				// Start new module
 				current_module = {
-					id: generate_id(),
+					id: generateId(),
 					title: line.substring(2).trim(),
 					description: '',
 					blocks: []
@@ -236,8 +236,8 @@ export function importFromMarkdown(
 						content: config.preserveFormatting
 							? line
 							: line
-									.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-									.replace(/\*(.*?)\*/g, '<em>$1</em>'),
+								.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+								.replace(/\*(.*?)\*/g, '<em>$1</em>'),
 						metadata: {
 							created: new Date(),
 							modified: new Date(),
@@ -252,7 +252,7 @@ export function importFromMarkdown(
 		// Save last module
 		if (current_module) {
 			current_module.blocks = current_blocks;
-			modules.push(create_module_from_partial(current_module, config));
+			modules.push(createModuleFromPartial(current_module, config));
 		}
 
 		if (modules.length === 0) {
@@ -267,7 +267,7 @@ export function importFromMarkdown(
 			progress: [],
 			paths: [],
 			nodes: [],
-			settings: create_default_settings(),
+			settings: createDefaultSettings(),
 			metadata: {
 				totalModules: modules.length,
 				totalProgress: 0,
@@ -303,11 +303,11 @@ export function importFromFormat(content: string, format: 'opml' | 'csv' | 'xml'
 	try {
 		switch (format) {
 			case 'opml':
-				return import_from_opml(content);
+				return importFromOpml(content);
 			case 'csv':
-				return import_from_csv(content);
+				return importFromCsv(content);
 			case 'xml':
-				return import_from_xml(content);
+				return importFromXml(content);
 			default:
 				result.errors.push(`Unsupported format: ${format}`);
 		}
@@ -321,7 +321,7 @@ export function importFromFormat(content: string, format: 'opml' | 'csv' | 'xml'
 /**
  * Import from OPML format (outline format)
  */
-function import_from_opml(opml_string: string): ImportResult {
+function importFromOpml(opmlString: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],
@@ -336,7 +336,7 @@ function import_from_opml(opml_string: string): ImportResult {
 
 	try {
 		const parser = new DOMParser();
-		const doc = parser.parseFromString(opml_string, 'text/xml');
+		const doc = parser.parseFromString(opmlString, 'text/xml');
 
 		if (doc.querySelector('parsererror')) {
 			result.errors.push('Invalid OPML XML format');
@@ -352,7 +352,7 @@ function import_from_opml(opml_string: string): ImportResult {
 			const description = outline.getAttribute('description') || '';
 
 			const module: ContentModule = {
-				id: generate_id(),
+				id: generateId(),
 				title,
 				description,
 				blocks: [
@@ -402,7 +402,7 @@ function import_from_opml(opml_string: string): ImportResult {
 			progress: [],
 			paths: [],
 			nodes: [],
-			settings: create_default_settings(),
+			settings: createDefaultSettings(),
 			metadata: {
 				totalModules: modules.length,
 				totalProgress: 0,
@@ -422,7 +422,7 @@ function import_from_opml(opml_string: string): ImportResult {
 /**
  * Import from CSV format
  */
-function import_from_csv(csv_string: string): ImportResult {
+function importFromCsv(csvString: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],
@@ -436,7 +436,7 @@ function import_from_csv(csv_string: string): ImportResult {
 	};
 
 	try {
-		const lines: string[] = csv_string.split('\n');
+		const lines: string[] = csvString.split('\n');
 		if (lines.length < 2) {
 			result.errors.push('CSV must have at least a header row and one data row');
 			return result;
@@ -461,7 +461,7 @@ function import_from_csv(csv_string: string): ImportResult {
 			});
 
 			const module: ContentModule = {
-				id: generate_id(),
+				id: generateId(),
 				title: module_data.title || module_data.name || `Module ${i}`,
 				description: module_data.description || '',
 				blocks: [
@@ -511,7 +511,7 @@ function import_from_csv(csv_string: string): ImportResult {
 			progress: [],
 			paths: [],
 			nodes: [],
-			settings: create_default_settings(),
+			settings: createDefaultSettings(),
 			metadata: {
 				totalModules: modules.length,
 				totalProgress: 0,
@@ -531,7 +531,7 @@ function import_from_csv(csv_string: string): ImportResult {
 /**
  * Import from generic XML format
  */
-function import_from_xml(xml_string: string): ImportResult {
+function importFromXml(xmlString: string): ImportResult {
 	const result: ImportResult = {
 		success: false,
 		errors: [],
@@ -546,7 +546,7 @@ function import_from_xml(xml_string: string): ImportResult {
 
 	try {
 		const parser = new DOMParser();
-		const doc = parser.parseFromString(xml_string, 'text/xml');
+		const doc = parser.parseFromString(xmlString, 'text/xml');
 
 		if (doc.querySelector('parsererror')) {
 			result.errors.push('Invalid XML format');
@@ -568,7 +568,7 @@ function import_from_xml(xml_string: string): ImportResult {
 			const content = element.querySelector('content')?.textContent || '';
 
 			const module: ContentModule = {
-				id: generate_id(),
+				id: generateId(),
 				title,
 				description,
 				blocks: [
@@ -618,7 +618,7 @@ function import_from_xml(xml_string: string): ImportResult {
 			progress: [],
 			paths: [],
 			nodes: [],
-			settings: create_default_settings(),
+			settings: createDefaultSettings(),
 			metadata: {
 				totalModules: modules.length,
 				totalProgress: 0,
@@ -638,7 +638,7 @@ function import_from_xml(xml_string: string): ImportResult {
 /**
  * Validate a module object
  */
-function validate_module(module: any): ContentModule {
+function validateModule(module: any): ContentModule {
 	if (!module.id || typeof module.id !== 'string') {
 		throw new Error('Module must have a valid id');
 	}
@@ -665,7 +665,7 @@ function validate_module(module: any): ContentModule {
 /**
  * Validate a progress object
  */
-function validate_progress(progress: any): UserProgress {
+function validateProgress(progress: any): UserProgress {
 	if (!progress.userId || typeof progress.userId !== 'string') {
 		throw new Error('Progress must have a valid userId');
 	}
@@ -690,12 +690,12 @@ function validate_progress(progress: any): UserProgress {
 /**
  * Create a complete module from partial data
  */
-function create_module_from_partial(
+function createModuleFromPartial(
 	partial: Partial<ContentModule>,
 	config: MarkdownImportConfig
 ): ContentModule {
 	return {
-		id: partial.id || generate_id(),
+		id: partial.id || generateId(),
 		title: partial.title || 'Untitled Module',
 		description: partial.description || '',
 		blocks: partial.blocks || [],
@@ -730,9 +730,9 @@ function create_module_from_partial(
 /**
  * Create default user settings
  */
-function create_default_settings(): UserSettings {
+function createDefaultSettings(): UserSettings {
 	return {
-		id: generate_id(),
+		id: generateId(),
 		preferences: {
 			theme: 'light',
 			learningStyle: 'visual',
@@ -751,6 +751,6 @@ function create_default_settings(): UserSettings {
 /**
  * Generate a unique ID
  */
-function generate_id(): string {
+function generateId(): string {
 	return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }

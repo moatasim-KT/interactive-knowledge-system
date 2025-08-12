@@ -3,10 +3,7 @@
 	import { webContentFetcher } from '$lib/services/webContentFetcher.js';
 	import { sourceManager } from '$lib/services/sourceManager.js';
 	import { createLogger } from '$lib/utils/logger.js';
-	import Button from './ui/Button.svelte';
-	import Input from './ui/Input.svelte';
-	import LoadingSpinner from './ui/LoadingSpinner.svelte';
-	import Toast from './ui/Toast.svelte';
+	import { Button, Input, LoadingSpinner, Toast } from '$lib/components/ui';
 
 	const logger = createLogger('web-content-importer');
 

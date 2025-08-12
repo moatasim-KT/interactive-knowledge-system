@@ -8,7 +8,6 @@ yarn-error.log*
 .env.local
 
 # SvelteKit
-.svelte-kit/
 build/
 
 # Logs
@@ -23,6 +22,7 @@ yarn-error.log*
 .idea/
 *.sublime-project
 *.sublime-workspace
+.kiro
 
 # OS generated files
 .DS_Store

@@ -1,13 +1,8 @@
 <script lang="ts">
 	import { webContentState, webContentActions, getFilteredSources, getContentStats } from '$lib/stores/webContentState.svelte.js';
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import WebContentImporter from './WebContentImporter.svelte';
-	import WebContentAnalyzer from './WebContentAnalyzer.svelte';
-	import Button from './ui/Button.svelte';
-	import Input from './ui/Input.svelte';
-	import Card from './ui/Card.svelte';
-	import Badge from './ui/Badge.svelte';
-	import LoadingSpinner from './ui/LoadingSpinner.svelte';
+	import { WebContentImporter, WebContentAnalyzer } from '$lib/components';
+	import { Button, Input, Card, Badge, LoadingSpinner } from '$lib/components/ui';
 
 	// Component state
 	let active_tab = $state('sources');
@@ -237,7 +232,7 @@
 
 				<div class="sources-grid">
 					{#each filtered_sources as source (source.id)}
-						<Card class="source-card" class:selected={selected_source_id === source.id}>
+						<Card class={`source-card ${selected_source_id === source.id ? 'selected' : ''}`}>
 							<div class="source-header">
 								<div class="source-info">
 									<img 

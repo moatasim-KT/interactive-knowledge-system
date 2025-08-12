@@ -253,7 +253,7 @@ export class InteractiveAnalyzer {
         const elements = [];
 
         // Interactive selectors to look for
-        const interactive_selectors = [
+        const interactiveSelectors = [
             { selector: 'button', type: 'button' },
             { selector: 'input', type: 'input' },
             { selector: 'select', type: 'select' },
@@ -268,7 +268,7 @@ export class InteractiveAnalyzer {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        interactive_selectors.forEach(({ selector, type }) => {
+        interactiveSelectors.forEach(({ selector, type }) => {
             const matches = doc.querySelectorAll(selector);
             matches.forEach((element, index) => {
                 elements.push({

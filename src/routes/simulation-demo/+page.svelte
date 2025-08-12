@@ -1,11 +1,13 @@
 <script lang="ts">
-	import SimulationManager from '$lib/components/SimulationManager.svelte';
+	import { 
+		SimulationManager, 
+		SimulationBlock, 
+		SystemDiagramBlock 
+	} from '$lib/components';
 	import {
 		createSimulationFromTemplate,
 		createDiagramFromTemplate
 	} from '$lib/utils/simulationTemplates.js';
-	import SimulationBlock from '$lib/components/SimulationBlock.svelte';
-	import SystemDiagramBlock from '$lib/components/SystemDiagramBlock.svelte';
 
 	let show_manager = true;
 	let demo_simulation = createSimulationFromTemplate('pendulum', 'demo-pendulum');

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import type { MediaFile, MediaUploadOptions } from '$lib/types/media.js';
 	import {
 		optimizeImage,
@@ -15,6 +14,9 @@
 		options?: MediaUploadOptions;
 		class?: string;
 		disabled?: boolean;
+		onUpload?: (file: MediaFile) => void;
+		onError?: (error: string) => void;
+		onProgress?: (progress: { loaded: number; total: number }) => void;
 	}
 
 	let {
@@ -22,20 +24,17 @@
 		multiple = false,
 		options = {},
 		class: className = '',
-		disabled = false
+		disabled = false,
+		onUpload,
+		onError,
+		onProgress
 	}: Props = $props();
-
-	const dispatch = createEventDispatcher<{
-		upload: MediaFile;
-		error: string;
-		progress: { loaded: number; total: number };
-	}>();
 
 	// State
 	let is_drag_over = $state(false);
 	let is_uploading = $state(false);
 	let upload_progress = $state(0);
-	let file_input;
+	let file_input = $state<HTMLInputElement>();
 
 	// Default options
 	const upload_options = {
@@ -65,7 +64,7 @@
 				// Validate file
 				const validation = validateMediaFile(file, upload_options);
 				if (!validation.valid) {
-					dispatch('error', validation.error || 'Invalid file');
+					onError?.(validation.error || 'Invalid file');
 					continue;
 				}
 
@@ -74,10 +73,10 @@
 
 				// Update progress
 				upload_progress = ((i + 1) / total_files) * 100;
-				dispatch('progress', { loaded: i + 1, total: total_files });
+				onProgress?.({ loaded: i + 1, total: total_files });
 			}
 		} catch (error) {
-			dispatch('error', error instanceof Error ? error.message : 'Upload failed');
+			onError?.(error instanceof Error ? error.message : 'Upload failed');
 		} finally {
 			is_uploading = false;
 			upload_progress = 0;
@@ -144,7 +143,7 @@
 		// Set URL for retrieval
 		media_file.url = `media://${media_file.id}`;
 
-		dispatch('upload', media_file);
+		onUpload?.(media_file);
 	}
 
 	function handle_file_input(event: Event) {
@@ -173,7 +172,7 @@
 	}
 
 	function open_file_dialog() {
-		if (!disabled && !is_uploading) {
+		if (!disabled && !is_uploading && file_input) {
 			file_input.click();
 		}
 	}
@@ -181,31 +180,31 @@
 
 <div
 	class="media-upload {className}"
-	class:drag-over={isDragOver}
-	class:uploading={isUploading}
+	class:drag-over={is_drag_over}
+	class:uploading={is_uploading}
 	class:disabled
-	ondrop={handleDrop}
-	ondragover={handleDragOver}
-	ondragleave={handleDragLeave}
-	onclick={openFileDialog}
+	ondrop={handle_drop}
+	ondragover={handle_drag_over}
+	ondragleave={handle_drag_leave}
+	onclick={open_file_dialog}
 	role="button"
 	tabindex="0"
 	onkeydown={(e) => e.key === 'Enter' && open_file_dialog()}
 >
 	<input
-		bind:this={fileInput}
+		bind:this={file_input}
 		type="file"
 		{accept}
 		{multiple}
 		{disabled}
-		onchange={handleFileInput}
+		onchange={handle_file_input}
 		class="file-input"
 	/>
 
-	{#if isUploading}
+	{#if is_uploading}
 		<div class="upload-progress">
 			<div class="progress-bar">
-				<div class="progress-fill" style="width: {uploadProgress}%"></div>
+				<div class="progress-fill" style="width: {upload_progress}%"></div>
 			</div>
 			<div class="progress-text">
 				Uploading... {Math.round(upload_progress)}%
@@ -214,7 +213,7 @@
 	{:else}
 		<div class="upload-content">
 			<div class="upload-icon">
-				{#if isDragOver}
+				{#if is_drag_over}
 					📁
 				{:else}
 					📎
@@ -222,7 +221,7 @@
 			</div>
 
 			<div class="upload-text">
-				{#if isDragOver}
+				{#if is_drag_over}
 					<strong>Drop files here</strong>
 				{:else}
 					<strong>Click to upload</strong> or drag and drop

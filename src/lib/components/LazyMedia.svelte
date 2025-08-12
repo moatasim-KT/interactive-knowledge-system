@@ -99,37 +99,37 @@
 <div
 	bind:this={element}
 	class="lazy-media {className}"
-	class:loaded={isLoaded}
+	class:loaded={is_loaded}
 	class:fade-in={fadeIn}
 	{style}
 >
 	{#if type === 'image'}
-		{#if hasError}
+		{#if has_error}
 			<div class="error-placeholder">
 				<span class="error-icon">⚠️</span>
 				<span class="error-text">Failed to load image</span>
 			</div>
 		{:else}
 			<img
-				src={currentSrc}
+				src={current_src}
 				{alt}
 				{width}
 				{height}
-				onload={handleLoad}
-				onerror={handleError}
+				onload={handle_load}
+				onerror={handle_error}
 				class="lazy-image"
 				class:loaded={is_loaded && is_in_view}
 			/>
 		{/if}
 	{:else if type === 'video'}
-		{#if hasError}
+		{#if has_error}
 			<div class="error-placeholder">
 				<span class="error-icon">⚠️</span>
 				<span class="error-text">Failed to load video</span>
 			</div>
-		{:else if showContent}
+		{:else if show_content}
 			<video
-				src={currentSrc}
+				src={current_src}
 				{controls}
 				{autoplay}
 				{muted}
@@ -137,10 +137,10 @@
 				{poster}
 				{width}
 				{height}
-				onloadeddata={handleLoad}
-				onerror={handleError}
+				onloadeddata={handle_load}
+				onerror={handle_error}
 				class="lazy-video"
-				class:loaded={isLoaded}
+				class:loaded={is_loaded}
 			>
 				<track kind="captions" src="" srclang="en" label="English captions" />
 				Your browser does not support the video tag.

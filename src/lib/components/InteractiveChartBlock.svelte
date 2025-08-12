@@ -2,15 +2,19 @@
 	import type { InteractiveChartBlock } from '$lib/types/web-content.js';
 	import InteractiveChart from './InteractiveChart.svelte';
 	import DataManipulator from './DataManipulator.svelte';
-	import { createEventDispatcher } from 'svelte';
 
-	export let block: InteractiveChartBlock;
-	export let editable = false;
+	interface Props {
+		block: InteractiveChartBlock;
+		editable?: boolean;
+		onDataChange?: (event: { data: any; filters: any[] }) => void;
+		onChartInteraction?: (event: any) => void;
+		onInteractionExecuted?: (event: any) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { block, editable = false, onDataChange, onChartInteraction, onInteractionExecuted }: Props = $props();
 
-	let current_data = block.content.data;
-	let active_filters = block.content.filters || [];
+	let current_data = $state(block.content.data);
+	let active_filters = $state(block.content.filters || []);
 	let chart_config = {
 		...block.content,
 		layout: {
@@ -38,16 +42,15 @@
 		current_data = data;
 		active_filters = filters;
 
-		dispatch('dataChange', {
+		onDataChange?.({
 			data,
-			filters,
-			blockId: block.id
+			filters
 		});
 	}
 
 	// Handle chart interactions
-	function handle_chart_interaction(event: CustomEvent) {
-		const { type, point, coordinates, zoomLevel } = event.detail;
+	function handle_chart_interaction(event: any) {
+		const { type, point, coordinates, zoomLevel } = event;
 
 		// Execute any defined interactions for this chart
 		block.content.interactions?.forEach((interaction) => {
@@ -55,22 +58,18 @@
 				try {
 					// In a real implementation, this would safely execute the interaction effect
 					// For now, we'll just dispatch the interaction
-					dispatch('interactionExecuted', { interaction: interaction.parameter, point });
+					onInteractionExecuted?.({ interaction: interaction.parameter, point });
 				} catch (error) {
-					dispatch('interactionError', {
-						error: (error as Error).message,
-						interaction: interaction.parameter
-					});
+					console.error('Interaction error:', error);
 				}
 			}
 		});
 
-		dispatch('chartInteraction', {
+		onChartInteraction?.({
 			type,
 			point,
 			coordinates,
-			zoomLevel,
-			blockId: block.id
+			zoomLevel
 		});
 	}
 
@@ -107,17 +106,17 @@
 		<div class="data-controls-section">
 			<DataManipulator
 				data={block.content.data}
-				filters={activeFilters}
-				on:dataChange={handleDataChange}
+				filters={active_filters}
+				onDataChange={handle_data_change}
 			/>
 		</div>
 
 		<!-- Chart Display -->
 		<div class="chart-display-section">
 			<InteractiveChart
-				data={currentData}
-				config={chartConfig}
-				on:interaction={handleChartInteraction}
+				data={current_data}
+				config={chart_config}
+				onInteraction={handle_chart_interaction}
 			/>
 		</div>
 

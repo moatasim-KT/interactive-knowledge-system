@@ -32,7 +32,7 @@
 	});
 </script>
 
-<div class={gridClasses}>
+<div class={grid_classes}>
 	{@render children?.()}
 </div>
 

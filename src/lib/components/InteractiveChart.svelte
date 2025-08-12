@@ -1,32 +1,31 @@
 <script lang="ts">
 	import type { VisualizationConfig } from '$lib/types/web-content.js';
-	import { createEventDispatcher, onMount } from 'svelte';
 
-	export let data: any;
-	export let config: VisualizationConfig;
+	interface Props {
+		data: any;
+		config: VisualizationConfig;
+		onInteraction?: (event: { type: string; [key: string]: any }) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { data, config, onInteraction }: Props = $props();
 
-	let chart_container;
-	let is_zoomed = false;
-	let zoom_level = 1;
-	let hovered_point = null;
-	let tooltip: { x: number; y: number; content: string } | null = null;
+	let chart_container = $state<HTMLElement>();
+	let is_zoomed = $state(false);
+	let zoom_level = $state(1);
+	let hovered_point = $state<any>(null);
+	let tooltip = $state<{ x: number; y: number; content: string } | null>(null);
 
 	// Chart dimensions
-	let width = config.layout?.width || 600;
-	let height = config.layout?.height || 400;
-	let margin = config.layout?.margin || { top: 20, right: 20, bottom: 40, left: 40 };
+	const width = $derived(() => config.layout?.width || 600);
+	const height = $derived(() => config.layout?.height || 400);
+	const margin = $derived(() => config.layout?.margin || { top: 20, right: 20, bottom: 40, left: 40 });
 
 	// Calculate inner dimensions
-	let inner_width;
-	let inner_height;
-	$: inner_width = width - margin.left - margin.right;
-	$: inner_height = height - margin.top - margin.bottom;
+	const inner_width = $derived(() => width() - margin().left - margin().right);
+	const inner_height = $derived(() => height() - margin().top - margin().bottom);
 
 	// Sample data processing (this would be more sophisticated in a real implementation)
-	let processed_data;
-	$: processed_data = process_chart_data(data);
+	const processed_data = $derived(() => process_chart_data(data));
 
 	function process_chart_data(raw_data) {
 		if (!raw_data) return [];
@@ -63,9 +62,9 @@
 		if (is_numeric) {
 			const min = Math.min(...domain);
 			const max = Math.max(...domain);
-			return (x: number) => ((x - min) / (max - min)) * inner_width;
+			return (x: number) => ((x - min) / (max - min)) * inner_width();
 		} else {
-			return (x: any, index: number) => (index / (domain.length - 1)) * inner_width;
+			return (x: any, index: number) => (index / (domain.length - 1)) * inner_width();
 		}
 	}
 
@@ -76,19 +75,18 @@
 		const min = Math.min(...values);
 		const max = Math.max(...values);
 
-		return (y: number) => inner_height - ((y - min) / (max - min)) * inner_height;
+		return (y: number) => inner_height() - ((y - min) / (max - min)) * inner_height();
 	}
 
-	let x_scale;
-	let y_scale;
-	$: x_scale = create_xscale(processed_data);
-	$: y_scale = create_yscale(processed_data);
+	const x_scale = $derived(() => create_xscale(processed_data()));
+	const y_scale = $derived(() => create_yscale(processed_data()));
 
 	// Handle mouse events
 	function handle_mouse_move(event: MouseEvent) {
+		if (!chart_container) return;
 		const rect = chart_container.getBoundingClientRect();
-		const x = event.clientX - rect.left - margin.left;
-		const y = event.clientY - rect.top - margin.top;
+		const x = event.clientX - rect.left - margin().left;
+		const y = event.clientY - rect.top - margin().top;
 
 		// Find closest data point
 		const closest = find_closest_point(x, y);
@@ -100,7 +98,7 @@
 				content: `${closest.label}: ${closest.y}`
 			};
 
-			dispatch('interaction', {
+			onInteraction?.({
 				type: 'hover',
 				point: closest,
 				coordinates: { x, y }
@@ -111,17 +109,18 @@
 	function handle_mouse_leave() {
 		hovered_point = null;
 		tooltip = null;
-		dispatch('interaction', { type: 'hover-end' });
+		onInteraction?.({ type: 'hover-end' });
 	}
 
 	function handle_click(event: MouseEvent) {
+		if (!chart_container) return;
 		const rect = chart_container.getBoundingClientRect();
-		const x = event.clientX - rect.left - margin.left;
-		const y = event.clientY - rect.top - margin.top;
+		const x = event.clientX - rect.left - margin().left;
+		const y = event.clientY - rect.top - margin().top;
 
 		const closest = find_closest_point(x, y);
 		if (closest) {
-			dispatch('interaction', {
+			onInteraction?.({
 				type: 'click',
 				point: closest,
 				coordinates: { x, y }
@@ -136,22 +135,23 @@
 		zoom_level = Math.max(0.5, Math.min(3, zoom_level * delta));
 		is_zoomed = zoom_level !== 1;
 
-		dispatch('interaction', {
+		onInteraction?.({
 			type: 'zoom',
 			zoomLevel: zoom_level,
 			isZoomed: is_zoomed
 		});
 	}
 
-	function find_closest_point(mouse_x, mouse_y) {
-		if (!processed_data.length) return null;
+	function find_closest_point(mouse_x: number, mouse_y: number) {
+		const data = processed_data();
+		if (!data.length) return null;
 
-		let closest = processed_data[0];
+		let closest = data[0];
 		let min_distance = Infinity;
 
-		processed_data.forEach((point, index) => {
-			const px = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x);
-			const py = y_scale(point.y);
+		data.forEach((point, index) => {
+			const px = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x);
+			const py = y_scale()(point.y);
 			const distance = Math.sqrt((mouse_x - px) ** 2 + (mouse_y - py) ** 2);
 
 			if (distance < min_distance) {
@@ -166,46 +166,48 @@
 	function reset_zoom() {
 		zoom_level = 1;
 		is_zoomed = false;
-		dispatch('interaction', { type: 'zoom-reset' });
+		onInteraction?.({ type: 'zoom-reset' });
 	}
 
-	onMount(() => {
-		// Initialize chart if needed
-		dispatch('interaction', { type: 'mount', config });
+	// Initialize chart when mounted
+	$effect(() => {
+		if (chart_container) {
+			onInteraction?.({ type: 'mount', config });
+		}
 	});
 </script>
 
 <div
 	class="interactive-chart"
-	bind:this={chartContainer}
-	on:mousemove={handleMouseMove}
-	on:mouseleave={handleMouseLeave}
-	on:click={handleClick}
-	on:wheel={handleWheel}
+	bind:this={chart_container}
+	onmousemove={handle_mouse_move}
+	onmouseleave={handle_mouse_leave}
+	onclick={handle_click}
+	onwheel={handle_wheel}
 	role="img"
 	aria-label={config.title || 'Interactive Chart'}
 >
 	<!-- Chart Controls -->
 	<div class="chart-controls">
-		{#if isZoomed}
-			<button class="zoom-reset-btn" on:click={resetZoom} type="button"> Reset Zoom </button>
+		{#if is_zoomed}
+			<button class="zoom-reset-btn" onclick={reset_zoom} type="button"> Reset Zoom </button>
 		{/if}
 		<span class="zoom-indicator">Zoom: {Math.round(zoom_level * 100)}%</span>
 	</div>
 
 	<!-- SVG Chart -->
 	<svg
-		{width}
-		{height}
+		width={width()}
+		height={height()}
 		class="chart-svg"
-		style="transform: scale({zoomLevel}); transform-origin: center;"
+		style="transform: scale({zoom_level}); transform-origin: center;"
 	>
 		<!-- Chart background -->
 		<rect
-			x={margin.left}
-			y={margin.top}
-			width={innerWidth}
-			height={innerHeight}
+			x={margin().left}
+			y={margin().top}
+			width={inner_width()}
+			height={inner_height()}
 			fill="var(--chart-bg, #fafafa)"
 			stroke="var(--chart-border, #e1e5e9)"
 		/>
@@ -214,10 +216,10 @@
 		<g class="grid">
 			{#each Array(5) as _, i (i)}
 				<line
-					x1={margin.left}
-					y1={margin.top + (i * inner_height) / 4}
-					x2={margin.left + inner_width}
-					y2={margin.top + (i * inner_height) / 4}
+					x1={margin().left}
+					y1={margin().top + (i * inner_height()) / 4}
+					x2={margin().left + inner_width()}
+					y2={margin().top + (i * inner_height()) / 4}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 					opacity="0.5"
@@ -225,10 +227,10 @@
 			{/each}
 			{#each Array(5) as _, i (i)}
 				<line
-					x1={margin.left + (i * inner_width) / 4}
-					y1={margin.top}
-					x2={margin.left + (i * inner_width) / 4}
-					y2={margin.top + inner_height}
+					x1={margin().left + (i * inner_width()) / 4}
+					y1={margin().top}
+					x2={margin().left + (i * inner_width()) / 4}
+					y2={margin().top + inner_height()}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 					opacity="0.5"
@@ -237,14 +239,14 @@
 		</g>
 
 		<!-- Data points and lines -->
-		<g class="data-layer" transform="translate({margin.left}, {margin.top})">
+		<g class="data-layer" transform="translate({margin().left}, {margin().top})">
 			<!-- Line chart -->
-			{#if processed_data.length > 1}
+			{#if processed_data().length > 1}
 				<path
-					d={processed_data
+					d={processed_data()
 						.map((point, index) => {
-							const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x);
-							const y = y_scale(point.y);
+							const x = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x);
+							const y = y_scale()(point.y);
 							return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
 						})
 						.join(' ')}
@@ -255,9 +257,9 @@
 			{/if}
 
 			<!-- Data points -->
-			{#each processedData as point, index (point.label || index)}
-				{@const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x)}
-				{@const y = y_scale(point.y)}
+			{#each processed_data() as point, index (point.label || index)}
+				{@const x = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x)}
+				{@const y = y_scale()(point.y)}
 				<circle
 					cx={x}
 					cy={y}
@@ -277,20 +279,20 @@
 		<g class="axes">
 			<!-- X-axis -->
 			<line
-				x1={margin.left}
-				y1={margin.top + inner_height}
-				x2={margin.left + inner_width}
-				y2={margin.top + inner_height}
+				x1={margin().left}
+				y1={margin().top + inner_height()}
+				x2={margin().left + inner_width()}
+				y2={margin().top + inner_height()}
 				stroke="var(--axis-color, #333333)"
 				stroke-width="2"
 			/>
 
 			<!-- Y-axis -->
 			<line
-				x1={margin.left}
-				y1={margin.top}
-				x2={margin.left}
-				y2={margin.top + inner_height}
+				x1={margin().left}
+				y1={margin().top}
+				x2={margin().left}
+				y2={margin().top + inner_height()}
 				stroke="var(--axis-color, #333333)"
 				stroke-width="2"
 			/>

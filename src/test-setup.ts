@@ -5,7 +5,7 @@
 import { vi } from 'vitest';
 
 // Mock IndexedDB for testing
-const mock_idbrequest = {
+const mockIdbRequest = {
 	result: null,
 	error: null,
 	onsuccess: null,
@@ -13,16 +13,16 @@ const mock_idbrequest = {
 	readyState: 'done'
 };
 
-const mock_idbtransaction = {
+const mockIdbTransaction = {
 	objectStore: vi.fn(() => ({
-		add: vi.fn(() => mock_idbrequest),
-		get: vi.fn(() => mock_idbrequest),
-		put: vi.fn(() => mock_idbrequest),
-		delete: vi.fn(() => mock_idbrequest),
-		getAll: vi.fn(() => mock_idbrequest),
+		add: vi.fn(() => mockIdbRequest),
+		get: vi.fn(() => mockIdbRequest),
+		put: vi.fn(() => mockIdbRequest),
+		delete: vi.fn(() => mockIdbRequest),
+		getAll: vi.fn(() => mockIdbRequest),
 		index: vi.fn(() => ({
-			get: vi.fn(() => mock_idbrequest),
-			getAll: vi.fn(() => mock_idbrequest)
+			get: vi.fn(() => mockIdbRequest),
+			getAll: vi.fn(() => mockIdbRequest)
 		}))
 	})),
 	oncomplete: null,
@@ -30,8 +30,8 @@ const mock_idbtransaction = {
 	onabort: null
 };
 
-const mock_idbdatabase = {
-	transaction: vi.fn(() => mock_idbtransaction),
+const mockIdbDatabase = {
+	transaction: vi.fn(() => mockIdbTransaction),
 	createObjectStore: vi.fn(),
 	deleteObjectStore: vi.fn(),
 	close: vi.fn()
@@ -39,11 +39,11 @@ const mock_idbdatabase = {
 
 global.indexedDB = {
 	open: vi.fn(() => ({
-		...mock_idbrequest,
-		result: mock_idbdatabase,
+		...mockIdbRequest,
+		result: mockIdbDatabase,
 		onupgradeneeded: null
 	})),
-	deleteDatabase: vi.fn(() => mock_idbrequest),
+	deleteDatabase: vi.fn(() => mockIdbRequest),
 	databases: vi.fn(() => Promise.resolve([])),
 	cmp: vi.fn()
 } as any;

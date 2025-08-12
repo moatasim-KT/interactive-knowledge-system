@@ -1,21 +1,36 @@
 <script lang="ts">
 	import type { SystemDiagramBlock } from '$lib/types/web-content.js';
 	import ParameterControls from './ParameterControls.svelte';
-	import { createEventDispatcher, onMount } from 'svelte';
 
-	export let block: SystemDiagramBlock;
-	export let editable = false;
+	interface Props {
+		block: SystemDiagramBlock;
+		editable?: boolean;
+		onParameterChange?: (event: any) => void;
+		onElementClick?: (event: any) => void;
+		onElementHover?: (event: any) => void;
+		onDiagramReset?: (event: any) => void;
+		onDiagramExport?: (event: any) => void;
+		onDiagramError?: (event: any) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { 
+		block, 
+		editable = false,
+		onParameterChange,
+		onElementClick,
+		onElementHover,
+		onDiagramReset,
+		onDiagramExport,
+		onDiagramError
+	}: Props = $props();
 
-	let svg_container: SVGSVGElement;
-	let diagram_state = { ...block.content.initialState };
-	let selected_element: string | null = null;
-	let hover_element: string | null = null;
+	let svg_container = $state<SVGSVGElement>();
+	let diagram_state = $state({ ...block.content.initialState });
+	let selected_element = $state<string | null>(null);
+	let hover_element = $state<string | null>(null);
 
 	// Convert parameters to the format expected by ParameterControls
-	let parameters: any[];
-	$: parameters = block.content.parameters.map((param) => ({
+	const parameters = $derived(() => block.content.parameters.map((param) => ({
 		name: param.name,
 		type: param.type,
 		default: param.default,
@@ -26,7 +41,7 @@
 			step: param.step,
 			options: param.options
 		}
-	}));
+	})));
 
 	// Handle parameter changes
 	function handle_parameter_change(event: CustomEvent) {
@@ -42,7 +57,7 @@
 		update_diagram_state();
 		render_diagram();
 
-		dispatch('parameterChange', { parameter, value, blockId: block.id });
+		onParameterChange?.({ parameter, value });
 	}
 
 	// Update diagram state based on current parameters
@@ -62,7 +77,7 @@
 				diagram_state = update_function(diagram_state, parameter_values) || diagram_state;
 			}
 		} catch (error) {
-			dispatch('diagramError', { error: (error as Error).message });
+			onDiagramError?.({ error: (error as Error).message });
 		}
 	}
 
@@ -74,7 +89,7 @@
 		// Find element data
 		const element = block.content.elements.find((el) => el.id === element_id);
 		if (element) {
-			dispatch('elementClick', {
+			onElementClick?.({
 				elementId: element_id,
 				element,
 				state: diagram_state,
@@ -90,7 +105,7 @@
 		if (element_id) {
 			const element = block.content.elements.find((el) => el.id === element_id);
 			if (element) {
-				dispatch('elementHover', {
+				onElementHover?.({
 					elementId: element_id,
 					element,
 					state: diagram_state,
@@ -280,7 +295,7 @@
 		selected_element = null;
 		hover_element = null;
 		render_diagram();
-		dispatch('diagramReset', { blockId: block.id });
+		onDiagramReset?.({});
 	}
 
 	// Export diagram as SVG
@@ -297,18 +312,22 @@
 		link.click();
 
 		URL.revokeObjectURL(url);
-		dispatch('diagramExport', { format: 'svg', blockId: block.id });
+		onDiagramExport?.({ format: 'svg' });
 	}
 
 	// Initialize diagram on mount
-	onMount(() => {
-		render_diagram();
+	$effect(() => {
+		if (svg_container) {
+			render_diagram();
+		}
 	});
 
 	// Re-render when block content changes
-	$: if (block && svg_container) {
-		render_diagram();
-	}
+	$effect(() => {
+		if (block && svg_container) {
+			render_diagram();
+		}
+	});
 </script>
 
 <div class="system-diagram-block" data-block-id={block.id}>
@@ -320,7 +339,7 @@
 			<div class="diagram-actions">
 				<button
 					class="action-btn reset-btn"
-					on:click={reset_diagram}
+					onclick={reset_diagram}
 					type="button"
 					title="Reset diagram"
 				>
@@ -328,7 +347,7 @@
 				</button>
 				<button
 					class="action-btn export-btn"
-					on:click={export_diagram}
+					onclick={export_diagram}
 					type="button"
 					title="Export as SVG"
 				>
@@ -346,7 +365,7 @@
 		{#if parameters.length > 0}
 			<div class="parameters-section">
 				<h4 class="section-title">Parameters</h4>
-				<ParameterControls {parameters} on:parameterChange={handle_parameter_change} />
+				<ParameterControls parameters={parameters()} onParameterChange={handle_parameter_change} />
 			</div>
 		{/if}
 

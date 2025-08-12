@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { appState, actions } from '$lib/stores/appState.svelte.js';
+	import { appState, actions } from '$lib/stores/appState.svelte.ts';
 	import { goto } from '$app/navigation';
-	import type { KnowledgeNode } from '$lib/types/knowledge.js';
+	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
 
 	// Get current node from URL parameter
 	const node_id = $derived(() => $page.params.id);
@@ -155,7 +155,7 @@
 				<button
 					class="bookmark-btn"
 					class:bookmarked={progress?.bookmarked}
-					onclick={toggleBookmark}
+					onclick={toggle_bookmark}
 					title={progress?.bookmarked ? 'Remove bookmark' : 'Add bookmark'}
 				>
 					{progress?.bookmarked ? '🔖' : '📑'}
@@ -165,7 +165,7 @@
 					<button
 						class="complete-btn"
 						class:completed={progress?.status === 'completed'}
-						onclick={markAsCompleted}
+						onclick={mark_as_completed}
 						disabled={progress?.status === 'completed'}
 					>
 						{progress?.status === 'completed' ? '✅ Completed' : '✓ Mark Complete'}

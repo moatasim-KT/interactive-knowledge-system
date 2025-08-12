@@ -2,10 +2,7 @@
 	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
 	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.js';
 	import { createLogger } from '$lib/utils/logger.js';
-	import Button from './ui/Button.svelte';
-	import Card from './ui/Card.svelte';
-	import LoadingSpinner from './ui/LoadingSpinner.svelte';
-	import Badge from './ui/Badge.svelte';
+	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui';
 
 	const logger = createLogger('web-content-analyzer');
 

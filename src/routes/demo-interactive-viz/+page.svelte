@@ -1,12 +1,14 @@
 <script lang="ts">
-	import InteractiveVisualizationBlock from '$lib/components/InteractiveVisualizationBlock.svelte';
-	import InteractiveChartBlock from '$lib/components/InteractiveChartBlock.svelte';
-	import SimulationBlock from '$lib/components/SimulationBlock.svelte';
+	import { 
+		InteractiveVisualizationBlock, 
+		InteractiveChartBlock, 
+		SimulationBlock 
+	} from '$lib/components';
 	import type {
 		InteractiveVisualizationBlock as IVBType,
 		InteractiveChartBlock as ICBType,
 		SimulationBlock as SBType
-	} from '$lib/types/web-content.js';
+	} from '$lib/types/web-content.ts';
 
 	// Sample data for demonstrations
 	const sample_visualization_block = {
@@ -258,10 +260,10 @@
 				real-time updates. Perfect for transforming static charts into interactive experiences.
 			</p>
 			<InteractiveVisualizationBlock
-				block={sampleVisualizationBlock}
-				on:parameterChange={handleParameterChange}
-				on:dataChange={handleDataChange}
-				on:chartInteraction={handleChartInteraction}
+				block={sample_visualization_block}
+				on:parameterChange={handle_parameter_change}
+				on:dataChange={handle_data_change}
+				on:chartInteraction={handle_chart_interaction}
 			/>
 		</section>
 
@@ -272,10 +274,10 @@
 				Includes built-in interaction handlers and data manipulation tools.
 			</p>
 			<InteractiveChartBlock
-				block={sampleChartBlock}
-				on:dataChange={handleDataChange}
-				on:chartInteraction={handleChartInteraction}
-				on:interactionExecuted={handleChartInteraction}
+				block={sample_chart_block}
+				on:dataChange={handle_data_change}
+				on:chartInteraction={handle_chart_interaction}
+				on:interactionExecuted={handle_chart_interaction}
 			/>
 		</section>
 
@@ -286,14 +288,14 @@
 				state visualization. Great for physics, algorithms, and dynamic systems.
 			</p>
 			<SimulationBlock
-				block={sampleSimulationBlock}
-				on:parameterChange={handleParameterChange}
-				on:simulationStart={handleSimulationEvent}
-				on:simulationPause={handleSimulationEvent}
-				on:simulationStop={handleSimulationEvent}
-				on:simulationReset={handleSimulationEvent}
-				on:simulationStep={handleSimulationEvent}
-				on:simulationError={handleSimulationEvent}
+				block={sample_simulation_block}
+				on:parameterChange={handle_parameter_change}
+				on:simulationStart={handle_simulation_event}
+				on:simulationPause={handle_simulation_event}
+				on:simulationStop={handle_simulation_event}
+				on:simulationReset={handle_simulation_event}
+				on:simulationStep={handle_simulation_event}
+				on:simulationError={handle_simulation_event}
 			/>
 		</section>
 

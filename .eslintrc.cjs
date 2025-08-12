@@ -7,12 +7,10 @@ module.exports = {
   extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   ignorePatterns: [
     "node_modules",
-    ".svelte-kit",
     ".vscode",
     ".kiro",
     ".windsurf",
-    "**/generated/**",
-    "**/*.svelte",
+    "**/generated/**"
   ],
   rules: {
     "@typescript-eslint/no-unused-vars": "off",

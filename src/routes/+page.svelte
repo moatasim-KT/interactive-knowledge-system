@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import { ContentEditor } from '$lib/components/index.js';
-	import type { ContentBlock } from '$lib/types/content.js';
+	import { appState, actions } from '$lib/stores/appState.svelte.ts';
+	import { ContentEditor } from '$lib/components';
+	import type { ContentBlock } from '$lib/types/content';
 
 	// Current view state
 	let current_view = $state<'demo' | 'editor'>('demo');
 
 	// Sample content for editor
-	let sample_blocks = [
+	let sampleBlocks: ContentBlock[] = [
 		{
 			id: 'sample-text-1',
-			type: 'text',
+			type: 'text' as const,
 			content: {
 				html: '<h2>Welcome to the Content Editor</h2><p>This is a sample text block. You can edit this content directly.</p>'
 			},
@@ -22,7 +22,7 @@
 		},
 		{
 			id: 'sample-code-1',
-			type: 'code',
+			type: 'code' as const,
 			content: {
 				code: 'function hello() {\n  console.log("Hello, World!");\n}',
 				language: 'javascript'
@@ -36,7 +36,7 @@
 	];
 
 	// Demo function to test reactive state
-	function add_sample_content() {
+	function addSampleContent() {
 		const new_node = {
 			id: `sample-${Date.now()}`,
 			title: `Sample Module ${appState.content.nodes.size + 1}`,
@@ -60,7 +60,7 @@
 		});
 	}
 
-	function test_offline_mode() {
+	function testOfflineMode() {
 		actions.setOnlineStatus(!appState.sync.isOnline);
 		actions.addNotification({
 			type: 'info',
@@ -69,7 +69,7 @@
 	}
 
 	// Handle content save
-	function handle_content_save(blocks: ContentBlock[]) {
+	function handleContentSave(blocks: ContentBlock[]) {
 		console.log('Content saved:', blocks);
 		actions.addNotification({
 			type: 'success',

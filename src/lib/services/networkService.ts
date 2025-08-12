@@ -72,12 +72,12 @@ export class NetworkService {
 	private startPeriodicCheck(): void {
 		// Check connectivity every 30 seconds
 		this.connectionMonitor = window.setInterval(async () => {
-			const was_online = this.networkStatus.isOnline;
-			const is_online = await this.checkConnectivity();
+			const wasOnline = this.networkStatus.isOnline;
+			const isOnline = await this.checkConnectivity();
 
-			if (was_online !== is_online) {
-				this.networkStatus.isOnline = is_online;
-				actions.setOnlineStatus(is_online);
+			if (wasOnline !== isOnline) {
+				this.networkStatus.isOnline = isOnline;
+				actions.setOnlineStatus(isOnline);
 				this.notifyListeners();
 			}
 		}, 30000);
@@ -101,7 +101,7 @@ export class NetworkService {
 		this.listeners.forEach((listener) => {
 			try {
 				listener(this.networkStatus);
-			} catch (error) {}
+			} catch (error) { }
 		});
 	}
 

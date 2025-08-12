@@ -1,30 +1,51 @@
 <script lang="ts">
 	import type { SimulationBlock } from '$lib/types/web-content.js';
 	import ParameterControls from './ParameterControls.svelte';
-	import { createEventDispatcher, onMount } from 'svelte';
 	import {
 		exportSimulationResults,
 		exportSimulationReport,
 		type SimulationResult
 	} from '$lib/utils/simulationExport.js';
 
-	export let block: SimulationBlock;
-	export let editable = false;
+	interface Props {
+		block: SimulationBlock;
+		editable?: boolean;
+		onParameterChange?: (event: { parameter: string; value: any; blockId: string }) => void;
+		onSimulationStart?: (event: { blockId: string }) => void;
+		onSimulationPause?: (event: { blockId: string }) => void;
+		onSimulationStop?: (event: { blockId: string }) => void;
+		onSimulationReset?: (event: { blockId: string }) => void;
+		onSimulationStep?: (event: { step: number; state: any; blockId: string }) => void;
+		onSimulationError?: (event: { error: string; step: number }) => void;
+		onSimulationExport?: (event: { format: string; blockId: string }) => void;
+		onSimulationReportExport?: (event: { blockId: string }) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let {
+		block,
+		editable = false,
+		onParameterChange,
+		onSimulationStart,
+		onSimulationPause,
+		onSimulationStop,
+		onSimulationReset,
+		onSimulationStep,
+		onSimulationError,
+		onSimulationExport,
+		onSimulationReportExport
+	}: Props = $props();
 
-	let simulation_state = { ...block.content.initialState };
-	let is_running = false;
-	let is_paused = false;
-	let animation_id: number | null = null;
-	let step_count = 0;
-	let simulation_speed = 1;
-	let auto_run = false;
-	let simulation_results: SimulationResult[] = [];
+	let simulation_state = $state({ ...block.content.initialState });
+	let is_running = $state(false);
+	let is_paused = $state(false);
+	let animation_id = $state<number | null>(null);
+	let step_count = $state(0);
+	let simulation_speed = $state(1);
+	let auto_run = $state(false);
+	let simulation_results = $state<SimulationResult[]>([]);
 
 	// Convert parameters to the format expected by ParameterControls
-	let parameters: any[];
-	$: parameters = block.content.parameters.map((param) => ({
+	const parameters = $derived(() => block.content.parameters.map((param) => ({
 		name: param.name,
 		type: param.type,
 		default: param.default,
@@ -35,7 +56,7 @@
 			step: param.step,
 			options: param.options
 		}
-	}));
+	})));
 
 	// Handle parameter changes
 	function handle_parameter_change(event: CustomEvent) {
@@ -55,7 +76,7 @@
 			}
 		}
 
-		dispatch('parameterChange', { parameter, value, blockId: block.id });
+		onParameterChange?.({ parameter, value, blockId: block.id });
 	}
 
 	// Simulation control functions
@@ -66,7 +87,7 @@
 		is_paused = false;
 
 		run_simulation_step();
-		dispatch('simulationStart', { blockId: block.id });
+		onSimulationStart?.({ blockId: block.id });
 	}
 
 	function pause_simulation() {
@@ -75,7 +96,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		dispatch('simulationPause', { blockId: block.id });
+		onSimulationPause?.({ blockId: block.id });
 	}
 
 	function stop_simulation() {
@@ -85,7 +106,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		dispatch('simulationStop', { blockId: block.id });
+		onSimulationStop?.({ blockId: block.id });
 	}
 
 	function reset_simulation() {
@@ -93,7 +114,7 @@
 		simulation_state = { ...block.content.initialState };
 		step_count = 0;
 		simulation_results = [];
-		dispatch('simulationReset', { blockId: block.id });
+		onSimulationReset?.({ blockId: block.id });
 	}
 
 	// Export simulation results
@@ -118,7 +139,7 @@
 			format
 		);
 
-		dispatch('simulationExport', { format, blockId: block.id });
+		onSimulationExport?.({ format, blockId: block.id });
 	}
 
 	// Export simulation report
@@ -138,14 +159,14 @@
 
 		exportSimulationReport(block.content.simulationType, parameter_values, simulation_results);
 
-		dispatch('simulationReportExport', { blockId: block.id });
+		onSimulationReportExport?.({ blockId: block.id });
 	}
 
 	function step_simulation() {
 		if (is_running && !is_paused) return;
 
 		execute_simulation_step();
-		dispatch('simulationStep', {
+		onSimulationStep?.({
 			step: step_count,
 			state: simulation_state,
 			blockId: block.id
@@ -179,7 +200,7 @@
 
 			step_count++;
 		} catch (error) {
-			dispatch('simulationError', { error: (error as Error).message, step: step_count });
+			onSimulationError?.({ error: (error as Error).message, step: step_count });
 			stop_simulation();
 		}
 	}
@@ -216,7 +237,7 @@
 	}
 
 	// Cleanup on component destroy
-	onMount(() => {
+	$effect(() => {
 		return () => {
 			if (animation_id) {
 				cancelAnimationFrame(animation_id);
@@ -253,9 +274,9 @@
 
 	<div class="simulation-content">
 		<!-- Parameter Controls -->
-		{#if parameters.length > 0}
+		{#if parameters().length > 0}
 			<div class="parameters-section">
-				<ParameterControls {parameters} on:parameterChange={handle_parameter_change} />
+				<ParameterControls parameters={parameters()} onParameterChange={handle_parameter_change} />
 			</div>
 		{/if}
 
@@ -265,7 +286,7 @@
 				<button
 					class="control-btn start-btn"
 					class:active={is_running && !is_paused}
-					on:click={start_simulation}
+					onclick={start_simulation}
 					disabled={is_running && !is_paused}
 					type="button"
 					title="Start simulation"
@@ -276,7 +297,7 @@
 				<button
 					class="control-btn pause-btn"
 					class:active={is_paused}
-					on:click={pause_simulation}
+					onclick={pause_simulation}
 					disabled={!is_running}
 					type="button"
 					title="Pause simulation"
@@ -286,7 +307,7 @@
 
 				<button
 					class="control-btn stop-btn"
-					on:click={stop_simulation}
+					onclick={stop_simulation}
 					disabled={!is_running}
 					type="button"
 					title="Stop simulation"
@@ -296,7 +317,7 @@
 
 				<button
 					class="control-btn reset-btn"
-					on:click={reset_simulation}
+					onclick={reset_simulation}
 					type="button"
 					title="Reset simulation"
 				>
@@ -305,7 +326,7 @@
 
 				<button
 					class="control-btn export-btn"
-					on:click={() => export_results('json')}
+					onclick={() => export_results('json')}
 					type="button"
 					title="Export results as JSON"
 					disabled={simulation_results.length === 0}
@@ -315,7 +336,7 @@
 
 				<button
 					class="control-btn export-btn"
-					on:click={() => export_results('csv')}
+					onclick={() => export_results('csv')}
 					type="button"
 					title="Export results as CSV"
 					disabled={simulation_results.length === 0}
@@ -325,7 +346,7 @@
 
 				<button
 					class="control-btn report-btn"
-					on:click={export_report}
+					onclick={export_report}
 					type="button"
 					title="Export simulation report"
 					disabled={simulation_results.length === 0}
@@ -335,7 +356,7 @@
 
 				<button
 					class="control-btn step-btn"
-					on:click={step_simulation}
+					onclick={step_simulation}
 					disabled={is_running && !is_paused}
 					type="button"
 					title="Execute single step"
@@ -353,8 +374,8 @@
 						min="0.1"
 						max="5"
 						step="0.1"
-						value={simulation_speed}
-						on:input={handle_speed_change}
+						bind:value={simulation_speed}
+						oninput={handle_speed_change}
 						class="speed-slider"
 					/>
 					<span class="speed-value">{simulation_speed.toFixed(1)}x</span>
@@ -364,8 +385,8 @@
 					<label class="auto-run-label">
 						<input
 							type="checkbox"
-							checked={auto_run}
-							on:change={handle_auto_run_toggle}
+							bind:checked={auto_run}
+							onchange={handle_auto_run_toggle}
 							class="auto-run-checkbox"
 						/>
 						Auto-run on parameter change

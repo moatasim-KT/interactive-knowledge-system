@@ -2,18 +2,18 @@
  * Main synchronization service that orchestrates offline functionality
  */
 
-import type { CloudSyncConfig } from '../types/sync.js';
-import { networkService } from './networkService.js';
-import { offlineQueue } from './offlineQueue.js';
-import { cloudSyncService } from './cloudSyncService.js';
-import { optimisticUpdateManager } from './optimisticUpdates.js';
+import type { CloudSyncConfig } from '../types/sync';
+import { networkService } from './networkService';
+import { offlineQueue } from './offlineQueue';
+import { cloudSyncService } from './cloudSyncService';
+import { optimisticUpdateManager } from './optimisticUpdates';
 import { appState, actions } from '../stores/appState.svelte.js';
 
 export class SyncService {
 	private static instance: SyncService;
 	private initialized = false;
 
-	private constructor() {}
+	private constructor() { }
 
 	static getInstance(): SyncService {
 		if (!SyncService.instance) {

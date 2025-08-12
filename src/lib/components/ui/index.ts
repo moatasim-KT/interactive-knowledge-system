@@ -23,6 +23,4 @@ export { default as SkeletonTree } from './SkeletonTree.svelte';
 export { default as Toast } from './Toast.svelte';
 export { default as ToastContainer } from './ToastContainer.svelte';
 
-// Layout Components
-export { default as ResponsiveLayout } from '../layout/ResponsiveLayout.svelte';
-export { default as Grid } from '../layout/Grid.svelte';
+// Note: Layout components are now exported from '../layout/index.ts'

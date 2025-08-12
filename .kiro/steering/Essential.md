@@ -1,2 +1,3 @@
 - Make sure the the syntax/formatting is correct by checking syntax using npx eslint --fix after creation of all files
 - Absolutely ensure that the syntax/formatting is correct without any errors or warnings after any edit or file creation. Double check using npx eslint --fix
+-- Ensure consistent naming conventions for variables, functions, and classes. Use camelcase for variable names

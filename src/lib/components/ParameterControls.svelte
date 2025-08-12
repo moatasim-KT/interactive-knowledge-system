@@ -1,27 +1,30 @@
 <script lang="ts">
 	import type { Parameter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	export let parameters: Parameter[];
+	interface Props {
+		parameters: Parameter[];
+		onParameterChange?: (event: { parameter: string; value: any; allValues: Record<string, any> }) => void;
+		onParametersReset?: (event: { values: Record<string, any> }) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { parameters, onParameterChange, onParametersReset }: Props = $props();
 
 	// Track current values for all parameters
-	let parameter_values = {};
+	let parameter_values = $state<Record<string, any>>({});
 
-	// Initialize parameter values
-	$: {
+	// Initialize parameter values when parameters change
+	$effect(() => {
 		parameters.forEach((param) => {
 			if (!(param.name in parameter_values)) {
 				parameter_values[param.name] = param.default;
 			}
 		});
-	}
+	});
 
-	function handle_parameter_change(parameter_name, value: any) {
+	function handle_parameter_change(parameter_name: string, value: any) {
 		parameter_values[parameter_name] = value;
 
-		dispatch('parameterChange', {
+		onParameterChange?.({
 			parameter: parameter_name,
 			value,
 			allValues: { ...parameter_values }
@@ -33,10 +36,10 @@
 			parameter_values[param.name] = param.default;
 		});
 
-		dispatch('parametersReset', { values: { ...parameter_values } });
+		onParametersReset?.({ values: { ...parameter_values } });
 	}
 
-	function get_constraint_value(param: Parameter, key: string, default_value) {
+	function get_constraint_value(param: Parameter, key: string, default_value: any) {
 		return param.constraints?.[key] ?? default_value;
 	}
 </script>
@@ -46,7 +49,7 @@
 		<h4 class="controls-title">Parameters</h4>
 		<button
 			class="reset-button"
-			on:click={resetToDefaults}
+			onclick={reset_to_defaults}
 			type="button"
 			title="Reset all parameters to default values"
 		>
@@ -74,8 +77,8 @@
 								min={get_constraint_value(param, 'min', 0)}
 								max={get_constraint_value(param, 'max', 100)}
 								step={get_constraint_value(param, 'step', 1)}
-								value={parameter_values[param.name]}
-								on:input={(e) =>
+								bind:value={parameter_values[param.name]}
+								oninput={(e) =>
 									handle_parameter_change(param.name, parseFloat(e.currentTarget.value))}
 								class="slider"
 							/>
@@ -87,8 +90,8 @@
 						<!-- Dropdown Control -->
 						<select
 							id="param-{param.name}"
-							value={parameter_values[param.name]}
-							on:change={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
+							bind:value={parameter_values[param.name]}
+							onchange={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
 							class="dropdown"
 						>
 							{#each param.constraints?.options || [] as option (option)}
@@ -101,8 +104,8 @@
 							<input
 								id="param-{param.name}"
 								type="checkbox"
-								checked={parameter_values[param.name]}
-								on:change={(e) => handle_parameter_change(param.name, e.currentTarget.checked)}
+								bind:checked={parameter_values[param.name]}
+								onchange={(e) => handle_parameter_change(param.name, e.currentTarget.checked)}
 								class="toggle-input"
 							/>
 							<span class="toggle-slider"></span>
@@ -115,8 +118,8 @@
 							min={get_constraint_value(param, 'min', undefined)}
 							max={get_constraint_value(param, 'max', undefined)}
 							step={get_constraint_value(param, 'step', 'any')}
-							value={parameter_values[param.name]}
-							on:input={(e) =>
+							bind:value={parameter_values[param.name]}
+							oninput={(e) =>
 								handle_parameter_change(param.name, parseFloat(e.currentTarget.value))}
 							class="number-input"
 						/>
@@ -125,8 +128,8 @@
 						<input
 							id="param-{param.name}"
 							type="text"
-							value={parameter_values[param.name]}
-							on:input={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
+							bind:value={parameter_values[param.name]}
+							oninput={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
 							class="text-input"
 							placeholder={param.description || ''}
 						/>
@@ -135,8 +138,8 @@
 						<input
 							id="param-{param.name}"
 							type="text"
-							value={parameter_values[param.name]}
-							on:input={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
+							bind:value={parameter_values[param.name]}
+							oninput={(e) => handle_parameter_change(param.name, e.currentTarget.value)}
 							class="generic-input"
 							placeholder="Enter value..."
 						/>

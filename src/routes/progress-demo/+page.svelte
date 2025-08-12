@@ -7,7 +7,7 @@
         ScoreTracker
     } from '$lib/components';
     import { progressStorage } from '$lib/storage/userStorage';
-    import { appState, actions } from '$lib/stores/appState.svelte';
+    import { appState, actions } from '$lib/stores/appState.svelte.js';
     import type { UserProgress } from '$lib/types/user';
 
     // Demo user and modules
