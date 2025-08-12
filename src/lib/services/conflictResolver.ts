@@ -177,24 +177,28 @@ class ThreeWayMergeStrategy implements ConflictResolutionStrategy {
 	private mergeContentModule(local: ContentModule, remote: ContentModule): ContentModule {
 		// Use the version with more recent content changes
 		const local_content_modified = Math.max(
-			...local.blocks.map((b) => new Date(b.metadata?.modified || 0).getTime())
+			...(local.blocks || []).map((b) => new Date(b.metadata?.modified || 0).getTime())
 		);
 		const remote_content_modified = Math.max(
-			...remote.blocks.map((b) => new Date(b.metadata?.modified || 0).getTime())
+			...(remote.blocks || []).map((b) => new Date(b.metadata?.modified || 0).getTime())
 		);
 
 		const base_module = local_content_modified > remote_content_modified ? local : remote;
 
 		// Merge analytics (sum up views, completions, etc.)
 		const merged_analytics = {
-			views: local.analytics.views + remote.analytics.views,
-			completions: local.analytics.completions + remote.analytics.completions,
-			averageScore: (local.analytics.averageScore + remote.analytics.averageScore) / 2,
-			averageTime: (local.analytics.averageTime + remote.analytics.averageTime) / 2
+			views: (local.analytics?.views ?? 0) + (remote.analytics?.views ?? 0),
+			completions: (local.analytics?.completions ?? 0) + (remote.analytics?.completions ?? 0),
+			averageScore:
+				(((local.analytics?.averageScore ?? 0) + (remote.analytics?.averageScore ?? 0)) / 2) || 0,
+			averageTime:
+				(((local.analytics?.averageTime ?? 0) + (remote.analytics?.averageTime ?? 0)) / 2) || 0
 		};
 
 		// Merge tags (union of both sets)
-		const merged_tags = Array.from(new Set([...local.metadata.tags, ...remote.metadata.tags]));
+		const merged_tags = Array.from(
+			new Set([...(local.metadata?.tags ?? []), ...(remote.metadata?.tags ?? [])])
+		);
 
 		return {
 			...base_module,
@@ -202,9 +206,12 @@ class ThreeWayMergeStrategy implements ConflictResolutionStrategy {
 				...base_module.metadata,
 				tags: merged_tags,
 				modified: new Date(),
-				version: Math.max(local.metadata.version, remote.metadata.version) + 1
+				version: Math.max(local.metadata?.version ?? 0, remote.metadata?.version ?? 0) + 1
 			},
-			analytics: merged_analytics
+			analytics: {
+				...base_module.analytics,
+				...merged_analytics
+			}
 		};
 	}
 
@@ -212,9 +219,9 @@ class ThreeWayMergeStrategy implements ConflictResolutionStrategy {
 		return {
 			...local,
 			// Use the best score
-			score: Math.max(local.score || 0, remote.score || 0),
+			score: Math.max(local.score ?? 0, remote.score ?? 0),
 			// Sum time spent
-			timeSpent: local.timeSpent + remote.timeSpent,
+			timeSpent: (local.timeSpent ?? 0) + (remote.timeSpent ?? 0),
 			// Use latest access time
 			lastAccessed: new Date(Math.max(local.lastAccessed.getTime(), remote.lastAccessed.getTime())),
 			// Sum attempts

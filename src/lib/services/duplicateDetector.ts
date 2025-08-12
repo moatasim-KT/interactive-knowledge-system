@@ -284,11 +284,17 @@ export class DuplicateDetector {
 
 		const factors = [
 			// Word count similarity
-			this.calculateNumericSimilarity(source1.metadata.wordCount, source2.metadata.wordCount),
+			this.calculateNumericSimilarity(
+				source1.metadata?.wordCount ?? 0,
+				source2.metadata?.wordCount ?? 0
+			),
 			// Reading time similarity
-			this.calculateNumericSimilarity(source1.metadata.readingTime, source2.metadata.readingTime),
+			this.calculateNumericSimilarity(
+				source1.metadata?.readingTime ?? 0,
+				source2.metadata?.readingTime ?? 0
+			),
 			// Keywords overlap
-			this.calculateArraySimilarity(source1.metadata.keywords, source2.metadata.keywords)
+			this.calculateArraySimilarity(source1.metadata?.keywords ?? [], source2.metadata?.keywords ?? [])
 		];
 
 		return factors.reduce((sum, factor) => sum + factor, 0) / factors.length;
@@ -301,20 +307,20 @@ export class DuplicateDetector {
 		const factors = [];
 
 		// Author similarity
-		if (meta1.author && meta2.author) {
+		if (meta1?.author && meta2?.author) {
 			factors.push(this.calculateTextSimilarity(meta1.author, meta2.author));
 		}
 
 		// Category similarity
-		if (meta1.category && meta2.category) {
+		if (meta1?.category && meta2?.category) {
 			factors.push(meta1.category === meta2.category ? 1.0 : 0.0);
 		}
 
 		// Tags similarity
-		factors.push(this.calculateArraySimilarity(meta1.tags || [], meta2.tags || []));
+		factors.push(this.calculateArraySimilarity(meta1?.tags || [], meta2?.tags || []));
 
 		// Language similarity
-		if (meta1.language && meta2.language) {
+		if (meta1?.language && meta2?.language) {
 			factors.push(meta1.language === meta2.language ? 1.0 : 0.0);
 		}
 
@@ -376,14 +382,14 @@ export class DuplicateDetector {
 
 		// Check metadata
 		if (
-			source1.metadata.author &&
-			source2.metadata.author &&
+			source1.metadata?.author &&
+			source2.metadata?.author &&
 			source1.metadata.author === source2.metadata.author
 		) {
 			reasons.push('Same author');
 		}
 
-		if (source1.metadata.category === source2.metadata.category) {
+		if (source1.metadata?.category && source2.metadata?.category && source1.metadata.category === source2.metadata.category) {
 			reasons.push('Same category');
 		}
 
@@ -458,17 +464,19 @@ export class DuplicateDetector {
 		// Merge usage statistics
 		if (config.preserveUsageStats) {
 			for (const duplicate of valid_duplicates) {
-				primary_source.usage.timesReferenced += duplicate.usage.timesReferenced;
+				if (primary_source.usage && duplicate.usage) {
+					primary_source.usage.timesReferenced += duplicate.usage.timesReferenced;
 
-				// Combine generated modules
-				const new_modules = duplicate.usage.generatedModules.filter(
-					(module_id) => !primary_source.usage.generatedModules.includes(module_id)
-				);
-				primary_source.usage.generatedModules.push(...new_modules);
+					// Combine generated modules
+					const new_modules = duplicate.usage.generatedModules.filter(
+						(module_id) => !primary_source.usage.generatedModules.includes(module_id)
+					);
+					primary_source.usage.generatedModules.push(...new_modules);
 
-				// Use the most recent access date
-				if (duplicate.usage.lastAccessed > primary_source.usage.lastAccessed) {
-					primary_source.usage.lastAccessed = duplicate.usage.lastAccessed;
+					// Use the most recent access date
+					if (duplicate.usage.lastAccessed > primary_source.usage.lastAccessed) {
+						primary_source.usage.lastAccessed = duplicate.usage.lastAccessed;
+					}
 				}
 			}
 		}
@@ -476,36 +484,35 @@ export class DuplicateDetector {
 		// Merge metadata
 		if (config.combineMetadata) {
 			for (const duplicate of valid_duplicates) {
-				// Combine tags
-				const new_tags = duplicate.metadata.tags.filter(
-					(tag) => !primary_source.metadata.tags.includes(tag)
-				);
-				primary_source.metadata.tags.push(...new_tags);
-
-				// Combine keywords
-				const new_keywords = duplicate.metadata.keywords.filter(
-					(keyword) => !primary_source.metadata.keywords.includes(keyword)
-				);
-				primary_source.metadata.keywords.push(...new_keywords);
-
-				// Handle conflicts in other metadata
-				if (
-					duplicate.metadata.author &&
-					primary_source.metadata.author &&
-					duplicate.metadata.author !== primary_source.metadata.author
-				) {
-					conflicts.push(
-						`Author conflict: ${primary_source.metadata.author} vs ${duplicate.metadata.author}`
+				if (primary_source.metadata && duplicate.metadata) {
+					// Combine tags
+					const new_tags = duplicate.metadata.tags.filter(
+						(tag) => !primary_source.metadata.tags.includes(tag)
 					);
+					primary_source.metadata.tags.push(...new_tags);
+
+					// Combine keywords
+					const new_keywords = duplicate.metadata.keywords.filter(
+						(keyword) => !primary_source.metadata.keywords.includes(keyword)
+					);
+					primary_source.metadata.keywords.push(...new_keywords);
+
+					// Handle conflicts in other metadata
+					if (
+						duplicate.metadata.author &&
+						primary_source.metadata.author &&
+						duplicate.metadata.author !== primary_source.metadata.author
+					) {
+						conflicts.push(
+							`Author conflict: ${primary_source.metadata.author} vs ${duplicate.metadata.author}`
+						);
+					}
 				}
 			}
 		}
 
 		// Update primary source
-		await sourceManager.updateSource(
-			primary_source,
-			`Merged with sources: ${duplicateSourceIds.join(', ')}`
-		);
+		await sourceManager.updateSource(primary_source.id, primary_source);
 
 		// Remove duplicate sources
 		for (const duplicate_id of duplicateSourceIds) {

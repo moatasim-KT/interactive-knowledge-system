@@ -92,7 +92,7 @@ export class DataManagementService {
 			const nodes: KnowledgeNode[] = []; // TODO: Implement knowledge node storage
 			const settings = options.includeSettings
 				? await settingsStorage.getSettings()
-				: this['getDefaultSettings']();
+				: this.getDefaultSettings();
 
 			// Create export data structure
 			const export_data = createBackup(modules, progress, paths, nodes, settings);
@@ -550,7 +550,7 @@ export class DataManagementService {
  * Create a data management service instance
  */
 export function createDataManagementService(backupConfig?: BackupConfig): DataManagementService {
-	return new DataManagementService(backup_config);
+	return new DataManagementService(backupConfig);
 }
 
 /**

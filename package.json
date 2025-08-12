@@ -1,49 +1,17 @@
 {
-  "name": "interactive-knowledge-system",
-  "version": "0.1.0",
-  "description": "Interactive Knowledge Management System built with Svelte 5",
+  "name": "interactive-knowledge-system-lint",
+  "version": "0.0.1",
+  "description": "temp for linting",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "lint": "prettier --check . && eslint .",
-    "format": "prettier --write ."
+    "lint": "prettier --check . && eslint ."
   },
   "devDependencies": {
-    "@codemirror/basic-setup": "^0.20.0",
-    "@codemirror/commands": "^6.8.1",
-    "@codemirror/lang-css": "^6.3.1",
-    "@codemirror/lang-html": "^6.4.9",
-    "@codemirror/lang-javascript": "^6.2.4",
-    "@codemirror/lang-json": "^6.0.2",
-    "@codemirror/lang-markdown": "^6.3.4",
-    "@codemirror/lang-python": "^6.2.1",
-    "@codemirror/lint": "^6.8.5",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/theme-one-dark": "^6.1.3",
-    "@codemirror/view": "^6.38.1",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@testing-library/jest-dom": "^6.6.4",
-    "@testing-library/svelte": "^5.2.8",
-    "@types/node": "^20.11.5",
-    "fake-indexeddb": "^6.1.0",
-    "jsdom": "^25.0.1",
     "prettier": "^3.2.4",
     "prettier-plugin-svelte": "^3.4.0",
-    "prismjs": "^1.30.0",
-    "typescript": "^5.0.0",
-    "vite": "^5.0.3",
-    "vitest": "^2.0.0"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@sveltejs/adapter-auto": "^3.3.1",
-    "@sveltejs/kit": "^2.27.3",
-    "@sveltejs/vite-plugin-svelte": "^4.0.4",
-    "idb": "^8.0.0",
-    "svelte": "^5.38.0"
+    "eslint": "^8.57.0",
+    "eslint-plugin-svelte": "^2.37.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "@typescript-eslint/eslint-plugin": "^7.1.0"
   }
 }
