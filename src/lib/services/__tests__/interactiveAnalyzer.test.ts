@@ -108,13 +108,13 @@ describe('InteractiveAnalyzer', () => {
 
 			const result = analyzer.analyzeContent(web_content);
 
-			expect(result.domain).toBeDefined();
-			expect(result.interactiveElements.length).toBeGreaterThanOrEqual(0);
-			if (result.interactiveElements.length > 0) {
-				expect(result.interactiveElements[0].type).toBe('code');
-			}
-			expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
-		});
+                        expect(result.domain).toBeDefined();
+                        expect(result.interactiveElements.length).toBe(1);
+                        expect(result.interactiveElements[0].type).toBe('code');
+                        // Ensure the detected element is executable/interactable
+                        expect(result.interactiveElements[0].executable).toBe(true);
+                        expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
+                });
 
 		it('should detect table opportunities', () => {
 			const web_content = {
