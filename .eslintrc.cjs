@@ -11,10 +11,16 @@ module.exports = {
     ".vscode",
     ".kiro",
     ".windsurf",
-    "src",
+    "**/generated/**",
     "**/*.svelte",
   ],
   rules: {
     "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "no-case-declarations": "off",
+    "no-mixed-spaces-and-tabs": "off",
+    "no-empty": "off",
+    "no-useless-escape": "off",
   },
 };

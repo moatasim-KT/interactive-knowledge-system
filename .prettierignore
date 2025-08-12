@@ -4,6 +4,7 @@ node_modules
 .vscode
 .windsurf
 src
-tsconfig.json
+**/generated/**
 svelte.config.js
+tsconfig.json
 vite.config.ts
