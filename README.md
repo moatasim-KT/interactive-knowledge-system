@@ -2,6 +2,25 @@
 
 Interactive Knowledge System is a local-first platform for exploring, organizing, and transforming knowledge. It combines Svelte 5's reactivity with rich visualization components, a robust service layer, and Model Context Protocol (MCP) tools for working with external content.
 
+## Table of Contents
+
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Development Commands](#development-commands)
+- [Architecture Overview](#architecture-overview)
+  - [State Management](#state-management)
+  - [Services](#services)
+  - [Storage](#storage)
+  - [Components](#components)
+  - [MCP Integration](#mcp-integration)
+- [Project Structure](#project-structure)
+- [Demo Routes](#demo-routes)
+- [Contributing](#contributing)
+- [Roadmap](#roadmap)
+- [License](#license)
+
 ## Features
 
 - **Type-safe content model** – Comprehensive TypeScript types for content blocks, modules, knowledge trees, users, and interactive elements.
@@ -11,29 +30,6 @@ Interactive Knowledge System is a local-first platform for exploring, organizing
 - **Component library** – Svelte components for knowledge maps, progress dashboards, interactive charts, simulations, editors, and more.
 - **MCP integration** – Tools and server for processing web content using the Model Context Protocol.
 - **Demo routes** – Example pages showcasing progress tracking, relationship management, simulations, code editing, and interactive visualizations.
-
-## Project Structure
-
-```
-interactive-knowledge-system/
-├── src/
-│   ├── lib/
-│   │   ├── components/   # UI components and visualization blocks
-│   │   ├── mcp/          # Model Context Protocol tools and server
-│   │   ├── services/     # Data processing, sync, and analysis services
-│   │   ├── storage/      # IndexedDB adapters and storage helpers
-│   │   ├── stores/       # Global state, effects, and persistence
-│   │   ├── styles/       # Shared styles and themes
-│   │   ├── types/        # TypeScript interfaces and type exports
-│   │   └── utils/        # Helper utilities (export, import, logging, etc.)
-│   ├── routes/           # SvelteKit routes and demo pages
-│   └── app.html          # HTML template
-├── package.json          # Dependencies and scripts
-├── svelte.config.js      # Svelte configuration
-├── tsconfig.json         # TypeScript configuration
-├── vite.config.ts        # Vite build configuration
-└── README.md             # Project documentation
-```
 
 ## Getting Started
 
@@ -82,6 +78,29 @@ Reusable UI components live in [`src/lib/components`](src/lib/components). Highl
 
 [`src/lib/mcp`](src/lib/mcp) provides a Model Context Protocol server and tools for fetching, analyzing, and transforming web content, enabling automated extraction of structured knowledge.
 
+## Project Structure
+
+```
+interactive-knowledge-system/
+├── src/
+│   ├── lib/
+│   │   ├── components/   # UI components and visualization blocks
+│   │   ├── mcp/          # Model Context Protocol tools and server
+│   │   ├── services/     # Data processing, sync, and analysis services
+│   │   ├── storage/      # IndexedDB adapters and storage helpers
+│   │   ├── stores/       # Global state, effects, and persistence
+│   │   ├── styles/       # Shared styles and themes
+│   │   ├── types/        # TypeScript interfaces and type exports
+│   │   └── utils/        # Helper utilities (export, import, logging, etc.)
+│   ├── routes/           # SvelteKit routes and demo pages
+│   └── app.html          # HTML template
+├── package.json          # Dependencies and scripts
+├── svelte.config.js      # Svelte configuration
+├── tsconfig.json         # TypeScript configuration
+├── vite.config.ts        # Vite build configuration
+└── README.md             # Project documentation
+```
+
 ## Demo Routes
 
 Several demo pages illustrate system capabilities:
@@ -113,4 +132,3 @@ Several demo pages illustrate system capabilities:
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.
-
