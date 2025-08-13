@@ -708,7 +708,7 @@ export class WebContentFetcher {
 			let current_heading: string | null = null;
 
 			for (const section of sections) {
-				if (!section.trim()) continue;
+				if (!section.trim()) {continue;}
 
 				// Check if this is a heading
 				const heading_match = section.match(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/is);
@@ -719,7 +719,7 @@ export class WebContentFetcher {
 
 				// Process content section
 				const content = section.trim();
-				if (!content) continue;
+				if (!content) {continue;}
 
 				// Create a text block for this section
 				blocks.push({
@@ -781,7 +781,7 @@ export class WebContentFetcher {
 
 			for (const paragraph of paragraphs) {
 				const trimmed = paragraph.trim();
-				if (!trimmed) continue;
+				if (!trimmed) {continue;}
 
 				blocks.push({
 					id: this.generate_block_id('text'),
@@ -826,7 +826,7 @@ export class WebContentFetcher {
 		try {
 			// Convert each property to a block
 			for (const [key, value] of Object.entries(obj)) {
-				if (value === null || value === undefined) continue;
+				if (value === null || value === undefined) {continue;}
 
 				// Skip metadata and system fields
 				if (['id', '_id', 'metadata', 'createdAt', 'updatedAt', 'version'].includes(key)) {

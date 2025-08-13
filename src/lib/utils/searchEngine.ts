@@ -414,7 +414,7 @@ export class SearchEngine {
 			const module = modules.get(contentId);
 			const node = nodes.get(contentId);
 
-			if (!module && !node) continue;
+			if (!module && !node) {continue;}
 
 			const relevance = this.calculateRelevance(
 				contentId,
@@ -470,7 +470,7 @@ export class SearchEngine {
     for (const tag of tags) {
         const contentIds = this.searchIndex.tags.get(tag) || [];
         for (const contentId of contentIds) {
-            if (foundIds.has(contentId)) continue;
+            if (foundIds.has(contentId)) {continue;}
             foundIds.add(contentId);
 
             const module = modules.get(contentId);
@@ -513,7 +513,7 @@ getRelatedContent(
     const module = modules.get(contentId);
     const node = nodes.get(contentId);
 
-    if (!module && !node) return results;
+    if (!module && !node) {return results;}
 
     // Get directly linked content
     const linkedIds = this.searchIndex.links.get(contentId) || [];
@@ -546,7 +546,7 @@ getRelatedContent(
     for (const tag of itemTags) {
         const taggedIds = this.searchIndex.tags.get(tag) || [];
         for (const taggedId of taggedIds) {
-            if (taggedId === contentId || results.some((r) => r.id === taggedId)) continue;
+            if (taggedId === contentId || results.some((r) => r.id === taggedId)) {continue;}
 
             const taggedModule = modules.get(taggedId);
             const taggedNode = nodes.get(taggedId);
@@ -579,7 +579,7 @@ getRelatedContent(
  * Get search suggestions based on partial query
  */
 getSuggestions(partialQuery: string, maxSuggestions = 5): string[] {
-    if (partialQuery.length < 2) return [];
+    if (partialQuery.length < 2) {return [];}
 
     const suggestions = new Set<string>();
     const queryLower = partialQuery.toLowerCase();
@@ -589,17 +589,17 @@ getSuggestions(partialQuery: string, maxSuggestions = 5): string[] {
         for (const token of tokens) {
             if (token.startsWith(queryLower) && token.length > queryLower.length) {
                 suggestions.add(token);
-                if (suggestions.size >= maxSuggestions) break;
+                if (suggestions.size >= maxSuggestions) {break;}
             }
         }
-        if (suggestions.size >= maxSuggestions) break;
+        if (suggestions.size >= maxSuggestions) {break;}
     }
 
     // Search through tags
     for (const tag of this.searchIndex.tags.keys()) {
         if (tag.toLowerCase().includes(queryLower)) {
             suggestions.add(tag);
-            if (suggestions.size >= maxSuggestions) break;
+            if (suggestions.size >= maxSuggestions) {break;}
         }
     }
 

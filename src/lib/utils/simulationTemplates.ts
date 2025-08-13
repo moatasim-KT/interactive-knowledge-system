@@ -837,7 +837,7 @@ export function createSimulationFromTemplate(
 	blockId: string
 ): SimulationBlock | null {
 	const template = getSimulationTemplate(templateId);
-	if (!template) return null;
+	if (!template) {return null;}
 
 	return {
 		id: blockId,
@@ -867,7 +867,7 @@ export function createDiagramFromTemplate(
 	blockId: string
 ): SystemDiagramBlock | null {
 	const template = getDiagramTemplate(templateId);
-	if (!template) return null;
+	if (!template) {return null;}
 
 	return {
 		id: blockId,

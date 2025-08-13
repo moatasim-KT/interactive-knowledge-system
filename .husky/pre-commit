@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Run Prettier to format code
+echo "🎨 Running Prettier..."
+npx prettier --write .
+
+# Run ESLint to check for issues
+echo "🔍 Running ESLint..."
+npx eslint --fix . --max-warnings 100
+
+# Run TypeScript check
+echo "🔧 Running TypeScript check..."
+npm run check
+
+echo "✅ Pre-commit checks passed!"

@@ -193,16 +193,16 @@ export class BatchProcessingTools {
 	 * Process the job queue
 	 */
 	public async processJobQueue(): Promise<void> {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {return;}
     this.isProcessing = true;
 
     try {
       while (this.jobQueue.length > 0) {
         const jobId = this.jobQueue.shift();
-        if (!jobId) continue;
+        if (!jobId) {continue;}
 
         const job = this.activeJobs.get(jobId);
-        if (!job) continue;
+        if (!job) {continue;}
 
         if (this.processingJobs.size >= this.maxConcurrentJobs) {
           // Move job back to front of queue if we're at capacity
@@ -568,9 +568,9 @@ export class BatchProcessingTools {
 		let filtered_jobs = jobs;
 		if (filters) {
 			filtered_jobs = jobs.filter((job) => {
-				if (filters.status && job.status !== filters.status) return false;
-				if (filters.createdAfter && job.createdAt < new Date(filters.createdAfter)) return false;
-				if (filters.createdBefore && job.createdAt > new Date(filters.createdBefore)) return false;
+				if (filters.status && job.status !== filters.status) {return false;}
+				if (filters.createdAfter && job.createdAt < new Date(filters.createdAfter)) {return false;}
+				if (filters.createdBefore && job.createdAt > new Date(filters.createdBefore)) {return false;}
 				return true;
 			});
 		}

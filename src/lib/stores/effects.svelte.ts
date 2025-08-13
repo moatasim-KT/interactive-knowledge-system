@@ -85,7 +85,7 @@ async function saveToLocalStorage(node: any) {
 }
 
 async function syncPendingChanges() {
-	if (appState.sync.isSyncing) return;
+	if (appState.sync.isSyncing) {return;}
 
 	actions.setSyncStatus(true);
 

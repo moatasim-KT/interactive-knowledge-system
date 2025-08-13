@@ -14,7 +14,7 @@ class ProgressPersistenceService {
 	 * Initialize the persistence service
 	 */
 	async initialize(userId: string) {
-		if (!userId) return;
+		if (!userId) {return;}
 
 		try {
 			// Load all user progress from storage
@@ -55,7 +55,7 @@ class ProgressPersistenceService {
 	 * Immediately save all queued progress
 	 */
 	async flushSaveQueue() {
-		if (this.saveQueue.size === 0) return;
+		if (this.saveQueue.size === 0) {return;}
 
 		const modulesToSave = Array.from(this.saveQueue);
 		this.saveQueue.clear();

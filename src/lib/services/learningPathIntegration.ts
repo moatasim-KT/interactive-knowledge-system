@@ -81,7 +81,7 @@ export class LearningPathIntegration {
 
             // Find modules with lower difficulty and related topics
             for (const module of existing_modules) {
-                if (module.id === importedModule.id) continue;
+                if (module.id === importedModule.id) {continue;}
 
                 const similarity = this.calculateTopicSimilarity(importedModule, module);
                 const difficulty_gap = importedModule.metadata.difficulty - module.metadata.difficulty;
@@ -683,7 +683,7 @@ export class LearningPathIntegration {
             .map(rel => rel.targetId);
 
         for (const module_id of next_module_ids) {
-            if (completedContent.has(module_id)) continue;
+            if (completedContent.has(module_id)) {continue;}
 
             const next_module = allModules.find((m) => m.id === module_id);
             if (next_module) {
@@ -719,7 +719,7 @@ export class LearningPathIntegration {
             .map(rel => rel.sourceId);
 
         for (const module_id of prereq_module_ids) {
-            if (completedContent.has(module_id)) continue;
+            if (completedContent.has(module_id)) {continue;}
 
             const prereq_module = allModules.find((m) => m.id === module_id);
             if (prereq_module) {
@@ -749,7 +749,7 @@ export class LearningPathIntegration {
 
         // Find modules with similar tags and difficulty
         for (const other_module of allModules) {
-            if (other_module.id === module.id) continue;
+            if (other_module.id === module.id) {continue;}
 
             const similarity = this.calculateTopicSimilarity(module, other_module);
             const difficulty_diff = Math.abs(module.metadata.difficulty - other_module.metadata.difficulty);

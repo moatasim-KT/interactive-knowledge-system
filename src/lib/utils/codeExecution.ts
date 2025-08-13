@@ -150,7 +150,7 @@ export class CodeExecutionService {
 					Boolean,
 					RegExp,
 					setTimeout: (fn: () => void, delay: number) => {
-						if (delay > 1000) delay = 1000; // Limit timeout duration
+						if (delay > 1000) {delay = 1000;} // Limit timeout duration
 						return setTimeout(fn, delay);
 					},
 					clearTimeout

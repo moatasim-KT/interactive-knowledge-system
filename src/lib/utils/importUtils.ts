@@ -449,7 +449,7 @@ function importFromCsv(csvString: string): ImportResult {
 
 		for (let i = 1; i < lines.length; i++) {
 			const line = lines[i].trim();
-			if (!line) continue;
+			if (!line) {continue;}
 
 			const values: string[] = line
 				.split(',')

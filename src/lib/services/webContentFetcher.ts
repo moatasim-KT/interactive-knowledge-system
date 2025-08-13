@@ -442,11 +442,11 @@ export class WebContentFetcher {
         const class_list = element.className.toLowerCase();
         const id = element.id.toLowerCase();
 
-        if (class_list.includes('line') || id.includes('line')) return 'line';
-        if (class_list.includes('bar') || id.includes('bar')) return 'bar';
-        if (class_list.includes('pie') || id.includes('pie')) return 'pie';
-        if (class_list.includes('scatter') || id.includes('scatter')) return 'scatter';
-        if (class_list.includes('area') || id.includes('area')) return 'area';
+        if (class_list.includes('line') || id.includes('line')) {return 'line';}
+        if (class_list.includes('bar') || id.includes('bar')) {return 'bar';}
+        if (class_list.includes('pie') || id.includes('pie')) {return 'pie';}
+        if (class_list.includes('scatter') || id.includes('scatter')) {return 'scatter';}
+        if (class_list.includes('area') || id.includes('area')) {return 'area';}
 
         return 'unknown';
     }
@@ -476,12 +476,12 @@ export class WebContentFetcher {
         }
 
         // Try to detect language from code content
-        if (code.includes('function') && code.includes('{')) return 'javascript';
-        if (code.includes('def ') && code.includes(':')) return 'python';
-        if (code.includes('public class') || code.includes('import java')) return 'java';
-        if (code.includes('<html') || code.includes('<!DOCTYPE')) return 'html';
-        if (code.includes('SELECT') && code.includes('FROM')) return 'sql';
-        if (code.startsWith('{') && code.endsWith('}')) return 'json';
+        if (code.includes('function') && code.includes('{')) {return 'javascript';}
+        if (code.includes('def ') && code.includes(':')) {return 'python';}
+        if (code.includes('public class') || code.includes('import java')) {return 'java';}
+        if (code.includes('<html') || code.includes('<!DOCTYPE')) {return 'html';}
+        if (code.includes('SELECT') && code.includes('FROM')) {return 'sql';}
+        if (code.startsWith('{') && code.endsWith('}')) {return 'json';}
 
         return 'text';
     }
@@ -566,14 +566,14 @@ export class WebContentFetcher {
         let confidence = 0.5; // Base confidence
 
         // Boost confidence for semantic HTML
-        if (doc.querySelector('main, article, [role="main"]')) confidence += 0.2;
+        if (doc.querySelector('main, article, [role="main"]')) {confidence += 0.2;}
 
         // Boost confidence for substantial content
-        if (mainContent.text.length > 500) confidence += 0.1;
-        if (mainContent.text.length > 2000) confidence += 0.1;
+        if (mainContent.text.length > 500) {confidence += 0.1;}
+        if (mainContent.text.length > 2000) {confidence += 0.1;}
 
         // Boost confidence for structured content
-        if (doc.querySelector('h1, h2, h3')) confidence += 0.1;
+        if (doc.querySelector('h1, h2, h3')) {confidence += 0.1;}
 
         return Math.min(confidence, 1.0);
     }
@@ -585,21 +585,21 @@ export class WebContentFetcher {
         let score = 0.5; // Base score
 
         // Content length
-        if (mainContent.text.length > 1000) score += 0.1;
-        if (mainContent.text.length > 3000) score += 0.1;
+        if (mainContent.text.length > 1000) {score += 0.1;}
+        if (mainContent.text.length > 3000) {score += 0.1;}
 
         // Metadata completeness
-        if (metadata.description && metadata.description.length > 10) score += 0.1;
-        if (metadata.description && metadata.description.length > 50) score += 0.1;
-        if (metadata.author) score += 0.05;
-        if (metadata.publishDate) score += 0.05;
-        if (metadata.keywords.length > 0) score += 0.05;
+        if (metadata.description && metadata.description.length > 10) {score += 0.1;}
+        if (metadata.description && metadata.description.length > 50) {score += 0.1;}
+        if (metadata.author) {score += 0.05;}
+        if (metadata.publishDate) {score += 0.05;}
+        if (metadata.keywords.length > 0) {score += 0.05;}
 
         // Content structure
         const html_lower = mainContent.html.toLowerCase();
-        if (html_lower.includes('<h1') || html_lower.includes('<h2')) score += 0.05;
-        if (html_lower.includes('<p>')) score += 0.05;
-        if (html_lower.includes('<ul>') || html_lower.includes('<ol>')) score += 0.05;
+        if (html_lower.includes('<h1') || html_lower.includes('<h2')) {score += 0.05;}
+        if (html_lower.includes('<p>')) {score += 0.05;}
+        if (html_lower.includes('<ul>') || html_lower.includes('<ol>')) {score += 0.05;}
 
         return Math.min(score, 1.0);
     }

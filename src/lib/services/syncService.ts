@@ -26,7 +26,7 @@ export class SyncService {
 	 * Initialize the sync service
 	 */
 	async initialize(config?: CloudSyncConfig): Promise<void> {
-		if (this.initialized) return;
+		if (this.initialized) {return;}
 
 		// Initialize network monitoring
 		networkService.getNetworkStatus();

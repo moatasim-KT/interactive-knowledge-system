@@ -78,7 +78,7 @@ export class OptimisticUpdateManager {
 	 */
 	rollbackUpdate(updateId: string): void {
 		const update = this.updates.get(updateId);
-		if (!update || !update.applied) return;
+		if (!update || !update.applied) {return;}
 
 		// Restore previous state
 		this.restoreState(update.entity, update.entityId, update.previousState);
@@ -188,7 +188,7 @@ export class OptimisticUpdateManager {
 	}
 
 	private restoreState(entity: string, entityId: string, previousState: any): void {
-		if (!previousState) return;
+		if (!previousState) {return;}
 
 		switch (entity) {
 			case 'content':

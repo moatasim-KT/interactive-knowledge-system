@@ -50,7 +50,7 @@ class MediaStorage {
 	 * Store a media file
 	 */
 	async storeMedia(mediaFile: MediaFile, data: ArrayBuffer | string): Promise<void> {
-		if (!this.db) throw new Error('Database not initialized');
+		if (!this.db) {throw new Error('Database not initialized');}
 
 		return new Promise((resolve, reject) => {
 			const transaction = this.db!.transaction([MEDIA_STORE, METADATA_STORE], 'readwrite');
@@ -75,7 +75,7 @@ class MediaStorage {
 	 * Retrieve a media file
 	 */
 	async getMedia(id: string): Promise<{ file: MediaFile; data: ArrayBuffer | string } | null> {
-		if (!this.db) throw new Error('Database not initialized');
+		if (!this.db) {throw new Error('Database not initialized');}
 
 		return new Promise((resolve, reject) => {
 			const transaction = this.db!.transaction([MEDIA_STORE, METADATA_STORE], 'readonly');
@@ -116,7 +116,7 @@ class MediaStorage {
 	 * List all media files
 	 */
 	async listMedia(type?: string): Promise<MediaFile[]> {
-		if (!this.db) throw new Error('Database not initialized');
+		if (!this.db) {throw new Error('Database not initialized');}
 
 		return new Promise((resolve, reject) => {
 			const transaction = this.db!.transaction([METADATA_STORE], 'readonly');
@@ -139,7 +139,7 @@ class MediaStorage {
 	 * Delete a media file
 	 */
 	async deleteMedia(id: string): Promise<void> {
-		if (!this.db) throw new Error('Database not initialized');
+		if (!this.db) {throw new Error('Database not initialized');}
 
 		return new Promise((resolve, reject) => {
 			const transaction = this.db!.transaction([MEDIA_STORE, METADATA_STORE], 'readwrite');
@@ -179,7 +179,7 @@ class MediaStorage {
 	 * Clean up old or unused media files
 	 */
 	async cleanup(older_than_days = 30): Promise<number> {
-		if (!this.db) throw new Error('Database not initialized');
+		if (!this.db) {throw new Error('Database not initialized');}
 
 		const cutoff_date = new Date();
 		cutoff_date.setDate(cutoff_date.getDate() - older_than_days);

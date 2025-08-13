@@ -251,11 +251,11 @@ export class RelationshipStorage {
 			stack.push(node_id);
 
 			const node = graph.nodes.get(node_id);
-			if (!node) return index + 1;
+			if (!node) {return index + 1;}
 
 			Array.from(node.outgoingLinks).forEach((link_id) => {
 				const link = graph.edges.get(link_id);
-				if (!link || link.type !== 'prerequisite') return;
+				if (!link || link.type !== 'prerequisite') {return;}
 
 				const target_id = link.targetId;
 				if (!indices.has(target_id)) {

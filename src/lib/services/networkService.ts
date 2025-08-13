@@ -25,7 +25,7 @@ export class NetworkService {
 	}
 
 	private initializeNetworkMonitoring(): void {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined') {return;}
 
 		// Basic online/offline detection
 		window.addEventListener('online', this.handleOnline.bind(this));
@@ -133,7 +133,7 @@ export class NetworkService {
 	}
 
 	destroy(): void {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined') {return;}
 
 		window.removeEventListener('online', this.handleOnline.bind(this));
 		window.removeEventListener('offline', this.handleOffline.bind(this));

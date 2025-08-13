@@ -323,10 +323,10 @@ export class BackupManager {
 	async validateBackup(backupId: string): Promise<boolean> {
 		try {
 			const metadata = this.getBackupMetadata(backupId);
-			if (!metadata) return false;
+			if (!metadata) {return false;}
 
 			const backup_data = this.loadBackup(backupId);
-			if (!backup_data) return false;
+			if (!backup_data) {return false;}
 
 			const current_checksum = await this.calculateChecksum(JSON.stringify(backup_data));
 			return current_checksum === metadata.checksum;
@@ -342,7 +342,7 @@ export class BackupManager {
 	exportBackup(backupId: string): Blob | null {
 		try {
 			const backup_data = this.loadBackup(backupId);
-			if (!backup_data) return null;
+			if (!backup_data) {return null;}
 
 			const json = JSON.stringify(backup_data, null, 2);
 			return new Blob([json], { type: 'application/json' });
@@ -449,7 +449,7 @@ export class BackupManager {
 
 	private getBackupMetadata(backupId: string): BackupMetadata | null {
 		const metadata = localStorage.getItem(`backup_meta_${backupId}`);
-		if (!metadata) return null;
+		if (!metadata) {return null;}
 
 		const parsed = JSON.parse(metadata);
 		// Convert date strings back to Date objects

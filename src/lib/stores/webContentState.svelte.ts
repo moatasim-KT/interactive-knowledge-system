@@ -119,7 +119,7 @@ export const contentStats = $derived(() => {
 
 export const batchProgress = $derived(() => {
     const activeJob = webContentState.batch.activeJob;
-    if (!activeJob) return null;
+    if (!activeJob) {return null;}
 
     const completed = (activeJob.results as ContentProcessingResult[])
         .filter((r: ContentProcessingResult) => r.success === true).length;

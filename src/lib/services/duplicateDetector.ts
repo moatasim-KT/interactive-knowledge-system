@@ -219,7 +219,7 @@ export class DuplicateDetector {
 			const u2 = new URL(url2);
 
 			// Exact match
-			if (url1 === url2) return 1.0;
+			if (url1 === url2) {return 1.0;}
 
 			// Same domain and path
 			if (u1.hostname === u2.hostname && u1.pathname === u2.pathname) {
@@ -256,14 +256,14 @@ export class DuplicateDetector {
 	 * Calculate text similarity using Jaccard similarity
 	 */
 	private calculateTextSimilarity(text1: string, text2: string): number {
-		if (!text1 || !text2) return 0;
+		if (!text1 || !text2) {return 0;}
 
 		const normalize = (text: string) => (this.config.caseSensitive ? text : text.toLowerCase());
 
 		const t1 = normalize(text1);
 		const t2 = normalize(text2);
 
-		if (t1 === t2) return 1.0;
+		if (t1 === t2) {return 1.0;}
 
 		// Tokenize into words
 		const words1 = new Set(t1.split(/\s+/).filter((w) => w.length > 0));
@@ -331,8 +331,8 @@ export class DuplicateDetector {
 	 * Calculate numeric similarity
 	 */
 	private calculateNumericSimilarity(num1: number, num2: number): number {
-		if (num1 === num2) return 1.0;
-		if (num1 === 0 || num2 === 0) return 0;
+		if (num1 === num2) {return 1.0;}
+		if (num1 === 0 || num2 === 0) {return 0;}
 
 		const ratio = Math.min(num1, num2) / Math.max(num1, num2);
 		return ratio;
@@ -342,8 +342,8 @@ export class DuplicateDetector {
 	 * Calculate array similarity (Jaccard index)
 	 */
 	private calculateArraySimilarity(arr1: string[], arr2: string[]): number {
-		if (arr1.length === 0 && arr2.length === 0) return 1.0;
-		if (arr1.length === 0 || arr2.length === 0) return 0;
+		if (arr1.length === 0 && arr2.length === 0) {return 1.0;}
+		if (arr1.length === 0 || arr2.length === 0) {return 0;}
 
 		const set1 = new Set(arr1.map((s) => (this.config.caseSensitive ? s : s.toLowerCase())));
 		const set2 = new Set(arr2.map((s) => (this.config.caseSensitive ? s : s.toLowerCase())));

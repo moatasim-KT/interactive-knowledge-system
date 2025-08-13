@@ -18,7 +18,7 @@ export class InteractiveAnalyzer {
     private initialized = false;
 
     async initialize(): Promise<void> {
-        if (this.initialized) return;
+        if (this.initialized) {return;}
 
         await storageService.initialize();
         this.initialized = true;

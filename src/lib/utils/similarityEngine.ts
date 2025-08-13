@@ -89,7 +89,7 @@ export class SimilarityEngine {
 		const similarities: SimilarityScore[] = [];
 
                 for (const module of allModules) {
-                        if (module.id === targetModule.id) continue;
+                        if (module.id === targetModule.id) {continue;}
 
                         const similarity = await this.calculateSimilarity(targetModule, module);
 			if (similarity.score >= min_similarity) {
@@ -161,8 +161,8 @@ export class SimilarityEngine {
 	 * Calculate tag similarity using Jaccard index
 	 */
 	private calculateTagSimilarity(tags1: string[], tags2: string[]): number {
-		if (tags1.length === 0 && tags2.length === 0) return 1;
-		if (tags1.length === 0 || tags2.length === 0) return 0;
+		if (tags1.length === 0 && tags2.length === 0) {return 1;}
+		if (tags1.length === 0 || tags2.length === 0) {return 0;}
 
 		const set1 = new Set(tags1.map((tag) => tag.toLowerCase()));
 		const set2 = new Set(tags2.map((tag) => tag.toLowerCase()));
@@ -203,8 +203,8 @@ export class SimilarityEngine {
 		const words1 = new Set(text1.split(/\s+/).filter((word) => word.length > 2));
 		const words2 = new Set(text2.split(/\s+/).filter((word) => word.length > 2));
 
-		if (words1.size === 0 && words2.size === 0) return 1;
-		if (words1.size === 0 || words2.size === 0) return 0;
+		if (words1.size === 0 && words2.size === 0) {return 1;}
+		if (words1.size === 0 || words2.size === 0) {return 0;}
 
 		const intersection = new Set([...words1].filter((word) => words2.has(word)));
 		const union = new Set([...words1, ...words2]);
@@ -268,7 +268,7 @@ export class SimilarityEngine {
 
 		for (const link of sequence_links) {
 			const target_module = allModules.find((m) => m.id === link.targetId);
-			if (!target_module || completedContent.has(target_module.id)) continue;
+			if (!target_module || completedContent.has(target_module.id)) {continue;}
 
 			// Check if all prerequisites are met
 			const dependency_chain = await relationshipStorage.analyzeDependencyChain(
@@ -309,7 +309,7 @@ export class SimilarityEngine {
                 const similar_content = await this.findSimilarContent(currentModule, allModules, 5, 0.4);
 
 		for (const similar of similar_content) {
-			if (completedContent.has(similar.contentId)) continue;
+			if (completedContent.has(similar.contentId)) {continue;}
 
 			recommendations.push({
 				contentId: similar.contentId,
@@ -346,7 +346,7 @@ export class SimilarityEngine {
 				.filter((module) => module && !completedContent.has(module.id));
 
 			for (const module of practice_modules) {
-				if (!module) continue;
+				if (!module) {continue;}
 
 				recommendations.push({
 					contentId: module.id,

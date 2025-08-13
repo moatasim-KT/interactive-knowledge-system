@@ -62,7 +62,7 @@ export function exportSimulationToJSON(
  * Export simulation results to CSV
  */
 export function exportSimulationToCSV(results: SimulationResult[], stateKeys?: string[]): string {
-	if (results.length === 0) return '';
+	if (results.length === 0) {return '';}
 
 	// Determine state keys if not provided
 	const keys = stateKeys || Object.keys(results[0].state);

@@ -352,10 +352,10 @@ export class ContentUpdateDetector {
 				signal: controller.signal
 			});
 
-			if (timeout_id) clearTimeout(timeout_id);
+			if (timeout_id) {clearTimeout(timeout_id);}
 			return response;
 		} catch (error) {
-			if (timeout_id) clearTimeout(timeout_id);
+			if (timeout_id) {clearTimeout(timeout_id);}
 			throw error;
 		}
 	}

@@ -305,8 +305,8 @@ export abstract class BaseContentExtractor implements ContentExtractor {
 			];
 
 			// Add conditional elements
-			if (!preserve_links) unwanted_selectors.push('a');
-			if (!preserve_images) unwanted_selectors.push('img', 'picture', 'figure');
+			if (!preserve_links) {unwanted_selectors.push('a');}
+			if (!preserve_images) {unwanted_selectors.push('img', 'picture', 'figure');}
 			if (!preserve_formatting) {
 				unwanted_selectors.push(
 					'b',

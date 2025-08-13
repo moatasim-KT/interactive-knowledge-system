@@ -723,7 +723,7 @@ export class ContentTypeDetector {
 
 		// Get the last part after the last dot
 		const last_dot = clean_path.lastIndexOf('.');
-		if (last_dot === -1) return '';
+		if (last_dot === -1) {return '';}
 
 		return clean_path.slice(last_dot + 1).toLowerCase();
 	}
@@ -760,7 +760,7 @@ export class ContentTypeDetector {
 
 		for (let i = 0; i < signature.length; i++) {
 			const expected = signature[i];
-			if (expected === null) continue; // Wildcard byte
+			if (expected === null) {continue;} // Wildcard byte
 
 			if (bytes[offset + i] !== expected) {
 				return false;

@@ -20,7 +20,7 @@ export class SourceManager {
 	private initialized = false;
 
 	async initialize(): Promise<void> {
-		if (this.initialized) return;
+		if (this.initialized) {return;}
 
 		await storageService.initialize();
 		this.initialized = true;
@@ -365,7 +365,7 @@ export class SourceManager {
 			const validation_results = [];
 
 			for (const source of sources_to_validate) {
-				if (!source) continue;
+				if (!source) {continue;}
 
 				const issues: string[] = [];
 				const suggestions: string[] = [];
@@ -576,7 +576,7 @@ export class SourceManager {
 			const processed = new Set<string>();
 
 			for (const source of sources) {
-				if (processed.has(source.id)) continue;
+				if (processed.has(source.id)) {continue;}
 
 				const similar_sources = sources.filter(
 					(s) =>

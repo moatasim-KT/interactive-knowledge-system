@@ -361,8 +361,8 @@ export class WebContentErrorHandler {
 
 		for (const error of this.errorHistory) {
 			byCode[error.code] = (byCode[error.code] || 0) + 1;
-			if (error.recoverable) recoverable++;
-			if (error.retryable) retryable++;
+			if (error.recoverable) {recoverable++;}
+			if (error.retryable) {retryable++;}
 		}
 
 		return {

@@ -179,7 +179,7 @@ export class KnowledgeSystemIntegration {
         const reasoning: string[] = [];
 
         for (const existing_module of existing_modules) {
-            if (existing_module.id === module.id) continue;
+            if (existing_module.id === module.id) {continue;}
 
             const similarity = this.calculateContentSimilarity(module, existing_module);
 

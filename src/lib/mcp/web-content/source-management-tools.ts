@@ -552,7 +552,7 @@ export class SourceManagementTools {
 			const processed = new Set<string>();
 
 			for (const source of sources) {
-				if (processed.has(source.id)) continue;
+				if (processed.has(source.id)) {continue;}
 
 				const similar_sources = sources.filter(
 					(s) =>

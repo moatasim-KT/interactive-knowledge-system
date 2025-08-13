@@ -45,7 +45,7 @@ export class CloudSyncService {
 	 * Start periodic synchronization
 	 */
 	private startPeriodicSync(): void {
-		if (!this.config || this.syncInterval || typeof window === 'undefined') return;
+		if (!this.config || this.syncInterval || typeof window === 'undefined') {return;}
 
 		this.syncInterval = window.setInterval(() => {
 			if (networkService.isOnline() && !this.isSyncing) {
@@ -237,7 +237,7 @@ export class CloudSyncService {
 	 * Pull remote changes
 	 */
 	private async pullRemoteChanges(): Promise<void> {
-		if (!this.config) return;
+		if (!this.config) {return;}
 
 		const last_sync = appState.sync.lastSync?.toISOString() || new Date(0).toISOString();
 		const endpoint = `${this.config.endpoint}/changes?since=${last_sync}&userId=${this.config.userId}`;
@@ -330,7 +330,7 @@ export class CloudSyncService {
 	 * Fetch remote data for conflict detection
 	 */
 	private async fetchRemoteData(entity: string, entityId: string): Promise<any> {
-		if (!this.config) return null;
+		if (!this.config) {return null;}
 
 		const endpoint = `${this.config.endpoint}/${entity}/${entityId}?userId=${this.config.userId}`;
 
@@ -360,7 +360,7 @@ export class CloudSyncService {
 				});
 				return response;
 			} catch (error) {
-				if (i === retries - 1) throw error;
+				if (i === retries - 1) {throw error;}
 
 				// Exponential backoff
 				const delay = Math.min(1000 * Math.pow(2, i), 10000);
@@ -371,7 +371,7 @@ export class CloudSyncService {
 	}
 
 	private getEndpointForOperation(operation: SyncOperation): string {
-		if (!this.config) throw new Error('Sync not configured');
+		if (!this.config) {throw new Error('Sync not configured');}
 
 		if (operation.type === 'create') {
 			return `${this.config.endpoint}/${operation.entity}?userId=${this.config.userId}`;

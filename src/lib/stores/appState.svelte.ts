@@ -56,7 +56,7 @@ export const appState = $state({
 // Filtered content based on search query
 export function getFilteredContent() {
 	const { nodes, searchQuery } = appState.content;
-	if (!searchQuery.trim()) return Array.from(nodes.values());
+	if (!searchQuery.trim()) {return Array.from(nodes.values());}
 
 	const query = searchQuery.toLowerCase();
 	return Array.from(nodes.values()).filter(

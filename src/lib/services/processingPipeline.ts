@@ -1030,11 +1030,11 @@ export class ProcessingPipelineManager {
 	 * Update time estimate for job
 	 */
 	private updateTimeEstimate(job: ProcessingJob): void {
-		if (job.progressHistory.length < 2) return;
+		if (job.progressHistory.length < 2) {return;}
 
 		const recent_progress = job.progressHistory.slice(-3);
 		const time_per_percent = recent_progress.reduce((acc, curr, index) => {
-			if (index === 0) return acc;
+			if (index === 0) {return acc;}
 			const prev = recent_progress[index - 1];
 			const time_diff = curr.timestamp.getTime() - prev.timestamp.getTime();
 			const progress_diff = curr.progress - prev.progress;
@@ -1147,8 +1147,8 @@ export class ProcessingPipelineManager {
 	 */
 	private calculateTransformationConfidence(transformation: any): number {
 		const blocks_created = transformation.interactiveBlocks.length;
-		if (blocks_created === 0) return 0.1;
-		if (blocks_created >= 3) return 0.9;
+		if (blocks_created === 0) {return 0.1;}
+		if (blocks_created >= 3) {return 0.9;}
 		return 0.5 + (blocks_created * 0.2);
 	}
 
@@ -1215,9 +1215,9 @@ export class ProcessingPipelineManager {
 		const avg_words_per_sentence = word_count / sentence_count;
 
 		// Simple readability heuristic
-		if (avg_words_per_sentence < 15) return 0.9;
-		if (avg_words_per_sentence < 20) return 0.7;
-		if (avg_words_per_sentence < 25) return 0.5;
+		if (avg_words_per_sentence < 15) {return 0.9;}
+		if (avg_words_per_sentence < 20) {return 0.7;}
+		if (avg_words_per_sentence < 25) {return 0.5;}
 		return 0.3;
 	}
 
@@ -1235,9 +1235,9 @@ export class ProcessingPipelineManager {
 		}
 
 		// Check for semantic HTML
-		if (html.includes('<h1') || html.includes('<h2')) score += 0.1;
-		if (html.includes('<nav') || html.includes('<main')) score += 0.1;
-		if (html.includes('aria-')) score += 0.1;
+		if (html.includes('<h1') || html.includes('<h2')) {score += 0.1;}
+		if (html.includes('<nav') || html.includes('<main')) {score += 0.1;}
+		if (html.includes('aria-')) {score += 0.1;}
 
 		return Math.min(score, 1.0);
 	}
@@ -1249,17 +1249,17 @@ export class ProcessingPipelineManager {
 		let score = 0.3; // Base score
 
 		// Content length
-		if (content.text.length > 1000) score += 0.1;
-		if (content.text.length > 3000) score += 0.1;
+		if (content.text.length > 1000) {score += 0.1;}
+		if (content.text.length > 3000) {score += 0.1;}
 
 		// Media content
-		if (content.images.length > 0) score += 0.1;
-		if (content.codeBlocks.length > 0) score += 0.1;
-		if (content.tables.length > 0) score += 0.1;
+		if (content.images.length > 0) {score += 0.1;}
+		if (content.codeBlocks.length > 0) {score += 0.1;}
+		if (content.tables.length > 0) {score += 0.1;}
 
 		// Metadata completeness
-		if (metadata.description && metadata.description.length > 50) score += 0.1;
-		if (metadata.keywords.length > 0) score += 0.1;
+		if (metadata.description && metadata.description.length > 50) {score += 0.1;}
+		if (metadata.keywords.length > 0) {score += 0.1;}
 
 		return Math.min(score, 1.0);
 	}

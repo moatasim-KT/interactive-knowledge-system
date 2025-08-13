@@ -99,7 +99,7 @@ export class SourceLibrary {
 	 * Build search indices for fast searching
 	 */
 	async buildIndices(): Promise<void> {
-		if (this.isIndexed) return;
+		if (this.isIndexed) {return;}
 
 		this.logger.info('Building search indices...');
 
@@ -125,7 +125,7 @@ export class SourceLibrary {
 	}
 
 	private indexSource(source: WebContentSource): void {
-		if (!source?.id) return;
+		if (!source?.id) {return;}
 
 		const metadata: WebContentMetadata = source.metadata || {
 			domain: source.domain,
@@ -347,14 +347,14 @@ export class SourceLibrary {
 
 		// Check title matches
 		queryWords.forEach((word) => {
-			if (title.includes(word)) score += 10;
-			if (description.includes(word)) score += 5;
-			if (keywords.includes(word)) score += 3;
+			if (title.includes(word)) {score += 10;}
+			if (description.includes(word)) {score += 5;}
+			if (keywords.includes(word)) {score += 3;}
 		});
 
 		// Boost score for exact matches
-		if (title.includes(query.toLowerCase())) score += 20;
-		if (description.includes(query.toLowerCase())) score += 10;
+		if (title.includes(query.toLowerCase())) {score += 20;}
+		if (description.includes(query.toLowerCase())) {score += 10;}
 
 		return score;
 	}
@@ -372,10 +372,10 @@ export class SourceLibrary {
 		const tags = (source.metadata.tags || []).join(' ').toLowerCase();
 
 		queryWords.forEach((word) => {
-			if (title.includes(word) && !fields.includes('title')) fields.push('title');
-			if (description.includes(word) && !fields.includes('description')) fields.push('description');
-			if (keywords.includes(word) && !fields.includes('keywords')) fields.push('keywords');
-			if (tags.includes(word) && !fields.includes('tags')) fields.push('tags');
+			if (title.includes(word) && !fields.includes('title')) {fields.push('title');}
+			if (description.includes(word) && !fields.includes('description')) {fields.push('description');}
+			if (keywords.includes(word) && !fields.includes('keywords')) {fields.push('keywords');}
+			if (tags.includes(word) && !fields.includes('tags')) {fields.push('tags');}
 		});
 
 		return fields;
@@ -385,7 +385,7 @@ export class SourceLibrary {
 	 * Generate highlights for search results
 	 */
 	private generateHighlights(source: WebContentSource, query: string): { [field: string]: string } {
-		if (!query.trim()) return {};
+		if (!query.trim()) {return {};}
 
 		const highlights: { [field: string]: string } = {};
 		const queryWords = this.tokenizeText(query.toLowerCase());
@@ -524,7 +524,7 @@ export class SourceLibrary {
 	 * Remove source from indices
 	 */
 	removeSourceFromIndex(sourceId: string): void {
-		if (!this.isIndexed) return;
+		if (!this.isIndexed) {return;}
 
 		// Remove from search index
 		this.searchIndex.forEach((sourceIds, word) => {
