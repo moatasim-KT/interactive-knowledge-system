@@ -4,7 +4,7 @@
 	interface Props {
 		data: any;
 		filters?: DataFilter[];
-		onDataChange?: (event: { data: any; filters: DataFilter[] }) => void;
+		onDataChange?: (payload: { data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }) => void;
 	}
 
 	let { data, filters = [], onDataChange }: Props = $props();
@@ -125,10 +125,10 @@
 	}
 
 	function add_filter() {
-		const new_filter = {
-			field: available_fields[0] || 'value',
+		const new_filter: DataFilter = {
+			field: available_fields()[0] ?? 'value',
 			type: 'text',
-			operator: 'contains',
+			operator: 'equals',
 			value: '',
 			active: true
 		};
@@ -218,7 +218,7 @@
 
 	<!-- Quick Sort -->
 	<div class="sort-section">
-		<label class="sort-label">Sort by:</label>
+		<span class="sort-label">Sort by:</span>
 		<div class="sort-controls">
 			<select bind:value={sort_field} onchange={emit_data_change} class="sort-select">
 				<option value="">No sorting</option>
@@ -226,7 +226,7 @@
 					<option value={field}>{field}</option>
 				{/each}
 			</select>
-			{#if sortField}
+			{#if sort_field}
 				<button
 					class="sort-direction-btn"
 					onclick={() => handle_sort_change(sort_field)}
@@ -240,14 +240,14 @@
 	</div>
 
 	<!-- Advanced Filters -->
-	{#if showAdvancedFilters}
+	{#if show_advanced_filters}
 		<div class="filters-section">
 			<div class="filters-header">
 				<h5 class="filters-title">Advanced Filters</h5>
 				<button class="add-filter-btn" onclick={add_filter} type="button"> + Add Filter </button>
 			</div>
 
-			{#each activeFilters as filter, index (index)}
+			{#each active_filters as filter, index (index)}
 				<div class="filter-row" class:inactive={!filter.active}>
 					<div class="filter-controls">
 						<!-- Field Selection -->
@@ -264,7 +264,7 @@
 						<!-- Operator Selection -->
 						<select
 							bind:value={filter.operator}
-							onchange={(e) => update_filter(index, { operator: e.currentTarget.value })}
+							onchange={(e) => update_filter(index, { operator: e.currentTarget.value as DataFilter['operator'] })}
 							class="filter-operator-select"
 						>
 							<option value="contains">Contains</option>

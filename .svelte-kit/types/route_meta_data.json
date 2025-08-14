@@ -1,10 +1,15 @@
 {
 	"/": [],
-	"/code-demo": [],
-	"/demo-interactive-viz": [],
-	"/knowledge": [],
-	"/knowledge/[id]": [],
-	"/progress-demo": [],
-	"/relationships-demo": [],
-	"/simulation-demo": []
+	"/accessibility-test": [],
+	"/articles/machine-learning": [],
+	"/knowledge-test": [],
+	"/knowledge": [
+		"src/routes/knowledge/+layout.ts",
+		"src/routes/knowledge/+layout.ts"
+	],
+	"/knowledge/[id]": [
+		"src/routes/knowledge/[id]/+page.ts",
+		"src/routes/knowledge/+layout.ts"
+	],
+	"/responsive-test": []
 }

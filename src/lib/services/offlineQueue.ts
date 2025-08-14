@@ -60,13 +60,13 @@ export class OfflineQueue {
 		const sorted_items = Array.from(this.queue.values()).sort((a, b) => {
 			const priority_order = { high: 3, medium: 2, low: 1 };
 			const priority_diff = priority_order[b.priority] - priority_order[a.priority];
-			if (priority_diff !== 0) {return priority_diff;}
+			if (priority_diff !== 0) { return priority_diff; }
 
 			return a.operation.timestamp.getTime() - b.operation.timestamp.getTime();
 		});
 
 		for (const item of sorted_items) {
-			if (operations.length >= batch_size) {break;}
+			if (operations.length >= batch_size) { break; }
 
 			// Check if all dependencies are satisfied
 			const dependencies_satisfied = item.dependencies.every(
@@ -134,7 +134,7 @@ export class OfflineQueue {
 	 */
 	async incrementRetryCount(operationId: string): Promise<boolean> {
 		const item = this.queue.get(operationId);
-		if (!item) {return false;}
+		if (!item) { return false; }
 
 		item.operation.retryCount++;
 
@@ -165,7 +165,7 @@ export class OfflineQueue {
 
 		// For each entity, keep only the latest operation of each type
 		for (const [key, operations] of entity_operations) {
-			if (operations.length <= 1) {continue;}
+			if (operations.length <= 1) { continue; }
 
 			// Sort by timestamp (newest first)
 			operations.sort((a, b) => b.operation.timestamp.getTime() - a.operation.timestamp.getTime());
@@ -213,23 +213,27 @@ export class OfflineQueue {
 	 */
 	private async loadQueue(): Promise<void> {
 		try {
-            const data = (await storage.get('offline_queue', 'queue')) as OfflineQueueRecord | undefined;
-            if (data && Array.isArray(data.items)) {
-                this.queue = new Map(
-                    data.items.map((item: OfflineQueueItem) => [
-                        item.operation.id,
-                        {
-                            ...item,
-                            operation: {
-                                ...item.operation,
-                                timestamp: new Date(item.operation.timestamp)
-                            }
-                        }
-                    ])
-                );
-            }
+			// Initialize storage first
+			await storage.init();
+			const data = (await storage.get('offline_queue', 'queue')) as OfflineQueueRecord | undefined;
+			if (data && Array.isArray(data.items)) {
+				this.queue = new Map(
+					data.items.map((item: OfflineQueueItem) => [
+						item.operation.id,
+						{
+							...item,
+							operation: {
+								...item.operation,
+								timestamp: new Date(item.operation.timestamp)
+							}
+						}
+					])
+				);
+			}
 		} catch (error) {
 			console.error('Failed to load offline queue:', error);
+			// Continue with empty queue if loading fails
+			this.queue = new Map();
 		}
 	}
 
@@ -238,15 +242,18 @@ export class OfflineQueue {
 	 */
 	private async persistQueue(): Promise<void> {
 		try {
-            const items = Array.from(this.queue.values());
-            const record: OfflineQueueRecord = {
-                id: 'queue',
-                items,
-                lastUpdated: new Date()
-            };
-            await storage.put('offline_queue', record);
+			// Ensure storage is initialized
+			await storage.init();
+			const items = Array.from(this.queue.values());
+			const record: OfflineQueueRecord = {
+				id: 'queue',
+				items,
+				lastUpdated: new Date()
+			};
+			await storage.put('offline_queue', record);
 		} catch (error) {
 			console.error('Failed to persist offline queue:', error);
+			// Don't throw - allow operation to continue even if persistence fails
 		}
 	}
 }

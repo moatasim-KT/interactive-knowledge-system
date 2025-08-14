@@ -1,490 +1,571 @@
 # Content Creation Guide
 
+## Overview
+
+The Interactive Knowledge System provides powerful tools for creating engaging, interactive learning content. This guide walks you through the process of creating various types of content blocks and organizing them into comprehensive learning modules.
+
 ## Getting Started
 
-The Interactive Knowledge System allows you to create rich, interactive learning content using various content blocks. This guide will walk you through creating engaging educational materials.
+### Accessing the Content Editor
 
-## Content Block Types
+1. Navigate to the main application at `http://localhost:5173`
+2. Click on "Create Content" or navigate to `/content/new`
+3. The content editor will open with a blank canvas
 
-### Text Blocks
+### Understanding Content Blocks
 
-Text blocks support rich formatting including:
+Content in the system is organized into modular blocks that can be combined to create rich learning experiences:
 
-- **Bold** and _italic_ text
-- Headers (H1-H6)
-- Lists (ordered and unordered)
-- Links and references
-- Code snippets inline
+- **Text Blocks**: Rich text with markdown support
+- **Code Blocks**: Syntax-highlighted code with execution capabilities
+- **Interactive Charts**: Data visualizations with user interaction
+- **Quiz Blocks**: Various question types with immediate feedback
+- **Media Blocks**: Images, videos, and audio content
+- **Simulation Blocks**: Algorithm and process simulations
 
-**Creating a Text Block:**
+## Creating Your First Article
 
-1. Click "Add Block" → "Text"
-2. Use the rich text editor
-3. Apply formatting using toolbar or markdown shortcuts
+### Step 1: Set Up Article Metadata
 
-**Markdown Shortcuts:**
-
-```markdown
-# Header 1
-
-## Header 2
-
-**Bold text**
-_Italic text_
-
-- List item
-
-1. Numbered item
-   [Link text](url)
-   `inline code`
+```typescript
+const articleMetadata = {
+  title: 'Introduction to Machine Learning',
+  description: 'A comprehensive introduction to ML concepts',
+  difficulty: 2, // Scale of 1-5
+  estimatedTime: 45, // Minutes
+  tags: ['machine-learning', 'ai', 'beginner'],
+  prerequisites: ['basic-statistics', 'python-basics']
+};
 ```
 
-### Code Blocks
+### Step 2: Add Content Blocks
 
-Code blocks provide syntax highlighting and optional execution capabilities.
+#### Text Block
 
-**Supported Languages:**
+```svelte
+<script>
+  import { ContentEditor } from '$lib/components';
 
-- JavaScript/TypeScript
-- Python
-- HTML/CSS
-- JSON
-- Markdown
-- SQL
+  let textBlock = {
+    type: 'text',
+    content: {
+      markdown: `
+# Machine Learning Fundamentals
 
-**Creating a Code Block:**
+Machine learning is a subset of artificial intelligence that enables computers to learn and make decisions from data without being explicitly programmed.
 
-1. Click "Add Block" → "Code"
-2. Select programming language
-3. Enter your code
-4. Enable "Executable" for interactive code
+## Key Concepts
 
-**Example:**
+- **Supervised Learning**: Learning with labeled examples
+- **Unsupervised Learning**: Finding patterns in unlabeled data
+- **Reinforcement Learning**: Learning through trial and error
+      `
+    }
+  };
+</script>
+
+<ContentEditor bind:blocks={[textBlock]} />
+```
+
+#### Interactive Code Block
+
+```svelte
+<script>
+  import { CodeEditor } from '$lib/components';
+
+  let codeBlock = {
+    type: 'code',
+    language: 'python',
+    executable: true,
+    content: `
+# Simple linear regression example
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Generate sample data
+X = np.random.randn(100, 1)
+y = 2 * X + 1 + 0.1 * np.random.randn(100, 1)
+
+# Plot the data
+plt.scatter(X, y, alpha=0.7)
+plt.xlabel('X')
+plt.ylabel('y')
+plt.title('Linear Relationship')
+plt.show()
+    `
+  };
+</script>
+
+<CodeEditor
+  bind:code={codeBlock.content}
+  language={codeBlock.language}
+  executable={codeBlock.executable}
+/>
+```
+
+#### Interactive Chart Block
+
+```svelte
+<script>
+  import { InteractiveChart } from '$lib/components';
+
+  let chartData = [
+    { algorithm: 'Linear Regression', accuracy: 0.85, complexity: 1 },
+    { algorithm: 'Random Forest', accuracy: 0.92, complexity: 3 },
+    { algorithm: 'Neural Network', accuracy: 0.94, complexity: 5 },
+    { algorithm: 'SVM', accuracy: 0.88, complexity: 4 }
+  ];
+
+  let chartConfig = {
+    type: 'scatter',
+    xField: 'complexity',
+    yField: 'accuracy',
+    colorField: 'algorithm',
+    title: 'Algorithm Complexity vs Accuracy',
+    interactive: true,
+    tooltip: true
+  };
+</script>
+
+<InteractiveChart data={chartData} config={chartConfig} />
+```
+
+#### Quiz Block
+
+```svelte
+<script>
+  import { Quiz } from '$lib/components';
+
+  let quizQuestions = [
+    {
+      id: 'q1',
+      type: 'multiple-choice',
+      question: 'What type of learning uses labeled training data?',
+      options: [
+        'Unsupervised Learning',
+        'Supervised Learning',
+        'Reinforcement Learning',
+        'Deep Learning'
+      ],
+      correctAnswer: 1,
+      explanation: 'Supervised learning uses labeled examples to train models.'
+    },
+    {
+      id: 'q2',
+      type: 'true-false',
+      question: 'Neural networks can only be used for image recognition.',
+      correctAnswer: false,
+      explanation:
+        'Neural networks are versatile and can be used for many tasks including text processing, time series analysis, and more.'
+    }
+  ];
+</script>
+
+<Quiz questions={quizQuestions} showResults={true} allowRetry={true} />
+```
+
+### Step 3: Add Interactive Simulations
+
+```svelte
+<script>
+  import { SimulationBlock } from '$lib/components';
+
+  let simulationConfig = {
+    type: 'neural-network',
+    parameters: {
+      layers: [3, 4, 2],
+      activationFunction: 'relu',
+      learningRate: 0.01
+    },
+    interactive: true,
+    controls: ['learningRate', 'layers', 'activationFunction']
+  };
+</script>
+
+<SimulationBlock config={simulationConfig} />
+```
+
+## Advanced Content Creation
+
+### Using Web Content Integration
+
+The system can automatically import and transform web content into interactive learning materials:
 
 ```javascript
-// Interactive JavaScript example
-function fibonacci(n) {
-  if (n <= 1) return n;
-  return fibonacci(n - 1) + fibonacci(n - 2);
-}
+// Using the MCP server to fetch and transform content
+import { webContentMcpServer } from '$lib/mcp/web-content';
 
-console.log(fibonacci(10)); // Try running this!
-```
-
-### Quiz Blocks
-
-Create interactive assessments to test understanding.
-
-**Question Types:**
-
-- Multiple choice
-- True/False
-- Fill in the blank
-- Drag and drop
-
-**Creating a Quiz:**
-
-1. Click "Add Block" → "Quiz"
-2. Add questions using the question editor
-3. Set correct answers and explanations
-4. Configure scoring and feedback
-
-**Example Quiz Structure:**
-
-```json
-{
-  "questions": [
-    {
-      "type": "multiple-choice",
-      "question": "What is the capital of France?",
-      "options": ["London", "Berlin", "Paris", "Madrid"],
-      "correct": 2,
-      "explanation": "Paris is the capital and largest city of France."
+async function importWebContent(url) {
+  // Fetch content
+  const result = await webContentMcpServer.executeTool('fetchWebContent', {
+    url,
+    options: {
+      mainContentOnly: true,
+      includeImages: true,
+      includeMetadata: true
     }
-  ]
-}
-```
+  });
 
-### Image and Media Blocks
+  if (result.success) {
+    // Transform to interactive content
+    const processed = await webContentMcpServer.executeTool('processContent', {
+      content: result.data.html,
+      contentType: 'html',
+      options: {
+        extractSummary: true,
+        generateTags: true,
+        createBlocks: true
+      }
+    });
 
-Add visual content to enhance learning.
-
-**Supported Formats:**
-
-- Images: JPG, PNG, GIF, SVG, WebP
-- Videos: MP4, WebM, OGV
-- Audio: MP3, WAV, OGG
-
-**Creating Media Blocks:**
-
-1. Click "Add Block" → "Image/Video"
-2. Upload file or provide URL
-3. Add alt text for accessibility
-4. Configure display options
-
-**Best Practices:**
-
-- Use descriptive alt text
-- Optimize file sizes for web
-- Provide captions for videos
-- Use appropriate aspect ratios
-
-### Interactive Visualizations
-
-Create dynamic charts and diagrams.
-
-**Chart Types:**
-
-- Line charts
-- Bar charts
-- Scatter plots
-- Pie charts
-- Network diagrams
-- Flowcharts
-
-**Creating Visualizations:**
-
-1. Click "Add Block" → "Visualization"
-2. Select chart type
-3. Input data or connect to data source
-4. Customize appearance and interactions
-
-**Example Data Format:**
-
-```json
-{
-  "type": "line",
-  "data": [
-    { "x": 1, "y": 10, "label": "Point 1" },
-    { "x": 2, "y": 20, "label": "Point 2" },
-    { "x": 3, "y": 15, "label": "Point 3" }
-  ],
-  "config": {
-    "title": "Sample Data",
-    "xAxis": "Time",
-    "yAxis": "Value"
+    return processed.data.blocks;
   }
 }
+
+// Usage
+const blocks = await importWebContent('https://example.com/ml-tutorial');
 ```
 
-### Simulation Blocks
+### Creating Custom Interactive Elements
 
-Create interactive simulations for complex concepts.
+```svelte
+<!-- CustomVisualization.svelte -->
+<script>
+  import { onMount } from 'svelte';
+  import * as d3 from 'd3';
 
-**Simulation Types:**
+  export let data = [];
+  export let width = 600;
+  export let height = 400;
 
-- Algorithm visualizations
-- System diagrams
-- Process flows
-- Mathematical models
+  let svgElement;
 
-**Creating Simulations:**
+  onMount(() => {
+    createVisualization();
+  });
 
-1. Click "Add Block" → "Simulation"
-2. Choose simulation template
-3. Configure parameters
-4. Set up interactive controls
+  function createVisualization() {
+    const svg = d3.select(svgElement);
+
+    // Create your custom D3 visualization here
+    const xScale = d3
+      .scaleLinear()
+      .domain(d3.extent(data, d => d.x))
+      .range([0, width]);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain(d3.extent(data, d => d.y))
+      .range([height, 0]);
+
+    svg
+      .selectAll('circle')
+      .data(data)
+      .enter()
+      .append('circle')
+      .attr('cx', d => xScale(d.x))
+      .attr('cy', d => yScale(d.y))
+      .attr('r', 5)
+      .attr('fill', 'steelblue')
+      .on('click', (event, d) => {
+        // Handle interaction
+        console.log('Clicked:', d);
+      });
+  }
+</script>
+
+<svg bind:this={svgElement} {width} {height}></svg>
+```
+
+### Content Templates
+
+Create reusable templates for common content types:
+
+```typescript
+// templates/lessonTemplate.ts
+export const lessonTemplate = {
+  metadata: {
+    type: 'lesson',
+    difficulty: 2,
+    estimatedTime: 30
+  },
+  blocks: [
+    {
+      type: 'text',
+      content: {
+        markdown: '# Lesson Title\n\n## Learning Objectives\n\n- Objective 1\n- Objective 2'
+      }
+    },
+    {
+      type: 'text',
+      content: { markdown: '## Introduction\n\n[Add introduction content here]' }
+    },
+    {
+      type: 'code',
+      language: 'javascript',
+      content: '// Add example code here'
+    },
+    {
+      type: 'quiz',
+      questions: []
+    },
+    {
+      type: 'text',
+      content: { markdown: '## Summary\n\n[Add summary content here]' }
+    }
+  ]
+};
+
+// Usage
+import { lessonTemplate } from './templates/lessonTemplate';
+
+function createNewLesson(title, objectives) {
+  const lesson = { ...lessonTemplate };
+  lesson.blocks[0].content.markdown = lesson.blocks[0].content.markdown
+    .replace('Lesson Title', title)
+    .replace('- Objective 1\n- Objective 2', objectives.map(obj => `- ${obj}`).join('\n'));
+
+  return lesson;
+}
+```
 
 ## Content Organization
 
-### Knowledge Tree Structure
+### Hierarchical Structure
 
-Organize content hierarchically:
+Organize content using the knowledge tree structure:
 
-```
-Course/
-├── Module 1: Introduction
-│   ├── Lesson 1.1: Basics
-│   ├── Lesson 1.2: Concepts
-│   └── Quiz 1: Assessment
-├── Module 2: Advanced Topics
-│   ├── Lesson 2.1: Deep Dive
-│   └── Project 2: Hands-on
-└── Final Assessment
-```
-
-### Metadata and Tagging
-
-Add metadata to improve discoverability:
-
-- **Title**: Clear, descriptive title
-- **Description**: Brief summary of content
-- **Tags**: Relevant keywords
-- **Difficulty**: 1-5 scale
-- **Estimated Time**: Reading/completion time
-- **Prerequisites**: Required prior knowledge
-
-### Relationships and Dependencies
-
-Link related content:
-
-- **Prerequisites**: Content that must be completed first
-- **Related**: Similar or complementary content
-- **Follow-up**: Suggested next steps
-
-## Content Templates
-
-### Lesson Template
-
-```markdown
-# Lesson Title
-
-## Learning Objectives
-
-- Objective 1
-- Objective 2
-- Objective 3
-
-## Introduction
-
-Brief overview of the topic...
-
-## Main Content
-
-Detailed explanation with examples...
-
-## Interactive Elements
-
-- Code examples
-- Visualizations
-- Practice exercises
-
-## Summary
-
-Key takeaways...
-
-## Assessment
-
-Quiz or practice problems...
-
-## Further Reading
-
-Additional resources...
+```typescript
+const knowledgeStructure = {
+  id: 'ml-course',
+  title: 'Machine Learning Course',
+  type: 'module',
+  children: [
+    {
+      id: 'ml-intro',
+      title: 'Introduction to ML',
+      type: 'lesson',
+      metadata: {
+        difficulty: 1,
+        estimatedTime: 30,
+        prerequisites: []
+      }
+    },
+    {
+      id: 'supervised-learning',
+      title: 'Supervised Learning',
+      type: 'module',
+      children: [
+        {
+          id: 'linear-regression',
+          title: 'Linear Regression',
+          type: 'lesson',
+          metadata: {
+            difficulty: 2,
+            estimatedTime: 45,
+            prerequisites: ['ml-intro']
+          }
+        },
+        {
+          id: 'classification',
+          title: 'Classification',
+          type: 'lesson',
+          metadata: {
+            difficulty: 2,
+            estimatedTime: 50,
+            prerequisites: ['linear-regression']
+          }
+        }
+      ]
+    }
+  ]
+};
 ```
 
-### Tutorial Template
+### Relationships and Prerequisites
 
-```markdown
-# Tutorial: Step-by-Step Guide
+Define learning paths and dependencies:
 
-## What You'll Build
+```typescript
+import { relationshipManagementService } from '$lib/services';
 
-Description of the final outcome...
+// Create prerequisite relationships
+await relationshipManagementService.createRelationship(
+  'classification',
+  'linear-regression',
+  'prerequisite'
+);
 
-## Prerequisites
+// Create related content relationships
+await relationshipManagementService.createRelationship(
+  'neural-networks',
+  'linear-regression',
+  'related'
+);
 
-- Required knowledge
-- Tools needed
-
-## Step 1: Setup
-
-Instructions for initial setup...
-
-## Step 2: Implementation
-
-Detailed implementation steps...
-
-## Step 3: Testing
-
-How to test your work...
-
-## Troubleshooting
-
-Common issues and solutions...
-
-## Next Steps
-
-What to do after completing this tutorial...
+// Create follow-up relationships
+await relationshipManagementService.createRelationship(
+  'deep-learning',
+  'neural-networks',
+  'followup'
+);
 ```
 
 ## Best Practices
 
-### Content Design
+### Content Design Principles
 
-1. **Start with Learning Objectives**
-   - Define clear, measurable goals
-   - Align content with objectives
-   - Use action verbs (understand, apply, analyze)
-
-2. **Use Progressive Disclosure**
-   - Introduce concepts gradually
-   - Build on previous knowledge
-   - Provide scaffolding for complex topics
-
-3. **Include Interactive Elements**
-   - Add quizzes every 5-10 minutes
-   - Use code examples for technical content
-   - Include visualizations for complex data
-
-4. **Provide Multiple Formats**
-   - Text explanations
-   - Visual diagrams
-   - Audio narration
-   - Interactive exercises
+1. **Progressive Disclosure**: Start with simple concepts and gradually introduce complexity
+2. **Interactive Elements**: Include hands-on activities every 5-10 minutes
+3. **Multiple Learning Styles**: Combine text, visuals, audio, and interactive elements
+4. **Immediate Feedback**: Provide instant feedback through quizzes and simulations
+5. **Real-world Examples**: Use practical examples and case studies
 
 ### Accessibility Guidelines
 
-1. **Text Content**
-   - Use clear, simple language
-   - Provide definitions for technical terms
-   - Use proper heading hierarchy
+```svelte
+<!-- Ensure proper heading hierarchy -->
+<h1>Main Topic</h1>
+<h2>Subtopic</h2>
+<h3>Sub-subtopic</h3>
 
-2. **Images and Media**
-   - Add descriptive alt text
-   - Provide captions for videos
-   - Use high contrast colors
+<!-- Add alt text to images -->
+<img src="chart.png" alt="Bar chart showing algorithm performance comparison" />
 
-3. **Interactive Elements**
-   - Ensure keyboard navigation
-   - Provide screen reader support
-   - Include skip links for long content
+<!-- Use semantic HTML -->
+<article>
+  <section>
+    <h2>Section Title</h2>
+    <p>Content...</p>
+  </section>
+</article>
+
+<!-- Ensure keyboard navigation -->
+<button on:click={handleClick} on:keydown={handleKeydown}> Interactive Element </button>
+```
 
 ### Performance Optimization
 
-1. **Media Optimization**
-   - Compress images appropriately
-   - Use modern formats (WebP, AVIF)
-   - Implement lazy loading
+```typescript
+// Lazy load heavy content
+import { LazyMedia } from '$lib/components';
 
-2. **Content Structure**
-   - Break long content into sections
-   - Use progressive loading
-   - Minimize initial bundle size
+// Use code splitting for large simulations
+const HeavySimulation = lazy(() => import('./HeavySimulation.svelte'));
 
-## Collaboration Features
+// Optimize images
+const optimizedImage = {
+  src: 'image.webp',
+  fallback: 'image.jpg',
+  sizes: '(max-width: 768px) 100vw, 50vw',
+  loading: 'lazy'
+};
+```
 
-### Sharing Content
+## Testing Your Content
 
-1. **Public Sharing**
-   - Generate shareable links
-   - Set permissions (view/edit)
-   - Enable comments and feedback
-
-2. **Team Collaboration**
-   - Invite collaborators
-   - Track changes and versions
-   - Resolve conflicts
-
-### Version Control
-
-- **Auto-save**: Changes saved automatically
-- **Version History**: Access previous versions
-- **Branching**: Create alternative versions
-- **Merging**: Combine changes from collaborators
-
-## Import and Export
-
-### Supported Formats
-
-**Import:**
-
-- Markdown files
-- JSON content
-- HTML documents
-- SCORM packages
-
-**Export:**
-
-- PDF documents
-- EPUB books
-- HTML packages
-- JSON data
-
-### Bulk Operations
-
-- Import multiple files
-- Batch convert formats
-- Mass update metadata
-- Bulk export selections
-
-## Advanced Features
-
-### Custom Components
-
-Create reusable content components:
+### Preview Mode
 
 ```svelte
 <script>
-  export let title;
-  export let data;
+  import { ContentEditor } from '$lib/components';
+
+  let previewMode = false;
+  let content = [];
+
+  function togglePreview() {
+    previewMode = !previewMode;
+  }
 </script>
 
-<div class="custom-component">
-  <h3>{title}</h3>
-  <div class="content">
-    <!-- Custom content rendering -->
-  </div>
-</div>
+<button on:click={togglePreview}>
+  {previewMode ? 'Edit' : 'Preview'}
+</button>
+
+{#if previewMode}
+  <ContentViewer {content} />
+{:else}
+  <ContentEditor bind:content />
+{/if}
 ```
 
-### API Integration
+### User Testing
 
-Connect to external data sources:
+1. **Cognitive Load Testing**: Ensure content isn't overwhelming
+2. **Navigation Testing**: Verify users can find and access content easily
+3. **Interaction Testing**: Test all interactive elements work correctly
+4. **Accessibility Testing**: Use screen readers and keyboard-only navigation
+5. **Performance Testing**: Check loading times and responsiveness
 
-```javascript
-// Fetch live data
-async function fetchData() {
-  const response = await fetch('/api/live-data');
-  return response.json();
-}
+## Publishing and Sharing
 
-// Update content dynamically
-function updateVisualization(newData) {
-  // Update chart with new data
-}
+### Export Options
+
+```typescript
+import { exportService } from '$lib/services';
+
+// Export to PDF
+const pdfBlob = await exportService.exportToPDF('lesson-id', {
+  includeImages: true,
+  pageSize: 'A4'
+});
+
+// Export to SCORM package
+const scormPackage = await exportService.exportToSCORM('module-id', {
+  version: '1.2',
+  includeTracking: true
+});
+
+// Export to Markdown
+const markdown = await exportService.exportToMarkdown('lesson-id');
 ```
 
-### Analytics Integration
+### Collaboration Features
 
-Track content performance:
+```typescript
+// Share content with specific users
+await contentManagementService.shareContent('lesson-id', {
+  users: ['user1', 'user2'],
+  permissions: ['read', 'comment']
+});
 
-- View counts and duration
-- Completion rates
-- Quiz scores and attempts
-- User engagement metrics
+// Create public link
+const publicLink = await contentManagementService.createPublicLink('lesson-id', {
+  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+  allowComments: true
+});
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Content Not Saving**
-   - Check internet connection
-   - Verify storage permissions
-   - Clear browser cache
+**Content Not Saving**
 
-2. **Media Not Loading**
-   - Verify file formats
-   - Check file size limits
-   - Ensure proper URLs
+- Check browser console for errors
+- Verify IndexedDB is available
+- Check network connectivity for sync
 
-3. **Interactive Elements Not Working**
-   - Enable JavaScript
-   - Check browser compatibility
-   - Update to latest version
+**Interactive Elements Not Working**
+
+- Ensure proper component imports
+- Check for JavaScript errors in console
+- Verify component props are correctly passed
+
+**Performance Issues**
+
+- Use lazy loading for heavy content
+- Optimize images and media files
+- Consider code splitting for large components
 
 ### Getting Help
 
-- Check the FAQ section
-- Search existing issues
-- Contact support team
-- Join community forums
+- Check the [API documentation](../api/components.md) for component usage
+- Review [GitHub Issues](https://github.com/your-repo/issues) for known problems
+- Join the community discussions for tips and best practices
 
-## Examples and Templates
+## Next Steps
 
-### Complete Course Example
-
-See the `/examples` directory for:
-
-- Sample course structure
-- Template files
-- Best practice examples
-- Common patterns
-
-### Quick Start Templates
-
-Use these templates to get started quickly:
-
-- Basic lesson template
-- Interactive tutorial template
-- Assessment template
-- Project-based learning template
+- Explore [Content Management](content-management.md) for organizing and maintaining content
+- Learn about [MCP Server Integration](../mcp-server.md) for automated content sourcing
+- Check out the [Components API](../api/components.md) for advanced customization

@@ -1,36 +1,54 @@
 <script lang="ts">
 	import type { ChartData, DataFilter, ChartInteraction } from '$lib/types/web-content.js';
-	import { createEventDispatcher, onMount } from 'svelte';
+    import { onMount } from 'svelte';
 
-	interface Props {
-		data: ChartData;
-		chartType?: 'line' | 'bar' | 'scatter' | 'heatmap';
-		filters?: DataFilter[];
-		interactions?: ChartInteraction[];
-		config?: any;
-	}
+    interface Props {
+        data: ChartData;
+        chartType?: 'line' | 'bar' | 'scatter' | 'heatmap';
+        filters?: DataFilter[];
+        interactions?: ChartInteraction[];
+        config?: any;
+        onHover?: (payload: { point: any; coordinates: { x: number; y: number } }) => void;
+        onHoverEnd?: () => void;
+        onSelect?: (payload: { point: any; selected: any[] }) => void;
+        onZoom?: (payload: { zoomLevel: number; isZoomed: boolean }) => void;
+        onZoomReset?: () => void;
+        onChartTypeChange?: (payload: { chartType: string }) => void;
+        onAnimationToggle?: (payload: { enabled: boolean }) => void;
+        onExport?: (payload: { format: string }) => void;
+        onReady?: (payload: { config: any; chartType: string }) => void;
+    }
 
-	let {
-		data,
-		chartType = 'line',
-		filters = [],
-		interactions = [],
-		config = {}
-	}: Props = $props();
+    let {
+        data,
+        chartType = 'line',
+        filters = [],
+        interactions = [],
+        config = {},
+        onHover,
+        onHoverEnd,
+        onSelect,
+        onZoom,
+        onZoomReset,
+        onChartTypeChange,
+        onAnimationToggle,
+        onExport,
+        onReady
+    }: Props = $props();
 
-	const dispatch = createEventDispatcher();
+    // Using Svelte 5-style callback props instead of createEventDispatcher
 
 	// Chart state
 	let chart_container: HTMLDivElement;
 	let svg_element: SVGSVGElement;
-	let is_zoomed = false;
-	let zoom_level = 1;
-	let pan_offset = { x: 0, y: 0 };
-	let hovered_point: any = null;
-	let selected_points: any[] = [];
-	let tooltip: { x: number; y: number; content: string } | null = null;
-	let animation_enabled = config.animations?.enabled ?? true;
-	let current_chart_type = chartType;
+	let is_zoomed = $state(false);
+	let zoom_level = $state(1);
+	let pan_offset = $state({ x: 0, y: 0 });
+	let hovered_point: any = $state(null);
+	let selected_points: any[] = $state([]);
+	let tooltip: { x: number; y: number; content: string } | null = $state(null);
+	let animation_enabled = $state(config.animations?.enabled ?? true);
+	let current_chart_type = $state(chartType);
 
 	// Chart dimensions
 	let width = config.layout?.width || 800;
@@ -60,7 +78,7 @@
 		cool: ['#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b']
 	};
 
-	let current_color_scheme = 'default';
+	let current_color_scheme = $state('default');
 	const colors = $derived(() => color_schemes[current_color_scheme] || color_schemes.default);
 
 	function process_chart_data(raw_data: ChartData, active_filters: DataFilter[]): any[] {
@@ -106,7 +124,7 @@
 		x_scale: (x: any, index?: number) => number;
 		y_scale: (y: number) => number;
 	} {
-		if (!data.length) return { x_scale: () => 0, y_scale: () => inner_height };
+		if (!data.length) return { x_scale: () => 0, y_scale: () => inner_height() };
 
 		const x_values = data.map((d) => d.x);
 		const y_values = data.map((d) => d.y).filter((y) => typeof y === 'number');
@@ -119,19 +137,21 @@
 		if (x_is_numeric) {
 			const x_min = Math.min(...x_values);
 			const x_max = Math.max(...x_values);
-			x_scale = (x: number) => ((x - x_min) / (x_max - x_min)) * inner_width;
+			x_scale = (x: number) => ((x - x_min) / (x_max - x_min)) * inner_width();
 		} else {
-			x_scale = (x: any, index: number) => (index / Math.max(1, x_values.length - 1)) * inner_width;
+			x_scale = (x: any, index: number) => (index / Math.max(1, x_values.length - 1)) * inner_width();
 		}
 
 		const y_min = Math.min(...y_values);
 		const y_max = Math.max(...y_values);
-		y_scale = (y: number) => inner_height - ((y - y_min) / (y_max - y_min)) * inner_height;
+		y_scale = (y: number) => inner_height() - ((y - y_min) / (y_max - y_min)) * inner_height();
 
 		return { x_scale, y_scale };
 	}
 
-	$: ({ x_scale, y_scale } = create_scales(processed_data));
+	const scales = $derived(() => create_scales(processed_data()));
+	const x_scale = (x: any, index?: number) => scales().x_scale(x, index);
+	const y_scale = (y: number) => scales().y_scale(y);
 
 	// Chart rendering functions
 	function render_line_chart(
@@ -143,7 +163,7 @@
 
 		return data
 			.map((point, index) => {
-				const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x);
+				const x = x_scale(point.x, index);
 				const y = y_scale(point.y);
 				return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
 			})
@@ -151,7 +171,7 @@
 	}
 
 	function get_bar_width(): number {
-		return Math.max(10, (inner_width / Math.max(1, processed_data.length)) * 0.8);
+		return Math.max(10, (inner_width() / Math.max(1, processed_data().length)) * 0.8);
 	}
 
 	// Event handlers
@@ -171,14 +191,14 @@
 				content: format_tooltip_content(closest)
 			};
 
-			dispatch('hover', { point: closest, coordinates: { x, y } });
+            onHover?.({ point: closest, coordinates: { x, y } });
 		}
 	}
 
 	function handle_mouse_leave() {
 		hovered_point = null;
 		tooltip = null;
-		dispatch('hover-end');
+        onHoverEnd?.();
 	}
 
 	function handle_click(event: MouseEvent) {
@@ -198,7 +218,7 @@
 				selected_points = [...selected_points, closest];
 			}
 
-			dispatch('select', { point: closest, selected: selected_points });
+            onSelect?.({ point: closest, selected: selected_points });
 		}
 	}
 
@@ -211,18 +231,18 @@
 		if (new_zoom !== zoom_level) {
 			zoom_level = new_zoom;
 			is_zoomed = zoom_level !== 1;
-			dispatch('zoom', { zoomLevel: zoom_level, isZoomed: is_zoomed });
+            onZoom?.({ zoomLevel: zoom_level, isZoomed: is_zoomed });
 		}
 	}
 
 	function find_closest_point(mouse_x: number, mouse_y: number) {
-		if (!processed_data.length) return null;
+		if (!processed_data().length) return null;
 
-		let closest = processed_data[0];
+		let closest = processed_data()[0];
 		let min_distance = Infinity;
 
-		processed_data.forEach((point, index) => {
-			const px = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x);
+		processed_data().forEach((point, index) => {
+			const px = x_scale(point.x, index);
 			const py = y_scale(point.y);
 			const distance = Math.sqrt((mouse_x - px) ** 2 + (mouse_y - py) ** 2);
 
@@ -243,17 +263,17 @@
 		zoom_level = 1;
 		is_zoomed = false;
 		pan_offset = { x: 0, y: 0 };
-		dispatch('zoom-reset');
+        onZoomReset?.();
 	}
 
 	function change_chart_type(new_type: string) {
-		current_chart_type = new_type as any;
-		dispatch('chart-type-change', { chartType: new_type });
+        current_chart_type = new_type as any;
+        onChartTypeChange?.({ chartType: new_type });
 	}
 
 	function toggle_animation() {
-		animation_enabled = !animation_enabled;
-		dispatch('animation-toggle', { enabled: animation_enabled });
+        animation_enabled = !animation_enabled;
+        onAnimationToggle?.({ enabled: animation_enabled });
 	}
 
 	function export_chart() {
@@ -276,34 +296,29 @@
 		};
 
 		img.src = 'data:image/svg+xml;base64,' + btoa(svg_data);
-		dispatch('export', { format: 'png' });
+        onExport?.({ format: 'png' });
 	}
 
-	onMount(() => {
-		dispatch('mount', { config, chartType: current_chart_type });
-	});
+    onMount(() => {
+        onReady?.({ config, chartType: current_chart_type });
+    });
 </script>
 
 <div
-	class="advanced-interactive-chart"
-	bind:this={chart_container}
-	on:mousemove={handle_mouse_move}
-	on:mouseleave={handle_mouse_leave}
-	on:click={handle_click}
-	on:wheel={handle_wheel}
-	role="img"
-	aria-label="Advanced Interactive Chart"
+    class="advanced-interactive-chart"
+    bind:this={chart_container}
+    aria-label="Interactive Chart"
 >
 	<!-- Chart Controls -->
 	<div class="chart-controls">
 		<div class="control-group">
-			<label class="control-label">Chart Type:</label>
+			<span class="control-label">Chart Type:</span>
 			<div class="chart-type-selector">
 				{#each chart_types as type (type.value)}
 					<button
 						class="chart-type-btn"
 						class:active={current_chart_type === type.value}
-						on:click={() => change_chart_type(type.value)}
+						onclick={() => change_chart_type(type.value)}
 						title={type.label}
 						type="button"
 					>
@@ -315,7 +330,7 @@
 		</div>
 
 		<div class="control-group">
-			<label class="control-label">Color Scheme:</label>
+			<span class="control-label">Color Scheme:</span>
 			<select bind:value={current_color_scheme} class="color-scheme-select">
 				{#each Object.keys(color_schemes) as scheme (scheme)}
 					<option value={scheme}>{scheme.charAt(0).toUpperCase() + scheme.slice(1)}</option>
@@ -327,7 +342,7 @@
 			<button
 				class="control-btn"
 				class:active={animation_enabled}
-				on:click={toggle_animation}
+				onclick={toggle_animation}
 				title="Toggle animations"
 				type="button"
 			>
@@ -335,12 +350,12 @@
 			</button>
 
 			{#if is_zoomed}
-				<button class="control-btn" on:click={reset_zoom} title="Reset zoom" type="button">
+            <button class="control-btn" onclick={reset_zoom} title="Reset zoom" type="button">
 					🔍 Reset Zoom
 				</button>
 			{/if}
 
-			<button class="control-btn" on:click={export_chart} title="Export chart" type="button">
+			<button class="control-btn" onclick={export_chart} title="Export chart" type="button">
 				💾 Export
 			</button>
 		</div>
@@ -353,15 +368,26 @@
 		</div>
 	</div>
 
-	<!-- SVG Chart -->
-	<svg
-		bind:this={svg_element}
-		{width}
-		{height}
-		class="chart-svg"
-		class:animated={animation_enabled}
-		style="transform: scale({zoom_level}) translate({pan_offset.x}px, {pan_offset.y}px);"
-	>
+		<!-- SVG Chart -->
+        <button
+			class="chart-surface-button"
+			type="button"
+			aria-label="Interactive chart canvas"
+			title="Interactive chart canvas"
+            onclick={handle_click}
+            onmousemove={handle_mouse_move}
+            onmouseleave={handle_mouse_leave}
+            onwheel={handle_wheel}
+		>
+			<svg
+				bind:this={svg_element}
+				{width}
+				{height}
+				class="chart-svg"
+				class:animated={animation_enabled}
+				style="transform: scale({zoom_level}) translate({pan_offset.x}px, {pan_offset.y}px);"
+				aria-hidden="true"
+			>
 		<!-- Definitions for gradients and patterns -->
 		<defs>
 			<linearGradient id="chart-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -374,8 +400,8 @@
 		<rect
 			x={margin.left}
 			y={margin.top}
-			width={inner_width}
-			height={inner_height}
+			width={inner_width()}
+			height={inner_height()}
 			fill="var(--chart-bg, #fafafa)"
 			stroke="var(--chart-border, #e1e5e9)"
 			rx="4"
@@ -386,19 +412,19 @@
 			{#each Array(6) as _, i (i)}
 				<line
 					x1={margin.left}
-					y1={margin.top + (i * inner_height) / 5}
-					x2={margin.left + inner_width}
-					y2={margin.top + (i * inner_height) / 5}
+					y1={margin.top + (i * inner_height()) / 5}
+					x2={margin.left + inner_width()}
+					y2={margin.top + (i * inner_height()) / 5}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 				/>
 			{/each}
 			{#each Array(6) as _, i (i)}
 				<line
-					x1={margin.left + (i * inner_width) / 5}
+					x1={margin.left + (i * inner_width()) / 5}
 					y1={margin.top}
-					x2={margin.left + (i * inner_width) / 5}
-					y2={margin.top + inner_height}
+					x2={margin.left + (i * inner_width()) / 5}
+					y2={margin.top + inner_height()}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 				/>
@@ -407,10 +433,10 @@
 
 		<!-- Data visualization -->
 		<g class="data-layer" transform="translate({margin.left}, {margin.top})">
-			{#if current_chart_type === 'line' && processed_data.length > 1}
+			{#if current_chart_type === 'line' && processed_data().length > 1}
 				<!-- Line chart -->
 				<path
-					d={render_line_chart(processed_data, x_scale, y_scale)}
+					d={render_line_chart(processed_data(), x_scale, y_scale)}
 					fill="none"
 					stroke={colors[0]}
 					stroke-width="3"
@@ -420,8 +446,8 @@
 
 				<!-- Area fill -->
 				<path
-					d={render_line_chart(processed_data, x_scale, y_scale) +
-						` L ${x_scale(processed_data[processed_data.length - 1].x, processed_data.length - 1)} ${inner_height} L ${x_scale(processed_data[0].x, 0)} ${inner_height} Z`}
+					d={render_line_chart(processed_data(), x_scale, y_scale) +
+						` L ${x_scale(processed_data()[processed_data().length - 1].x, processed_data().length - 1)} ${inner_height()} L ${x_scale(processed_data()[0].x, 0)} ${inner_height()} Z`}
 					fill="url(#chart-gradient)"
 					opacity="0.3"
 					class="area-fill"
@@ -429,15 +455,15 @@
 				/>
 			{:else if current_chart_type === 'bar'}
 				<!-- Bar chart -->
-				{#each processed_data as point, index (point.id || index)}
-					{@const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x)}
+				{#each processed_data() as point, index (point.id || index)}
+					{@const x = x_scale(point.x, index)}
 					{@const y = y_scale(point.y)}
 					{@const bar_width = get_bar_width()}
 					<rect
 						x={x - bar_width / 2}
 						{y}
 						width={bar_width}
-						height={inner_height - y}
+						height={inner_height() - y}
 						fill={colors[index % colors.length]}
 						stroke={selected_points.includes(point) ? '#000' : 'none'}
 						stroke-width="2"
@@ -449,8 +475,8 @@
 				{/each}
 			{:else if current_chart_type === 'scatter'}
 				<!-- Scatter plot -->
-				{#each processed_data as point, index (point.id || index)}
-					{@const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x)}
+				{#each processed_data() as point, index (point.id || index)}
+					{@const x = x_scale(point.x, index)}
 					{@const y = y_scale(point.y)}
 					<circle
 						cx={x}
@@ -467,46 +493,26 @@
 				{/each}
 			{:else if current_chart_type === 'heatmap'}
 				<!-- Heatmap -->
-				{#each processed_data as point, index (point.id || index)}
+				{#each processed_data() as point, index (point.id || index)}
 					{@const x =
-						(index % Math.ceil(Math.sqrt(processed_data.length))) *
-						(inner_width / Math.ceil(Math.sqrt(processed_data.length)))}
+						(index % Math.ceil(Math.sqrt(processed_data().length))) *
+						(inner_width() / Math.ceil(Math.sqrt(processed_data().length)))}
 					{@const y =
-						Math.floor(index / Math.ceil(Math.sqrt(processed_data.length))) *
-						(inner_height / Math.ceil(Math.sqrt(processed_data.length)))}
+						Math.floor(index / Math.ceil(Math.sqrt(processed_data().length))) *
+						(inner_height() / Math.ceil(Math.sqrt(processed_data().length)))}
 					{@const cell_size =
-						Math.min(inner_width, inner_height) / Math.ceil(Math.sqrt(processed_data.length))}
+						Math.min(inner_width(), inner_height()) / Math.ceil(Math.sqrt(processed_data().length))}
 					{@const intensity =
-						Math.abs(point.y) / Math.max(...processed_data.map((p) => Math.abs(p.y)))}
+						Math.abs(point.y) / Math.max(...processed_data().map((p: any) => Math.abs(p.y)))}
 					<rect
-						{x}
-						{y}
+						x={x}
+						y={y}
 						width={cell_size}
 						height={cell_size}
-						fill={colors[0]}
-						opacity={intensity}
-						stroke="#fff"
+						fill={`rgba(0, 102, 204, ${intensity})`}
+						stroke={selected_points.includes(point) ? '#000' : 'none'}
 						stroke-width="1"
 						class="heatmap-cell"
-						class:hovered={hovered_point === point}
-						class:animated={animation_enabled}
-					/>
-				{/each}
-			{/if}
-
-			<!-- Data points for line chart -->
-			{#if current_chart_type === 'line'}
-				{#each processed_data as point, index (point.id || index)}
-					{@const x = typeof x_scale === 'function' ? x_scale(point.x, index) : x_scale(point.x)}
-					{@const y = y_scale(point.y)}
-					<circle
-						cx={x}
-						cy={y}
-						r={selected_points.includes(point) ? 6 : hovered_point === point ? 5 : 3}
-						fill={colors[0]}
-						stroke="#fff"
-						stroke-width="2"
-						class="data-point"
 						class:hovered={hovered_point === point}
 						class:selected={selected_points.includes(point)}
 						class:animated={animation_enabled}
@@ -514,55 +520,15 @@
 				{/each}
 			{/if}
 		</g>
+			</svg>
+		</button>
 
-		<!-- Axes -->
-		<g class="axes">
-			<!-- X-axis -->
-			<line
-				x1={margin.left}
-				y1={margin.top + inner_height}
-				x2={margin.left + inner_width}
-				y2={margin.top + inner_height}
-				stroke="var(--axis-color, #333)"
-				stroke-width="2"
-			/>
-
-			<!-- Y-axis -->
-			<line
-				x1={margin.left}
-				y1={margin.top}
-				x2={margin.left}
-				y2={margin.top + inner_height}
-				stroke="var(--axis-color, #333)"
-				stroke-width="2"
-			/>
-
-			<!-- Axis labels -->
-			<text
-				x={margin.left + inner_width / 2}
-				y={height - 10}
-				text-anchor="middle"
-				class="axis-label"
-			>
-				{config.xAxisLabel || 'X Axis'}
-			</text>
-
-			<text
-				x={15}
-				y={margin.top + inner_height / 2}
-				text-anchor="middle"
-				transform="rotate(-90, 15, {margin.top + inner_height / 2})"
-				class="axis-label"
-			>
-				{config.yAxisLabel || 'Y Axis'}
-			</text>
-		</g>
-	</svg>
-
-	<!-- Tooltip -->
 	{#if tooltip}
-		<div class="chart-tooltip" style="left: {tooltip.x + 10}px; top: {tooltip.y - 10}px;">
-			{tooltip.content}
+		<div
+			class="chart-tooltip"
+			style="left: {tooltip.x}px; top: {tooltip.y}px;"
+		>
+			{@html tooltip.content}
 		</div>
 	{/if}
 </div>
@@ -570,204 +536,44 @@
 <style>
 	.advanced-interactive-chart {
 		position: relative;
-		display: flex;
-		flex-direction: column;
-		background: var(--chart-container-bg, #ffffff);
-		border-radius: 8px;
-		padding: 1.5rem;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-		cursor: crosshair;
+		max-width: 100%;
+	}
+
+	.chart-svg {
+		width: 100%;
+		height: 100%;
+		display: block;
 	}
 
 	.chart-controls {
 		display: flex;
-		flex-wrap: wrap;
+		gap: 12px;
+		align-items: center;
 		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 1.5rem;
-		padding: 1rem;
-		background: var(--controls-bg, #f8f9fa);
-		border-radius: 6px;
-		border: 1px solid var(--border-light, #e9ecef);
+		margin-bottom: 8px;
+		flex-wrap: wrap;
 	}
 
-	.control-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.control-label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-primary, #1a1a1a);
-		white-space: nowrap;
-	}
-
-	.chart-type-selector {
-		display: flex;
-		gap: 0.25rem;
-	}
-
-	.chart-type-btn {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.5rem;
-		background: var(--button-bg, #ffffff);
-		border: 1px solid var(--border-color, #ced4da);
-		border-radius: 4px;
-		cursor: pointer;
-		transition: all 0.2s;
-		font-size: 0.75rem;
-	}
-
-	.chart-type-btn:hover {
-		background: var(--button-hover-bg, #e9ecef);
-	}
-
-	.chart-type-btn.active {
-		background: var(--button-active-bg, #0066cc);
-		color: var(--button-active-text, #ffffff);
-		border-color: var(--button-active-border, #0066cc);
-	}
-
-	.chart-icon {
-		font-size: 1.2rem;
-	}
-
-	.chart-label {
-		font-size: 0.7rem;
-		white-space: nowrap;
-	}
-
-	.color-scheme-select {
-		padding: 0.4rem;
-		border: 1px solid var(--input-border, #ced4da);
-		border-radius: 4px;
-		background: var(--input-bg, #ffffff);
-		color: var(--text-primary, #1a1a1a);
-		font-size: 0.875rem;
-	}
-
+	.chart-type-btn,
 	.control-btn {
-		background: var(--button-secondary-bg, #6c757d);
-		color: var(--button-secondary-text, #ffffff);
-		border: none;
-		padding: 0.5rem 0.75rem;
-		border-radius: 4px;
 		cursor: pointer;
-		font-size: 0.8rem;
-		transition: background-color 0.2s;
-		white-space: nowrap;
 	}
 
-	.control-btn:hover {
-		background: var(--button-secondary-hover-bg, #5a6268);
-	}
-
+	.chart-type-btn.active,
 	.control-btn.active {
-		background: var(--button-success-bg, #28a745);
-	}
-
-	.zoom-info {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.25rem;
-		font-size: 0.8rem;
-		color: var(--text-secondary, #666666);
-	}
-
-	.chart-svg {
-		transition: transform 0.3s ease;
-		overflow: visible;
-	}
-
-	.chart-svg.animated .line-path,
-	.chart-svg.animated .area-fill,
-	.chart-svg.animated .bar-rect,
-	.chart-svg.animated .scatter-point,
-	.chart-svg.animated .heatmap-cell,
-	.chart-svg.animated .data-point {
-		transition: all 0.3s ease;
-	}
-
-	.data-point,
-	.scatter-point {
-		cursor: pointer;
-	}
-
-	.data-point:hover,
-	.scatter-point:hover,
-	.bar-rect:hover,
-	.heatmap-cell:hover {
-		filter: brightness(1.2);
-	}
-
-	.data-point.selected,
-	.scatter-point.selected,
-	.bar-rect.selected {
-		filter: brightness(1.3) drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
-	}
-
-	.axis-label {
-		font-size: 0.875rem;
-		fill: var(--text-primary, #1a1a1a);
-		font-weight: 500;
+		outline: 2px solid #0066cc;
 	}
 
 	.chart-tooltip {
 		position: absolute;
-		background: var(--tooltip-bg, rgba(0, 0, 0, 0.9));
-		color: var(--tooltip-text, #ffffff);
-		padding: 0.75rem;
-		border-radius: 6px;
-		font-size: 0.875rem;
 		pointer-events: none;
-		z-index: 10;
+		background: rgba(0, 0, 0, 0.75);
+		color: #fff;
+		padding: 4px 8px;
+		border-radius: 4px;
+		font-size: 12px;
+		transform: translate(8px, -24px);
 		white-space: nowrap;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	}
-
-	.chart-tooltip::before {
-		content: '';
-		position: absolute;
-		top: 100%;
-		left: 15px;
-		border: 6px solid transparent;
-		border-top-color: var(--tooltip-bg, rgba(0, 0, 0, 0.9));
-	}
-
-	@media (max-width: 768px) {
-		.advanced-interactive-chart {
-			padding: 1rem;
-		}
-
-		.chart-controls {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 1rem;
-		}
-
-		.control-group {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 0.5rem;
-		}
-
-		.chart-type-selector {
-			justify-content: space-between;
-		}
-
-		.chart-type-btn {
-			flex: 1;
-		}
-
-		.zoom-info {
-			align-items: center;
-		}
+		z-index: 10;
 	}
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+
 	import type { ContentBlock, EditorState } from '$lib/types/content.js';
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
 	import ContentBlockComponent from './ContentBlockComponent.svelte';
@@ -6,12 +7,12 @@
 	// Props
 	interface Props {
 		initialBlocks?: ContentBlock[];
-		onSave?: (blocks: ContentBlock[]) => void;
+		onsave?: (blocks: ContentBlock[]) => void;
 		autoSave?: boolean;
 		autoSaveDelay?: number;
 	}
 
-	let { initialBlocks = [], onSave, autoSave = true, autoSaveDelay = 1000 }: Props = $props();
+	let { initialBlocks = [], onsave, autoSave = true, autoSaveDelay = 1000 }: Props = $props();
 
 	// Editor state using Svelte 5 runes
 	let editor_state = $state<EditorState>({
@@ -22,7 +23,7 @@
 	});
 
 	// Auto-save functionality with debouncing
-	let auto_save_timeout = null;
+	let auto_save_timeout: number | null = null;
 
 	$effect(() => {
 		if (autoSave && editor_state.blocks.length > 0) {
@@ -32,7 +33,7 @@
 
 			auto_save_timeout = setTimeout(() => {
 				save_content();
-			}, autoSaveDelay);
+			}, autoSaveDelay) as unknown as number;
 		}
 	});
 
@@ -109,7 +110,7 @@
 	}
 
 	// Remove block
-	function remove_block(block_id) {
+	function remove_block(block_id: string) {
 		const index = editor_state.blocks.findIndex((b) => b.id === block_id);
 		if (index > -1) {
 			save_to_history();
@@ -127,7 +128,7 @@
 	}
 
 	// Update block content
-	function update_block(block_id, updates: Partial<ContentBlock>) {
+	function update_block(block_id: string, updates: Partial<ContentBlock>) {
 		const block = editor_state.blocks.find((b) => b.id === block_id);
 		if (block) {
 			Object.assign(block, updates);
@@ -165,7 +166,7 @@
 		drop_target_index = index;
 	}
 
-	function handle_drop(event: DragEvent, target_index) {
+	function handle_drop(event: DragEvent, target_index: number) {
 		event.preventDefault();
 
 		if (dragged_block_index === null || dragged_block_index === target_index) {
@@ -214,8 +215,8 @@
 
 	// Save content
 	function save_content() {
-		if (onSave) {
-			onSave(editor_state.blocks);
+		if (onsave) {
+			onsave(editor_state.blocks);
 		}
 
 		actions.addNotification({
@@ -225,7 +226,7 @@
 	}
 
 	// Select block
-	function select_block(block_id) {
+	function select_block(block_id: string | null) {
 		editor_state.selectedBlock = block_id;
 		editor_state.isEditing = block_id !== null;
 	}
@@ -247,7 +248,7 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handle_keydown} />
 
 <div class="content-editor">
 	<!-- Toolbar -->
@@ -292,7 +293,7 @@
 				↶ Undo
 			</button>
 
-			<button class="toolbar-btn primary" onclick={saveContent} title="Save (Ctrl+S)">
+			<button class="toolbar-btn primary" onclick={save_content} title="Save (Ctrl+S)">
 				💾 Save
 			</button>
 		</div>
@@ -313,7 +314,7 @@
 					class:drop-target={drop_target_index === index}
 					draggable="true"
 					ondragstart={(e) => handle_drag_start(e, index)}
-					ondragend={handleDragEnd}
+					ondragend={handle_drag_end}
 					ondragover={(e) => handle_drag_over(e, index)}
 					ondrop={(e) => handle_drop(e, index)}
 					onclick={() => select_block(block.id)}
@@ -350,7 +351,7 @@
 					<ContentBlockComponent
 						{block}
 						isSelected={editor_state.selectedBlock === block.id}
-						on:update={(e) => update_block(block.id, e.detail)}
+						onupdate={(e) => update_block(block.id, (e as CustomEvent).detail)}
 					/>
 				</div>
 			{/each}

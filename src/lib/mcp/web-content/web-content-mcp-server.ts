@@ -10,7 +10,7 @@ import { webContentState, webContentActions } from '../../stores/webContentState
 import { webContentFetcher } from '../../services/webContentFetcher';
 import { sourceManager } from '../../services/sourceManager';
 import { interactiveAnalyzer } from '../../services/interactiveAnalyzer';
-import { processingPipelineManager } from '../../services/processingPipeline';
+import { ProcessingPipelineManager } from '../../services/processingPipeline.js';
 import { webContentErrorHandler } from '../../services/webContentErrorHandler';
 
 /**
@@ -26,7 +26,7 @@ export class WebContentMcpServer {
     private webContentFetcher = webContentFetcher;
     private sourceManager = sourceManager;
     private interactiveAnalyzer = interactiveAnalyzer;
-    private processingPipeline = processingPipelineManager;
+    private processingPipeline = ProcessingPipelineManager.getInstance();
     private errorHandler = webContentErrorHandler;
 
     constructor() {

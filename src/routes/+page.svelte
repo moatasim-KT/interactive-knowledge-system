@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { appState, actions } from '$lib/stores/appState.svelte.ts';
+	import { appState, actions } from '$lib/stores/appState.svelte';
 	import { ContentEditor } from '$lib/components';
 	import type { ContentBlock } from '$lib/types/content';
 
@@ -68,7 +68,7 @@
 		});
 	}
 
-	// Handle content save
+	
 	function handleContentSave(blocks: ContentBlock[]) {
 		console.log('Content saved:', blocks);
 		actions.addNotification({
@@ -83,6 +83,7 @@
 	<nav class="nav-bar">
 		<h1>Interactive Knowledge System</h1>
 		<div class="nav-buttons">
+			<a class="nav-btn" href="/articles/machine-learning">🧠 ML Article</a>
 			<button
 				class="nav-btn"
 				class:active={current_view === 'demo'}
@@ -160,7 +161,7 @@
 			<div class="editor-container">
 				<ContentEditor
 					initialBlocks={sampleBlocks}
-					onSave={handleContentSave}
+					onsave={handleContentSave}
 					autoSave={true}
 					autoSaveDelay={2000}
 				/>

@@ -1,14 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { trapFocus, generateId, KEYBOARD_KEYS } from '$lib/utils/accessibility.js';
 
 	interface Props {
 		open?: boolean;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 		closable?: boolean;
 		title?: string;
-		onClose?: () => void;
 		class?: string;
 		children?: any;
+		// Accessibility props
+		'aria-label'?: string;
+		'aria-describedby'?: string;
+		id?: string;
+		role?: 'dialog' | 'alertdialog';
+		closeOnBackdropClick?: boolean;
+		closeOnEscape?: boolean;
+		initialFocus?: string; // selector for element to focus initially
+		returnFocus?: boolean; // whether to return focus to trigger element
+		// Svelte 5 event callback props
+		onclose?: () => void;
 	}
 
 	let {
@@ -16,13 +27,24 @@
 		size = 'md',
 		closable = true,
 		title,
-		onClose,
 		class: className = '',
-		children
+		children,
+		'aria-label': ariaLabel,
+		'aria-describedby': ariaDescribedby,
+		id = generateId('modal'),
+		role = 'dialog',
+		closeOnBackdropClick = true,
+		closeOnEscape = true,
+		initialFocus,
+		returnFocus = true,
+		onclose
 	}: Props = $props();
 
-	let dialog_element;
+	let dialog_element: HTMLDialogElement;
+	let content_element: HTMLElement;
 	let is_animating = $state(false);
+	let previous_active_element: Element | null = null;
+	let cleanup_focus_trap: (() => void) | null = null;
 
 	const size_classes = {
 		sm: 'max-w-sm',
@@ -32,6 +54,9 @@
 		full: 'max-w-full mx-4'
 	};
 
+	const titleId = $derived(title ? `${id}-title` : undefined);
+	const descriptionId = $derived(ariaDescribedby ? ariaDescribedby : undefined);
+
 	function handle_close() {
 		if (!closable) return;
 
@@ -39,33 +64,59 @@
 		setTimeout(() => {
 			open = false;
 			is_animating = false;
-			onClose?.();
+			onclose?.();
 		}, 200);
 	}
 
 	function handle_backdrop_click(event: MouseEvent) {
-		if (event.target === dialog_element) {
+		if (closeOnBackdropClick && event.target === dialog_element) {
 			handle_close();
 		}
 	}
 
 	function handle_keydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && closable) {
+		if (event.key === KEYBOARD_KEYS.ESCAPE && closable && closeOnEscape) {
+			event.preventDefault();
 			handle_close();
 		}
 	}
 
-	onMount(() => {
-		function handle_document_keydown(event: KeyboardEvent) {
-			if (open && event.key === 'Escape' && closable) {
-				handle_close();
+	function setup_focus_management() {
+		if (!open || !content_element) return;
+
+		// Store the previously focused element
+		previous_active_element = document.activeElement;
+
+		// Set up focus trap
+		cleanup_focus_trap = trapFocus(content_element);
+
+		// Focus initial element or first focusable element
+		if (initialFocus) {
+			const initialElement = content_element.querySelector(initialFocus) as HTMLElement;
+			if (initialElement) {
+				initialElement.focus();
 			}
 		}
+	}
 
-		document.addEventListener('keydown', handle_document_keydown);
+	function cleanup_focus_management() {
+		// Clean up focus trap
+		if (cleanup_focus_trap) {
+			cleanup_focus_trap();
+			cleanup_focus_trap = null;
+		}
 
+		// Return focus to previously focused element
+		if (returnFocus && previous_active_element instanceof HTMLElement) {
+			previous_active_element.focus();
+		}
+	}
+
+	onMount(() => {
 		return () => {
-			document.removeEventListener('keydown', handle_document_keydown);
+			// Cleanup on unmount
+			cleanup_focus_management();
+			document.body.style.overflow = '';
 		};
 	});
 
@@ -74,9 +125,15 @@
 			if (open) {
 				dialog_element.showModal();
 				document.body.style.overflow = 'hidden';
+				document.body.setAttribute('aria-hidden', 'true');
+				
+				// Set up focus management after the modal is shown
+				setTimeout(setup_focus_management, 0);
 			} else {
 				dialog_element.close();
 				document.body.style.overflow = '';
+				document.body.removeAttribute('aria-hidden');
+				cleanup_focus_management();
 			}
 		}
 	});
@@ -107,28 +164,38 @@
 
 <dialog
 	bind:this={dialog_element}
+	{id}
 	class={modal_classes()}
 	onclick={handle_backdrop_click}
 	onkeydown={handle_keydown}
 	aria-modal="true"
-	aria-labelledby={title ? 'modal-title' : undefined}
+	aria-labelledby={titleId}
+	aria-describedby={descriptionId}
+	aria-label={ariaLabel}
+	{role}
 >
-	<div class={content_classes()} onclick={(e) => e.stopPropagation()}>
+    <div 
+		bind:this={content_element}
+		class={content_classes()} 
+		onpointerdown={(e) => e.stopPropagation()} 
+		onpointerup={(e) => e.stopPropagation()}
+	>
 		{#if title || closable}
 			<header class="flex items-center justify-between p-6 border-b border-border">
 				{#if title}
-					<h2 id="modal-title" class="text-lg font-semibold text-text-primary">
+					<h2 id={titleId} class="text-lg font-semibold text-text-primary">
 						{title}
 					</h2>
 				{/if}
 
 				{#if closable}
 					<button
-						class="text-text-muted hover:text-text-primary transition-colors p-1 rounded-md hover:bg-surface-secondary"
+						class="text-text-muted hover:text-text-primary transition-colors p-1 rounded-md hover:bg-surface-secondary touch-target"
 						onclick={handle_close}
 						aria-label="Close modal"
+						type="button"
 					>
-						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
 							<path
 								fill-rule="evenodd"
 								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
@@ -140,7 +207,7 @@
 			</header>
 		{/if}
 
-		<div class="p-6">
+		<div class="p-6" id={descriptionId}>
 			{@render children?.()}
 		</div>
 	</div>

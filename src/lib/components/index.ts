@@ -31,12 +31,14 @@ export { default as CodeSnippetShare } from './CodeSnippetShare.svelte';
 
 // Sync and Status Components
 export { default as SyncStatus } from './SyncStatus.svelte';
+export { default as OfflineStatusIndicator } from './OfflineStatusIndicator.svelte';
 
 // Interactive Visualization Components
 export { default as InteractiveVisualizationBlock } from './InteractiveVisualizationBlock.svelte';
 export { default as InteractiveChartBlock } from './InteractiveChartBlock.svelte';
 export { default as InteractiveChart } from './InteractiveChart.svelte';
 export { default as ParameterControls } from './ParameterControls.svelte';
+export { default as NeuralNetworkVisualizer } from './NeuralNetworkVisualizer.svelte';
 
 // Simulation Components
 export { default as SimulationBlock } from './SimulationBlock.svelte';
@@ -57,4 +59,11 @@ export { default as WebContentAnalyzer } from './WebContentAnalyzer.svelte';
 // Error Handling Components
 export { default as ErrorBoundary } from './ErrorBoundary.svelte';
 export { default as FallbackComponent } from './FallbackComponent.svelte';
+export { default as AsyncWrapper } from './AsyncWrapper.svelte';
+export { default as ErrorToastSystem } from './ErrorToastSystem.svelte';
+export { default as SafeComponent } from './SafeComponent.svelte';
+export { default as GlobalErrorHandler } from './GlobalErrorHandler.svelte';
 export { default as LoadingFallback } from './LoadingFallback.svelte';
+
+// Performance Monitoring Components
+export { default as PerformanceMonitor } from './PerformanceMonitor.svelte';

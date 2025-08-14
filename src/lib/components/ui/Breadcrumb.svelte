@@ -20,14 +20,14 @@
 			: items
 	);
 
-	let container_classes = $derived(
+	let containerClasses = $derived(
 		['flex items-center space-x-2 text-sm', className].filter(Boolean).join(' ')
 	);
 </script>
 
 <nav class={containerClasses} aria-label="Breadcrumb">
 	<ol class="flex items-center space-x-2">
-		{#each displayItems as item, index (index)}
+		{#each display_items as item, index (index)}
 			<li class="flex items-center">
 				{#if index > 0}
 					<span class="text-text-muted mx-2" aria-hidden="true">

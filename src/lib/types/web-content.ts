@@ -61,6 +61,7 @@ export interface WebContent {
 		codeBlocks: CodeBlock[];
 		tables: TableData[];
 		charts: ChartData[];
+		blocks: ContentBlock[];
 	};
 	metadata: WebContentMetadata;
 	extraction: {
@@ -122,15 +123,20 @@ export interface ChartData {
  * Interactive opportunity detection
  */
 export interface InteractiveOpportunity {
+	id: string;
 	type:
-		| 'interactive-chart'
-		| 'interactive-code'
-		| 'interactive-table'
-		| 'simulation'
-		| 'parameter-explorer';
+	| 'interactive-chart'
+	| 'interactive-code'
+	| 'interactive-table'
+	| 'simulation'
+	| 'parameter-explorer';
+	title: string;
+	description: string;
 	confidence: number;
 	reasoning: string;
-	suggestedInteraction: InteractionSpec;
+	sourceElement: string;
+	parameters: Record<string, { type: string; value: any }>;
+	suggestedInteraction?: InteractionSpec;
 	sourceReference?: {
 		elementId?: string;
 		codeBlockId?: string;
@@ -143,11 +149,11 @@ export interface InteractiveOpportunity {
  */
 export interface InteractionSpec {
 	type:
-		| 'chart-explorer'
-		| 'code-editor'
-		| 'data-table'
-		| 'parameter-simulation'
-		| 'algorithm-stepper';
+	| 'chart-explorer'
+	| 'code-editor'
+	| 'data-table'
+	| 'parameter-simulation'
+	| 'algorithm-stepper';
 	parameters: {
 		[key: string]: {
 			type: 'slider' | 'dropdown' | 'toggle' | 'input';
@@ -203,6 +209,7 @@ export interface SimulationBlock extends Omit<ContentBlock, 'type'> {
 		visualization: VisualizationSpec;
 		sourceReference: SourceReference;
 	};
+	metadata: ContentBlock['metadata'];
 }
 
 export interface SystemDiagramBlock extends Omit<ContentBlock, 'type'> {

@@ -10,39 +10,46 @@
 	interface Props {
 		config: VisualizationConfig;
 		chartType?: string;
+		onconfigChange?: (event: CustomEvent) => void;
+		onexport?: (event: CustomEvent) => void;
+		onimport?: (event: CustomEvent) => void;
+		onerror?: (event: CustomEvent) => void;
 	}
 
 	let { config, chartType = 'line' }: Props = $props();
 
 	const dispatch = createEventDispatcher();
 
+	// Local types
+	type Theme = StyleConfig['theme'];
+
 	// Configuration sections
-	let active_section = 'layout';
-	let show_advanced = false;
+	let active_section = $state('layout');
+	let show_advanced = $state(false);
 
 	// Local config state
-	let layout_config: LayoutConfig = {
+	let layout_config: LayoutConfig = $state({
 		width: config.layout?.width || 800,
 		height: config.layout?.height || 500,
 		margin: config.layout?.margin || { top: 40, right: 40, bottom: 60, left: 60 },
 		responsive: config.layout?.responsive ?? true
-	};
+	});
 
-	let style_config: StyleConfig = {
+	let style_config: StyleConfig = $state({
 		theme: config.styling?.theme || 'light',
 		colors: config.styling?.colors || ['#0066cc', '#ff6b35', '#28a745', '#ffc107', '#dc3545'],
 		fonts: config.styling?.fonts || { family: 'system-ui', size: 12 }
-	};
+	});
 
-	let animation_config: AnimationConfig = {
+	let animation_config: AnimationConfig = $state({
 		enabled: config.animations?.enabled ?? true,
 		duration: config.animations?.duration || 300,
 		easing: config.animations?.easing || 'ease-in-out',
 		transitions: config.animations?.transitions || ['opacity', 'transform']
-	};
+	});
 
 	// Predefined options
-	const themes = [
+	const themes: { value: Theme; label: string; preview: string }[] = [
 		{ value: 'light', label: 'Light', preview: '#ffffff' },
 		{ value: 'dark', label: 'Dark', preview: '#1a1a1a' },
 		{ value: 'auto', label: 'Auto', preview: 'linear-gradient(45deg, #ffffff, #1a1a1a)' }
@@ -230,16 +237,16 @@
 			<button
 				class="toggle-advanced-btn"
 				class:active={show_advanced}
-				on:click={() => (show_advanced = !show_advanced)}
+				onclick={() => (show_advanced = !show_advanced)}
 				type="button"
 			>
 				⚙️ Advanced
 			</button>
-			<button class="reset-btn" on:click={reset_to_defaults} type="button"> 🔄 Reset </button>
-			<button class="export-btn" on:click={export_config} type="button"> 💾 Export </button>
+			<button class="reset-btn" onclick={reset_to_defaults} type="button"> 🔄 Reset </button>
+			<button class="export-btn" onclick={export_config} type="button"> 💾 Export </button>
 			<label class="import-btn">
 				📁 Import
-				<input type="file" accept=".json" on:change={import_config} style="display: none;" />
+				<input type="file" accept=".json" onchange={import_config} style="display: none;" />
 			</label>
 		</div>
 	</div>
@@ -250,7 +257,7 @@
 			<button
 				class="section-btn"
 				class:active={active_section === section.id}
-				on:click={() => (active_section = section.id)}
+				onclick={() => (active_section = section.id)}
 				type="button"
 			>
 				<span class="section-icon">{section.icon}</span>
@@ -267,80 +274,86 @@
 
 				<div class="config-grid">
 					<div class="config-group">
-						<label class="config-label">Dimensions</label>
-						<div class="dimension-controls">
-							<div class="dimension-input">
-								<label>Width:</label>
-								<input
-									type="number"
-									bind:value={layout_config.width}
-									min="200"
-									max="2000"
-									step="50"
-									class="number-input"
-								/>
-								<span class="unit">px</span>
-							</div>
-							<div class="dimension-input">
-								<label>Height:</label>
-								<input
-									type="number"
-									bind:value={layout_config.height}
-									min="200"
-									max="1500"
-									step="50"
-									class="number-input"
-								/>
-								<span class="unit">px</span>
-							</div>
+					<div class="config-label">Dimensions</div>
+					<div class="dimension-controls">
+						<div class="dimension-input">
+							<label for="layout-width">Width:</label>
+							<input
+								type="number"
+								bind:value={layout_config.width}
+								id="layout-width"
+								min="200"
+								max="2000"
+								step="50"
+								class="number-input"
+							/>
+							<span class="unit">px</span>
+						</div>
+						<div class="dimension-input">
+							<label for="layout-height">Height:</label>
+							<input
+								type="number"
+								bind:value={layout_config.height}
+								id="layout-height"
+								min="200"
+								max="1500"
+								step="50"
+								class="number-input"
+							/>
+							<span class="unit">px</span>
 						</div>
 					</div>
+				</div>
 
 					<div class="config-group">
-						<label class="config-label">Margins</label>
-						<div class="margin-controls">
-							<div class="margin-input">
-								<label>Top:</label>
-								<input
-									type="number"
-									bind:value={layout_config.margin.top}
-									min="0"
-									max="100"
-									class="number-input small"
-								/>
-							</div>
-							<div class="margin-input">
-								<label>Right:</label>
-								<input
-									type="number"
-									bind:value={layout_config.margin.right}
-									min="0"
-									max="100"
-									class="number-input small"
-								/>
-							</div>
-							<div class="margin-input">
-								<label>Bottom:</label>
-								<input
-									type="number"
-									bind:value={layout_config.margin.bottom}
-									min="0"
-									max="100"
-									class="number-input small"
-								/>
-							</div>
-							<div class="margin-input">
-								<label>Left:</label>
-								<input
-									type="number"
-									bind:value={layout_config.margin.left}
-									min="0"
-									max="100"
-									class="number-input small"
-								/>
-							</div>
+					<div class="config-label">Margins</div>
+					<div class="margin-controls">
+						<div class="margin-input">
+							<label for="margin-top">Top:</label>
+							<input
+								type="number"
+								bind:value={layout_config.margin.top}
+								id="margin-top"
+								min="0"
+								max="100"
+								class="number-input small"
+							/>
+						</div>
+						<div class="margin-input">
+							<label for="margin-right">Right:</label>
+							<input
+								type="number"
+								bind:value={layout_config.margin.right}
+								id="margin-right"
+								min="0"
+								max="100"
+								class="number-input small"
+							/>
+						</div>
+						<div class="margin-input">
+							<label for="margin-bottom">Bottom:</label>
+							<input
+								type="number"
+								bind:value={layout_config.margin.bottom}
+								id="margin-bottom"
+								min="0"
+								max="100"
+								class="number-input small"
+							/>
+						</div>
+						<div class="margin-input">
+							<label for="margin-left">Left:</label>
+							<input
+								type="number"
+								bind:value={layout_config.margin.left}
+								id="margin-left"
+								min="0"
+								max="100"
+								class="number-input small"
+							/>
 						</div>
 					</div>
+				</div>
 
 					<div class="config-group">
 						<label class="config-label">
@@ -363,13 +376,13 @@
 
 				<div class="config-grid">
 					<div class="config-group">
-						<label class="config-label">Theme</label>
-						<div class="theme-selector">
+					<div class="config-label">Theme</div>
+					<div class="theme-selector">
 							{#each themes as theme (theme.value)}
 								<button
 									class="theme-btn"
 									class:active={style_config.theme === theme.value}
-									on:click={() => {
+									onclick={() => {
 										style_config.theme = theme.value;
 										update_config();
 									}}
@@ -383,12 +396,12 @@
 					</div>
 
 					<div class="config-group">
-						<label class="config-label">Color Palette</label>
-						<div class="palette-selector">
+					<div class="config-label">Color Palette</div>
+					<div class="palette-selector">
 							{#each color_palettes as palette (palette.name)}
 								<button
 									class="palette-btn"
-									on:click={() => apply_color_palette(palette.colors)}
+									onclick={() => apply_color_palette(palette.colors)}
 									type="button"
 								>
 									<div class="palette-preview">
@@ -403,25 +416,25 @@
 					</div>
 
 					<div class="config-group">
-						<label class="config-label">Custom Colors</label>
-						<div class="color-editor">
+					<div class="config-label">Custom Colors</div>
+					<div class="color-editor">
 							{#each style_config.colors as color, index (index)}
 								<div class="color-input-group">
 									<input
 										type="color"
 										value={color}
-										on:input={(e) => update_color(index, e.currentTarget.value)}
+										oninput={(e) => update_color(index, e.currentTarget.value)}
 										class="color-input"
 									/>
 									<input
 										type="text"
 										value={color}
-										on:input={(e) => update_color(index, e.currentTarget.value)}
+										oninput={(e) => update_color(index, e.currentTarget.value)}
 										class="color-text-input"
 									/>
 									<button
 										class="remove-color-btn"
-										on:click={() => remove_color(index)}
+										onclick={() => remove_color(index)}
 										disabled={style_config.colors.length <= 1}
 										type="button"
 									>
@@ -429,48 +442,50 @@
 									</button>
 								</div>
 							{/each}
-							<button class="add-color-btn" on:click={add_custom_color} type="button">
+							<button class="add-color-btn" onclick={add_custom_color} type="button">
 								+ Add Color
 							</button>
 						</div>
 					</div>
 
 					<div class="config-group">
-						<label class="config-label">Typography</label>
-						<div class="typography-controls">
-							<div class="font-control">
-								<label>Font Family:</label>
-								<select bind:value={style_config.fonts.family} class="font-select">
-									{#each font_families as font (font)}
-										<option value={font}>{font}</option>
-									{/each}
-								</select>
-							</div>
-							<div class="font-control">
-								<label>Font Size:</label>
-								<input
-									type="number"
-									bind:value={style_config.fonts.size}
-									min="8"
-									max="24"
-									class="number-input small"
-								/>
-								<span class="unit">px</span>
-							</div>
+					<div class="config-label">Typography</div>
+					<div class="typography-controls">
+						<div class="font-control">
+							<label for="font-family">Font Family:</label>
+							<select bind:value={style_config.fonts.family} class="font-select" id="font-family">
+								{#each font_families as font (font)}
+									<option value={font}>{font}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="font-control">
+							<label for="font-size">Font Size:</label>
+							<input
+								type="number"
+								bind:value={style_config.fonts.size}
+								id="font-size"
+								min="8"
+								max="24"
+								class="number-input small"
+							/>
+							<span class="unit">px</span>
 						</div>
 					</div>
-				</div>
 			</div>
-		{:else if active_section === 'animations'}
+		</div>
+	</div>
+	{:else if active_section === 'animations'}
 			<div class="config-section">
 				<h4>Animation Configuration</h4>
 
 				<div class="config-grid">
 					<div class="config-group">
-						<label class="config-label">
+						<label class="config-label" for="animation-enabled">
 							<input
 								type="checkbox"
 								bind:checked={animation_config.enabled}
+								id="animation-enabled"
 								class="checkbox-input"
 							/>
 							Enable Animations
@@ -480,38 +495,39 @@
 
 					{#if animation_config.enabled}
 						<div class="config-group">
-							<label class="config-label">Duration</label>
-							<div class="duration-control">
-								<input
-									type="range"
-									bind:value={animation_config.duration}
-									min="100"
-									max="2000"
-									step="50"
-									class="range-input"
-								/>
-								<span class="duration-value">{animation_config.duration}ms</span>
-							</div>
-						</div>
+					<label class="config-label" for="animation-duration">Duration</label>
+					<div class="duration-control">
+						<input
+							type="range"
+							bind:value={animation_config.duration}
+							id="animation-duration"
+							min="100"
+							max="2000"
+							step="50"
+							class="range-input"
+						/>
+						<span class="duration-value">{animation_config.duration}ms</span>
+					</div>
+				</div>
 
 						<div class="config-group">
-							<label class="config-label">Easing Function</label>
-							<select bind:value={animation_config.easing} class="easing-select">
-								{#each easing_functions as easing (easing)}
-									<option value={easing}>{easing}</option>
-								{/each}
-							</select>
-						</div>
+					<label class="config-label" for="easing-select">Easing Function</label>
+					<select bind:value={animation_config.easing} class="easing-select" id="easing-select">
+						{#each easing_functions as easing (easing)}
+							<option value={easing}>{easing}</option>
+						{/each}
+					</select>
+				</div>
 
 						<div class="config-group">
-							<label class="config-label">Transition Properties</label>
-							<div class="transition-checkboxes">
+					<div class="config-label">Transition Properties</div>
+					<div class="transition-checkboxes">
 								{#each transition_properties as property (property)}
 									<label class="transition-checkbox">
 										<input
 											type="checkbox"
 											checked={animation_config.transitions.includes(property)}
-											on:change={() => toggle_transition(property)}
+											onchange={() => toggle_transition(property)}
 											class="checkbox-input"
 										/>
 										{property}
@@ -522,8 +538,8 @@
 
 						{#if show_advanced}
 							<div class="config-group">
-								<label class="config-label">Animation Preview</label>
-								<div class="animation-preview">
+						<div class="config-label">Animation Preview</div>
+						<div class="animation-preview">
 									<div
 										class="preview-element"
 										style="
@@ -533,8 +549,8 @@
 									></div>
 									<button
 										class="preview-trigger-btn"
-										on:click={() => {
-											const el = document.querySelector('.preview-element');
+										onclick={() => {
+											const el = document.querySelector<HTMLElement>('.preview-element');
 											if (el) {
 												el.style.transform = el.style.transform
 													? ''
@@ -553,67 +569,67 @@
 			</div>
 		{:else if active_section === 'interactions'}
 			<div class="config-section">
-				<h4>Interaction Configuration</h4>
+				<div>Interaction Configuration</div>
 
 				<div class="config-grid">
 					<div class="config-group">
-						<label class="config-label">Hover Effects</label>
-						<div class="interaction-options">
-							<label class="interaction-checkbox">
-								<input type="checkbox" checked class="checkbox-input" />
-								Show tooltips on hover
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" checked class="checkbox-input" />
-								Highlight data points
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" class="checkbox-input" />
-								Show crosshairs
-							</label>
-						</div>
+					<div class="config-label">Hover Effects</div>
+					<div class="interaction-options">
+						<label class="interaction-checkbox">
+							<input type="checkbox" checked class="checkbox-input" />
+							Show tooltips on hover
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" checked class="checkbox-input" />
+							Highlight data points
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" class="checkbox-input" />
+							Show crosshairs
+						</label>
 					</div>
+				</div>
 
 					<div class="config-group">
-						<label class="config-label">Click Interactions</label>
-						<div class="interaction-options">
-							<label class="interaction-checkbox">
-								<input type="checkbox" checked class="checkbox-input" />
-								Select data points
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" class="checkbox-input" />
-								Drill down on click
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" class="checkbox-input" />
-								Show detailed view
-							</label>
-						</div>
+					<div class="config-label">Click Interactions</div>
+					<div class="interaction-options">
+						<label class="interaction-checkbox">
+							<input type="checkbox" checked class="checkbox-input" />
+							Select data points
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" class="checkbox-input" />
+							Drill down on click
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" class="checkbox-input" />
+							Show detailed view
+						</label>
 					</div>
+				</div>
 
 					<div class="config-group">
-						<label class="config-label">Zoom & Pan</label>
-						<div class="interaction-options">
-							<label class="interaction-checkbox">
-								<input type="checkbox" checked class="checkbox-input" />
-								Enable mouse wheel zoom
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" class="checkbox-input" />
-								Enable pan with drag
-							</label>
-							<label class="interaction-checkbox">
-								<input type="checkbox" class="checkbox-input" />
-								Show zoom controls
-							</label>
-						</div>
+					<div class="config-label">Zoom & Pan</div>
+					<div class="interaction-options">
+						<label class="interaction-checkbox">
+							<input type="checkbox" checked class="checkbox-input" />
+							Enable mouse wheel zoom
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" class="checkbox-input" />
+							Enable pan with drag
+						</label>
+						<label class="interaction-checkbox">
+							<input type="checkbox" class="checkbox-input" />
+							Show zoom controls
+						</label>
 					</div>
+				</div>
 
 					{#if show_advanced}
 						<div class="config-group">
-							<label class="config-label">Advanced Interactions</label>
-							<div class="interaction-options">
+						<div class="config-label">Advanced Interactions</div>
+						<div class="interaction-options">
 								<label class="interaction-checkbox">
 									<input type="checkbox" class="checkbox-input" />
 									Brush selection

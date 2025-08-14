@@ -1,24 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import { searchEngine, type SearchFilters } from '../utils/searchEngine.js';
 	import { contentStorage } from '../storage/contentStorage.js';
 	import type { SearchResult } from '../types/interactive.js';
+
+	const dispatch = createEventDispatcher();
 
 	// Props
 	interface Props {
 		placeholder?: string;
 		showFilters?: boolean;
 		maxResults?: number;
-		onResultSelect?: (result: SearchResult) => void;
 	}
 
-	let {
-		placeholder = 'Search knowledge base...',
-		showFilters = true,
-		maxResults = 20,
-		onResultSelect
-	}: Props = $props();
+	let { placeholder = 'Search knowledge base...', showFilters = true, maxResults = 20 }: Props = $props();
 
 	// Component state
 	let search_input = $state('');
@@ -103,7 +99,6 @@
 		try {
 			// Get modules for search
 			const all_modules = await contentStorage.getAllModules();
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const modules_map = new Map<string, any>();
 			for (const module of all_modules) {
 				modules_map.set(module.id, module);
@@ -160,7 +155,7 @@
 		// Debounce search
 		debounce_timer = setTimeout(() => {
 			perform_search();
-		}, 300);
+		}, 300) as unknown as number;
 	}
 
 	/**
@@ -179,9 +174,7 @@
 		show_results = false;
 		show_suggestions = false;
 
-		if (onResultSelect) {
-			onResultSelect(result);
-		}
+		dispatch('resultselect', result);
 
 		// Navigate to the selected content
 		const node = appState.content.nodes.get(result.id);
@@ -373,66 +366,74 @@
 
 			<!-- Content Type Filter -->
 			<div class="filter-group">
-				<label class="filter-label">Content Types</label>
-				<div class="filter-options">
-					{#each available_content_types as type (type)}
-						<label class="filter-checkbox">
-							<input
-								type="checkbox"
-								bind:group={filters.contentTypes}
-								value={type}
-								onchange={apply_filters}
-							/>
-							{type}
-						</label>
-					{/each}
-				</div>
+				<fieldset>
+					<legend class="filter-label">Content Types</legend>
+					<div class="filter-options">
+						{#each available_content_types as type (type)}
+							<label class="filter-checkbox">
+								<input
+									type="checkbox"
+									bind:group={filters.contentTypes}
+									value={type}
+									onchange={apply_filters}
+								/>
+								{type}
+							</label>
+						{/each}
+					</div>
+				</fieldset>
 			</div>
 
 			<!-- Tags Filter -->
 			{#if available_tags.length > 0}
 				<div class="filter-group">
-					<label class="filter-label">Tags</label>
-					<div class="filter-options">
-						{#each available_tags.slice(0, 10) as tag (tag)}
-							<label class="filter-checkbox">
-								<input
-									type="checkbox"
-									bind:group={filters.tags}
-									value={tag}
-									onchange={apply_filters}
-								/>
-								{tag}
-							</label>
-						{/each}
-					</div>
+					<fieldset>
+						<legend class="filter-label">Tags</legend>
+						<div class="filter-options">
+							{#each available_tags.slice(0, 10) as tag (tag)}
+								<label class="filter-checkbox">
+									<input
+										type="checkbox"
+										bind:group={filters.tags}
+										value={tag}
+										onchange={apply_filters}
+									/>
+									{tag}
+								</label>
+							{/each}
+						</div>
+					</fieldset>
 				</div>
 			{/if}
 
 			<!-- Difficulty Filter -->
 			<div class="filter-group">
-				<label class="filter-label">Difficulty</label>
-				<div class="filter-options">
-					{#each [1, 2, 3, 4, 5] as difficulty (difficulty)}
-						<label class="filter-checkbox">
-							<input
-								type="checkbox"
-								bind:group={filters.difficulty}
-								value={difficulty}
-								onchange={apply_filters}
-							/>
-							Level {difficulty}
-						</label>
-					{/each}
-				</div>
+				<fieldset>
+					<legend class="filter-label">Difficulty</legend>
+					<div class="filter-options">
+						{#each [1, 2, 3, 4, 5] as difficulty (difficulty)}
+							<label class="filter-checkbox">
+								<input
+									id="difficulty-filter-{difficulty}"
+									type="checkbox"
+									bind:group={filters.difficulty}
+									value={difficulty}
+									onchange={apply_filters}
+								/>
+								Level {difficulty}
+							</label>
+						{/each}
+					</div>
+				</fieldset>
 			</div>
 
 			<!-- Minimum Relevance Filter -->
 			<div class="filter-group">
-				<label class="filter-label">
+				<label class="filter-label" for="min-relevance-filter">
 					Minimum Relevance: {filters.minRelevance}
 				</label>
 				<input
+					id="min-relevance-filter"
 					type="range"
 					min="0"
 					max="100"

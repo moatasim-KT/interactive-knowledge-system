@@ -18,7 +18,7 @@
 		...rest
 	}: Props = $props();
 
-	let image_error = $state(false);
+	let imageError = $state(false);
 	let image_loaded = $state(false);
 
 	const size_classes = {
@@ -47,7 +47,7 @@
 	};
 
 	function handle_image_error() {
-		image_error = true;
+		imageError = true;
 	}
 
 	function handle_image_load() {
@@ -75,15 +75,15 @@
 </script>
 
 <div class={classes} {...rest}>
-	{#if src && !image_error}
+	{#if src && !imageError}
 		<img
 			{src}
 			{alt}
 			class="w-full h-full object-cover transition-opacity duration-300"
 			class:opacity-0={!image_loaded}
-			class:opacity-100={imageLoaded}
-			onerror={handleImageError}
-			onload={handleImageLoad}
+			class:opacity-100={image_loaded}
+			onerror={handle_image_error}
+			onload={handle_image_load}
 		/>
 	{:else if fallback}
 		<span class="select-none">

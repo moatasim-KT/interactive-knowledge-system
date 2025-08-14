@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { KnowledgeTree, SearchEngine, ProgressTracker } from '$lib/components';
-	import { appState, actions } from '$lib/stores/appState.svelte.ts';
-	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
+import { KnowledgeTree, SearchEngine, ProgressTracker } from '$lib/components';
+import { appState, actions } from '$lib/stores/appState.svelte';
+import type { KnowledgeNode } from '$lib/types/knowledge';
 
 	// Initialize test data
 	const testNodes: KnowledgeNode[] = [

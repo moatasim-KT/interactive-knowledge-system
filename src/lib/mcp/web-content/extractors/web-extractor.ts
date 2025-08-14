@@ -7,7 +7,7 @@ import type {
 	TwitterCardData as TwitterCardDataType,
 	StructuredData as StructuredDataType
 } from '../types';
-import { createLogger } from '../../../../utils/logger';
+import { createLogger } from '../../../utils/logger.js';
 
 // Define a type for the logger to avoid importing it multiple times
 type Logger = ReturnType<typeof createLogger>;
@@ -288,9 +288,9 @@ export class WebExtractor extends BaseContentExtractor {
 		const structured_data = await this.extract_structured_data(html, url);
 		if (structured_data.opengraph) {
 			const og = structured_data.opengraph as Record<string, any>;
-			if (og.title) {metadata.title = og.title;}
-			if (og.description) {metadata.description = og.description;}
-			if (og.site_name) {metadata.site_name = og.site_name;}
+			if (og.title) { metadata.title = og.title; }
+			if (og.description) { metadata.description = og.description; }
+			if (og.site_name) { metadata.site_name = og.site_name; }
 			if (og.image) {
 				if (typeof og.image === 'string') {
 					metadata.image = og.image;
@@ -298,9 +298,9 @@ export class WebExtractor extends BaseContentExtractor {
 					metadata.image = og.image.url;
 				}
 			}
-			if (og.article_published_time) {metadata.published_date = og.article_published_time;}
-			if (og.article_modified_time) {metadata.modified_date = og.article_modified_time;}
-			if (og.locale) {metadata.language = og.locale;}
+			if (og.article_published_time) { metadata.published_date = og.article_published_time; }
+			if (og.article_modified_time) { metadata.modified_date = og.article_modified_time; }
+			if (og.locale) { metadata.language = og.locale; }
 		}
 
 		return metadata;
@@ -414,7 +414,7 @@ export class WebExtractor extends BaseContentExtractor {
 	 * Check if a URL points to a valid image
 	 */
 	private is_valid_image_url(url: string): boolean {
-		if (!url) {return false;}
+		if (!url) { return false; }
 
 		try {
 			const url_obj = new URL(url);

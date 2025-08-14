@@ -262,17 +262,64 @@
 				{:else}
 					<div class="lesson-content">
 						<h2>Content</h2>
-						<div class="content-placeholder">
-							<p>This is where the actual lesson content would be displayed.</p>
-							<p>In a full implementation, this would show:</p>
-							<ul>
-								<li>Rich text content with formatting</li>
-								<li>Interactive elements (quizzes, exercises)</li>
-								<li>Media content (images, videos)</li>
-								<li>Code examples with syntax highlighting</li>
-								<li>Progress tracking within the lesson</li>
-							</ul>
-						</div>
+						{#if node.id === 'ml-fundamentals'}
+							<div class="interactive-article-preview">
+								<div class="article-description">
+									<p>
+										<strong>Interactive Machine Learning Fundamentals</strong> - A comprehensive guide featuring:
+									</p>
+									<ul class="feature-list">
+										<li>🧠 Interactive neural network visualization with adjustable parameters</li>
+										<li>📊 Data exploration charts with filtering capabilities</li>
+										<li>⚙️ Algorithm simulations (Gradient Descent & K-Means)</li>
+										<li>🧩 Interactive quizzes with immediate feedback</li>
+										<li>📱 Mobile-responsive design</li>
+									</ul>
+								</div>
+								
+								<div class="article-actions">
+									<button 
+										class="start-article-btn"
+										onclick={() => {
+											actions.startModule(node.id);
+											goto('/articles/machine-learning');
+										}}
+									>
+										🚀 Start Interactive Learning
+									</button>
+									
+									<button 
+										class="preview-btn"
+										onclick={() => window.open('/articles/machine-learning', '_blank')}
+									>
+										👁️ Preview Article
+									</button>
+								</div>
+								
+								<div class="learning-objectives">
+									<h3>Learning Objectives</h3>
+									<ul>
+										<li>Understand neural network architecture and activation functions</li>
+										<li>Explore data patterns through interactive visualization</li>
+										<li>Watch optimization algorithms converge step-by-step</li>
+										<li>Experience unsupervised learning with clustering</li>
+										<li>Test knowledge with interactive assessments</li>
+									</ul>
+								</div>
+							</div>
+						{:else}
+							<div class="content-placeholder">
+								<p>This is where the actual lesson content would be displayed.</p>
+								<p>In a full implementation, this would show:</p>
+								<ul>
+									<li>Rich text content with formatting</li>
+									<li>Interactive elements (quizzes, exercises)</li>
+									<li>Media content (images, videos)</li>
+									<li>Code examples with syntax highlighting</li>
+									<li>Progress tracking within the lesson</li>
+								</ul>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -642,6 +689,117 @@
 		color: var(--text-secondary, #666);
 	}
 
+	.interactive-article-preview {
+		background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+		border: 2px solid var(--primary-color, #2196f3);
+		border-radius: 16px;
+		padding: 2rem;
+		margin-bottom: 2rem;
+	}
+
+	.article-description {
+		margin-bottom: 2rem;
+	}
+
+	.article-description p {
+		font-size: 1.1rem;
+		color: var(--text-primary, #333);
+		margin-bottom: 1rem;
+	}
+
+	.feature-list {
+		list-style: none;
+		padding: 0;
+		margin: 1rem 0;
+	}
+
+	.feature-list li {
+		padding: 0.5rem 0;
+		font-size: 1rem;
+		color: var(--text-primary, #333);
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.article-actions {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 2rem;
+		flex-wrap: wrap;
+	}
+
+	.start-article-btn {
+		background: linear-gradient(135deg, #2196f3, #1976d2);
+		color: white;
+		border: none;
+		padding: 1rem 2rem;
+		border-radius: 12px;
+		font-size: 1.1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+	}
+
+	.start-article-btn:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+		background: linear-gradient(135deg, #1976d2, #1565c0);
+	}
+
+	.preview-btn {
+		background: var(--card-bg, #ffffff);
+		color: var(--text-primary, #333);
+		border: 2px solid var(--border-color, #e0e0e0);
+		padding: 1rem 2rem;
+		border-radius: 12px;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.3s ease;
+	}
+
+	.preview-btn:hover {
+		border-color: var(--primary-color, #2196f3);
+		background: var(--hover-color, #f0f8ff);
+		transform: translateY(-1px);
+	}
+
+	.learning-objectives {
+		background: var(--card-bg, #ffffff);
+		border: 1px solid var(--border-color, #e0e0e0);
+		border-radius: 12px;
+		padding: 1.5rem;
+	}
+
+	.learning-objectives h3 {
+		margin: 0 0 1rem 0;
+		color: var(--text-primary, #333);
+		font-size: 1.2rem;
+		font-weight: 600;
+	}
+
+	.learning-objectives ul {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.learning-objectives li {
+		padding: 0.5rem 0;
+		color: var(--text-primary, #333);
+		position: relative;
+		padding-left: 1.5rem;
+	}
+
+	.learning-objectives li::before {
+		content: '🎯';
+		position: absolute;
+		left: 0;
+		top: 0.5rem;
+	}
+
 	.empty-folder {
 		text-align: center;
 		padding: 3rem;
@@ -792,6 +950,20 @@
 
 		.child-nodes {
 			grid-template-columns: 1fr;
+		}
+
+		.article-actions {
+			flex-direction: column;
+		}
+
+		.start-article-btn,
+		.preview-btn {
+			width: 100%;
+			text-align: center;
+		}
+
+		.interactive-article-preview {
+			padding: 1.5rem;
 		}
 	}
 </style>

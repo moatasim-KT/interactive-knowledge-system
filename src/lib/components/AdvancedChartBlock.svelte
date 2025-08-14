@@ -5,29 +5,23 @@
     import ChartConfigurator from './ChartConfigurator.svelte';
     import DrillDownChart from './DrillDownChart.svelte';
 
+    import { createEventDispatcher } from 'svelte';
+
+const dispatch = createEventDispatcher();
+
     // Svelte 5 runes mode: use $props() instead of `export let`
     let {
         block,
         editable = false,
-        onViewChange,
-        onChartTypeChange,
-        onDataChange,
-        onConfigChange,
-        onChartInteraction,
-        onDrillDown,
-        onExport,
-        onFullscreenToggle
+        ondrillDown,
+        ondrillUp,
+        onreset
     } = $props<{
         block: InteractiveChartBlock;
         editable?: boolean;
-        onViewChange?: (e: { view: string; blockId: string }) => void;
-        onChartTypeChange?: (e: { chartType: InteractiveChartBlock['content']['chartType']; blockId: string }) => void;
-        onDataChange?: (e: { data: any; filters: DataFilter[]; blockId: string }) => void;
-        onConfigChange?: (e: { config: VisualizationConfig; blockId: string }) => void;
-        onChartInteraction?: (e: any) => void;
-        onDrillDown?: (e: any) => void;
-        onExport?: (e: { format: string; data: any; blockId: string }) => void;
-        onFullscreenToggle?: (e: { blockId: string }) => void;
+        ondrillDown?: (event: any) => void;
+        ondrillUp?: (event: any) => void;
+        onreset?: (event: any) => void;
     }>();
 
     // Component state (runes)
@@ -155,12 +149,13 @@
     // Event handlers
     function handle_view_change(view: string) {
         active_view = view as any;
-        onViewChange?.({ view, blockId: block.id });
+        dispatch('viewchange', { view, blockId: block.id });
     }
 
-    function handle_chart_type_change(event: { detail: { chartType: ChartType } }) {
-        current_chart_type = event.detail.chartType;
-        onChartTypeChange?.({ chartType: current_chart_type, blockId: block.id });
+    function handle_chart_type_change(event: { detail: { chartType: ChartType } } | { chartType: ChartType }) {
+        const nextType = 'detail' in event ? event.detail.chartType : event.chartType;
+        current_chart_type = nextType as ChartType;
+        dispatch('charttypechange', { chartType: current_chart_type, blockId: block.id });
     }
 
     function handle_data_change(event: CustomEvent) {
@@ -168,7 +163,7 @@
         processed_data = data;
         active_filters = filters;
 
-		onDataChange?.({
+		dispatch('datachange', {
 			data: processed_data,
 			filters: active_filters,
 			blockId: block.id
@@ -177,7 +172,7 @@
 
 	function handle_config_change(event: CustomEvent) {
 		chart_config = { ...chart_config, ...event.detail.config };
-		onConfigChange?.({
+		dispatch('configchange', {
 			config: chart_config,
 			blockId: block.id
 		});
@@ -191,7 +186,7 @@
 			data_summary.selected_rows = event.detail.selected.length;
 		}
 
-		onChartInteraction?.({
+		dispatch('chartinteraction', {
 			type,
 			point,
 			coordinates,
@@ -201,7 +196,7 @@
 	}
 
 	function handle_drill_down(event: CustomEvent) {
-		onDrillDown?.({
+		dispatch('drilldown', {
 			...event.detail,
 			blockId: block.id
 		});
@@ -225,7 +220,7 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		onExport?.({
+		dispatch('export', {
 			format: 'json',
 			data: export_data,
 			blockId: block.id
@@ -242,7 +237,7 @@
 			}
 		}
 
-		onFullscreenToggle?.({ blockId: block.id });
+		dispatch('fullscreentoggle', { blockId: block.id });
 	}
 
 	function get_chart_features(chart_type: string): string[] {
@@ -369,18 +364,18 @@
 
 				<!-- Advanced Interactive Chart -->
 				<div class="chart-container">
-					<AdvancedInteractiveChart
+                    <AdvancedInteractiveChart
 						data={block.content.data}
 						chartType={safe_chart_type}
 						filters={active_filters}
 						interactions={block.content.interactions}
 						config={chart_config}
-						on:hover={handle_chart_interaction}
-						on:select={handle_chart_interaction}
-						on:zoom={handle_chart_interaction}
-						on:chart-type-change={handle_chart_type_change}
-						on:animation-toggle={handle_chart_interaction}
-						on:export={handle_chart_interaction}
+                        onHover={(p) => handle_chart_interaction(new CustomEvent('interaction', { detail: { type: 'hover', ...p } }))}
+                        onSelect={(p) => handle_chart_interaction(new CustomEvent('interaction', { detail: { type: 'select', ...p } }))}
+                        onZoom={(p) => handle_chart_interaction(new CustomEvent('interaction', { detail: { type: 'zoom', ...p } }))}
+                        onChartTypeChange={(p) => handle_chart_type_change({ chartType: p.chartType as ChartType })}
+                        onAnimationToggle={(p) => handle_chart_interaction(new CustomEvent('interaction', { detail: { type: 'animation-toggle', ...p } }))}
+                        onExport={(p) => handle_chart_interaction(new CustomEvent('interaction', { detail: { type: 'export', ...p } }))}
 					/>
 				</div>
 			</div>
@@ -395,15 +390,15 @@
 					<p>{get_view_description('drilldown')}</p>
 				</div>
 
-				<DrillDownChart
+                <DrillDownChart
 					data={block.content.data}
 					chartType={safe_chart_type}
 					hierarchyField="category"
 					valueField="value"
-					on:drillDown={handle_drill_down}
-					on:drillUp={handle_drill_down}
-					on:reset={handle_drill_down}
-					on:chartInteraction={handle_chart_interaction}
+                    ondrillDown={handle_drill_down}
+                    ondrillUp={handle_drill_down}
+                    onreset={handle_drill_down}
+                    onchartInteraction={handle_chart_interaction}
 				/>
 			</div>
 		{:else if active_view === 'config'}
@@ -413,13 +408,13 @@
 					<p>{get_view_description('config')}</p>
 				</div>
 
-				<ChartConfigurator
+                <ChartConfigurator
 					config={chart_config}
 					chartType={safe_chart_type}
-					on:configChange={handle_config_change}
-					on:export={handle_chart_interaction}
-					on:import={handle_chart_interaction}
-					on:error={handle_chart_interaction}
+                    onconfigChange={handle_config_change}
+                    onexport={handle_chart_interaction}
+                    onimport={handle_chart_interaction}
+                    onerror={handle_chart_interaction}
 				/>
 			</div>
 		{/if}

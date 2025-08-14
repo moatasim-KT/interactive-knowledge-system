@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { DataFilter } from '$lib/types/web-content.js';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		data?: any[];
@@ -7,28 +10,11 @@
 		groupBy?: string;
 		sortBy?: string;
 		sortDirection?: 'asc' | 'desc';
-		onDataChange?: (event: {
-			data: any[];
-			filters: DataFilter[];
-			groupBy: string;
-			sortBy: string;
-			sortDirection: 'asc' | 'desc';
-			search: string;
-			page: number;
-			pageSize: number;
-		}) => void;
-		onExport?: (event: { format: string; data: any[] }) => void;
+		title?: string;
+		description?: string;
 	}
 
-	let {
-		data = [],
-		filters = [],
-		groupBy = '',
-		sortBy = '',
-		sortDirection = 'asc',
-		onDataChange,
-		onExport
-	}: Props = $props();
+	let { data = [], filters = [], groupBy = '', sortBy = '', sortDirection = 'asc', title, description }: Props = $props();
 
 	// Data exploration state
 	let search_query = $state('');
@@ -316,7 +302,7 @@
 		const types = field_types();
 		const new_filter: DataFilter = {
 			field: fields[0] || 'value',
-			type: types[fields[0]] || 'text',
+							type: (types[fields[0]] || 'text') as DataFilter['type'],
 			operator: 'contains',
 			value: '',
 			active: true
@@ -372,7 +358,7 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		onExport?.({ format: 'csv', data: data_to_export });
+		dispatch('export', { format: 'csv', data: data_to_export });
 	}
 
 	function convert_to_csv(data: any[]): string {
@@ -393,7 +379,7 @@
 	}
 
 	function emit_data_change() {
-		onDataChange?.({
+		dispatch('datachange', {
 			data: processed_data(),
 			filters: active_filters,
 			groupBy: group_by_field,
@@ -417,7 +403,10 @@
 	<!-- Header Controls -->
 	<div class="explorer-header">
 		<div class="header-title">
-			<h3>Data Explorer</h3>
+			<h3>{title || 'Data Explorer'}</h3>
+			{#if description}
+				<p class="description">{description}</p>
+			{/if}
 			<span class="data-count">{processed_data().length} of {data.length} rows</span>
 		</div>
 
@@ -457,8 +446,8 @@
 
 		<div class="quick-filters">
 			<div class="control-group">
-				<label>Group by:</label>
-				<select bind:value={group_by_field} onchange={handle_group_change} class="group-select">
+				<label for="group-by-select">Group by:</label>
+				<select id="group-by-select" bind:value={group_by_field} onchange={handle_group_change} class="group-select">
 					<option value="">No grouping</option>
 					{#each available_fields() as field (field)}
 						<option value={field}>{field} ({field_types()[field]})</option>
@@ -467,8 +456,9 @@
 			</div>
 
 			<div class="control-group">
-				<label>Sort by:</label>
+				<label for="sort-by-select">Sort by:</label>
 				<select
+					id="sort-by-select"
 					bind:value={sort_field}
 					onchange={(e) => {
 						sort_field = e.currentTarget.value;
@@ -511,7 +501,7 @@
 							onchange={(e) =>
 								update_filter(index, {
 									field: e.currentTarget.value,
-									type: field_types()[e.currentTarget.value]
+									type: field_types()[e.currentTarget.value] as DataFilter['type']
 								})}
 							class="filter-field-select"
 						>
@@ -522,7 +512,7 @@
 
 						<select
 							bind:value={filter.operator}
-							onchange={(e) => update_filter(index, { operator: e.currentTarget.value })}
+							onchange={(e) => update_filter(index, { operator: e.currentTarget.value as DataFilter['operator'] })}
 							class="filter-operator-select"
 						>
 							<option value="contains">Contains</option>
@@ -638,8 +628,8 @@
 		<div class="grouped-data">
 			<h4>Grouped by {group_by_field}</h4>
 			<div class="aggregation-controls">
-				<label>Aggregation:</label>
-				<select bind:value={selected_aggregation} class="aggregation-select">
+				<label for="aggregation-select">Aggregation:</label>
+				<select id="aggregation-select" bind:value={selected_aggregation} class="aggregation-select">
 					{#each aggregation_functions as func (func.value)}
 						<option value={func.value}>{func.icon} {func.label}</option>
 					{/each}
@@ -790,6 +780,13 @@
 		margin: 0 0 0.25rem 0;
 		font-size: 1.5rem;
 		color: var(--text-primary, #1a1a1a);
+	}
+
+	.description {
+		margin: 0.25rem 0 0.5rem 0;
+		font-size: 0.9rem;
+		color: var(--text-secondary, #666666);
+		line-height: 1.4;
 	}
 
 	.data-count {

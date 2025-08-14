@@ -11,6 +11,8 @@
 		allowUpload?: boolean;
 		allowDelete?: boolean;
 		filterType?: 'image' | 'video' | 'all';
+		onupload?: (event: CustomEvent<MediaFile>) => void;
+		onerror?: (event: CustomEvent<string>) => void;
 	}
 
 	let {
@@ -31,7 +33,7 @@
 	let filtered_files = $state<MediaFile[]>([]);
 	let selected_file = $state<MediaFile | null>(null);
 	let storage_quota = $state<MediaStorageQuota>({ used: 0, available: 0, total: 0 });
-	let is_loading = $state(true);
+	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let search_query = $state('');
 	let sort_by = $state<'name' | 'date' | 'size' | 'type'>('date');
@@ -44,7 +46,7 @@
 
 	async function load_media_files() {
 		try {
-			is_loading = true;
+			isLoading = true;
 			await mediaStorage.init();
 
 			const files = await mediaStorage.listMedia(filterType === 'all' ? undefined : filterType);
@@ -54,7 +56,7 @@
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load media files';
 		} finally {
-			is_loading = false;
+			isLoading = false;
 		}
 	}
 
@@ -148,7 +150,7 @@
 		dispatch('select', file);
 	}
 
-	async function cleanup_old_files() {
+	async function cleanupOldFiles() {
 		if (confirm('This will delete media files older than 30 days. Continue?')) {
 			try {
 				const deleted_count = await mediaStorage.cleanup(30);
@@ -171,7 +173,7 @@
 		}).format(date);
 	}
 
-	let storage_percentage = $derived(
+	let storagePercentage = $derived(
 		storage_quota.total > 0 ? (storage_quota.used / storage_quota.total) * 100 : 0
 	);
 </script>
@@ -186,8 +188,8 @@
 				<div
 					class="storage-fill"
 					style="width: {storagePercentage}%"
-					class:warning={storage_percentage > 80}
-					class:danger={storage_percentage > 95}
+					class:warning={storagePercentage > 80}
+					class:danger={storagePercentage > 95}
 				></div>
 			</div>
 			<div class="storage-text">
@@ -233,8 +235,8 @@
 			<MediaUpload
 				accept={filterType === 'all' ? 'image/*,video/*' : `${filterType}/*`}
 				multiple={true}
-				onupload={handleUpload}
-				onerror={handleUploadError}
+				onupload={handle_upload}
+				onerror={handle_upload_error}
 			/>
 		</div>
 	{/if}
@@ -257,18 +259,27 @@
 			<div class="empty-state">
 				<div class="empty-icon">📁</div>
 				<p>No media files found</p>
-				{#if searchQuery}
+				{#if search_query}
 					<button onclick={() => (search_query = '')} class="clear-search-btn">
 						Clear search
 					</button>
 				{/if}
 			</div>
 		{:else}
-			{#each filteredFiles as file (file.id)}
+			{#each filtered_files as file (file.id)}
 				<div
 					class="media-item"
 					class:selected={selected_file?.id === file.id}
+					role="button"
 					onclick={() => select_file(file)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							select_file(file);
+						}
+					}}
+					aria-label={`Select ${file.name}`}
+					tabindex="0"
 				>
 					<div class="media-preview">
 						{#if file.thumbnailUrl}

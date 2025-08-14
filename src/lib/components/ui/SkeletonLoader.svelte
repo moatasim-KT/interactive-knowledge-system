@@ -41,11 +41,11 @@
 {#if variant === 'text' && lines > 1}
 	<div class="space-y-2">
 		{#each Array(lines) as _, i (i)}
-			<div class={classes} style={i === lines - 1 ? `${style} width: 75%;` : style}></div>
+			<div class={classes} style={i === lines - 1 ? `${style()} width: 75%;` : style()}></div>
 		{/each}
 	</div>
 {:else}
-	<div class={classes} {style}></div>
+	<div class={classes} style={style()}></div>
 {/if}
 
 <style>

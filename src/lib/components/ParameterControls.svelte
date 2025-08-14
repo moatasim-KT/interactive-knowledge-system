@@ -1,10 +1,13 @@
 <script lang="ts">
 	import type { Parameter } from '$lib/types/web-content.js';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		parameters: Parameter[];
-		onParameterChange?: (event: { parameter: string; value: any; allValues: Record<string, any> }) => void;
-		onParametersReset?: (event: { values: Record<string, any> }) => void;
+		onParameterChange?: (payload: { parameter: string; value: any; allValues: Record<string, any> }) => void;
+		onParametersReset?: (payload: { values: Record<string, any> }) => void;
 	}
 
 	let { parameters, onParameterChange, onParametersReset }: Props = $props();
@@ -24,11 +27,13 @@
 	function handle_parameter_change(parameter_name: string, value: any) {
 		parameter_values[parameter_name] = value;
 
-		onParameterChange?.({
+		dispatch('parameterchange', {
 			parameter: parameter_name,
 			value,
 			allValues: { ...parameter_values }
 		});
+
+		onParameterChange?.({ parameter: parameter_name, value, allValues: { ...parameter_values } });
 	}
 
 	function reset_to_defaults() {
@@ -36,6 +41,7 @@
 			parameter_values[param.name] = param.default;
 		});
 
+		dispatch('parametersreset', { values: { ...parameter_values } });
 		onParametersReset?.({ values: { ...parameter_values } });
 	}
 

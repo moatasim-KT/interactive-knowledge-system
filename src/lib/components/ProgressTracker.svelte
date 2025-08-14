@@ -3,22 +3,19 @@
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import ProgressIndicator from './ProgressIndicator.svelte';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		moduleId: string;
 		userId: string;
 		autoTrackTime?: boolean;
 		showControls?: boolean;
-		onProgressUpdate?: (progress: UserProgress) => void;
+		
 	}
 
-	let {
-		moduleId,
-		userId,
-		autoTrackTime = true,
-		showControls = true,
-		onProgressUpdate
-	}: Props = $props();
+	let { moduleId, userId, autoTrackTime = true, showControls = true }: Props = $props();
 
 	let progress = $state<UserProgress | null>(null);
 	let is_loading = $state(true);
@@ -72,7 +69,7 @@
 					(Date.now() - time_tracker.startTime.getTime()) / 1000 / 60
 				);
 			}
-		}, 60000); // Update every minute
+		}, 60000) as unknown as number; // Update every minute
 	};
 
 	// Stop tracking time and save
@@ -92,7 +89,7 @@
 
 			// Update app state
 			appState.progress.userProgress.set(moduleId, progress);
-			onProgressUpdate?.(progress);
+			dispatch('progressupdate', progress);
 		}
 
 		time_tracker.startTime = null;
@@ -112,7 +109,7 @@
 			// Update streak
 			await progressStorage.updateLearningStreak(userId);
 
-			onProgressUpdate?.(progress!);
+
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to start module';
 			console.error('Error starting module:', err);
@@ -140,7 +137,7 @@
 				});
 			}
 
-			onProgressUpdate?.(progress!);
+
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to complete module';
 			console.error('Error completing module:', err);
@@ -154,7 +151,7 @@
 			if (progress) {
 				progress.bookmarked = is_bookmarked;
 				appState.progress.userProgress.set(moduleId, progress);
-				onProgressUpdate?.(progress);
+				dispatch('progressupdate', progress);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to toggle bookmark';
@@ -237,6 +234,9 @@
 					onclick={toggle_bookmark}
 					class="p-1 rounded-md hover:bg-gray-100 transition-colors"
 					title={progress.bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+					aria-label={progress.bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+					aria-pressed={progress.bookmarked}
+					type="button"
 				>
 					<svg
 						class="w-4 h-4 {progress.bookmarked ? 'text-yellow-500 fill-current' : 'text-gray-400'}"

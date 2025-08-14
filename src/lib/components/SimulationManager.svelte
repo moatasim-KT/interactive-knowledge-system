@@ -12,23 +12,37 @@
 		type SimulationTemplate,
 		type DiagramTemplate
 	} from '$lib/utils/simulationTemplates.js';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{
+			simulationCreated: SimulationBlock;
+			diagramCreated: SystemDiagramBlock;
+			simulationEvent: any; // General event for simulation interactions
+			parameterChange: { parameter: string; value: any };
+			simulationStart: any;
+			elementClick: any;
+		}>();
 
 	interface Props {
 		mode?: 'simulation' | 'diagram' | 'both';
 		domain?: 'physics' | 'chemistry' | 'engineering' | 'all';
 		editable?: boolean;
-		onSimulationCreate?: (simulation: SimulationBlock) => void;
-		onDiagramCreate?: (diagram: SystemDiagramBlock) => void;
-		onSimulationEvent?: (event: any) => void;
+		onparameterchange?: (event: any) => void;
+		onsimulationstart?: (event: any) => void;
+		onsimulationpause?: (event: any) => void;
+		onsimulationstep?: (event: any) => void;
+		onsimulationreset?: (event: any) => void;
 	}
 
 	let { 
 		mode = 'both', 
 		domain = 'all', 
 		editable = true,
-		onSimulationCreate,
-		onDiagramCreate,
-		onSimulationEvent
+		onparameterchange,
+		onsimulationstart,
+		onsimulationpause,
+		onsimulationstep,
+		onsimulationreset
 	}: Props = $props();
 
 	let selected_template = $state<SimulationTemplate | DiagramTemplate | null>(null);
@@ -62,7 +76,7 @@
 		const block_id = `sim-${Date.now()}`;
 		current_simulation = createSimulationFromTemplate(template.id, block_id);
 		view_mode = 'simulation';
-		onSimulationCreate?.(current_simulation);
+		dispatch('simulationCreated', current_simulation);
 	}
 
 	// Create diagram from template
@@ -70,7 +84,7 @@
 		const block_id = `diagram-${Date.now()}`;
 		current_diagram = createDiagramFromTemplate(template.id, block_id);
 		view_mode = 'diagram';
-		onDiagramCreate?.(current_diagram);
+		dispatch('diagramCreated', current_diagram);
 	}
 
 	// Handle template selection
@@ -95,12 +109,12 @@
 
 	// Handle simulation events
 	function handle_simulation_event(event: any) {
-		onSimulationEvent?.(event);
+		dispatch('simulationEvent', event.detail);
 	}
 
 	// Handle diagram events
 	function handle_diagram_event(event: any) {
-		onSimulationEvent?.(event);
+		dispatch('simulationEvent', event.detail);
 	}
 </script>
 
@@ -208,15 +222,15 @@
 			<SimulationBlockComponent
 				block={current_simulation}
 				{editable}
-				onParameterChange={handle_simulation_event}
-				onSimulationStart={handle_simulation_event}
-				onSimulationPause={handle_simulation_event}
-				onSimulationStop={handle_simulation_event}
-				onSimulationReset={handle_simulation_event}
-				onSimulationStep={handle_simulation_event}
-				onSimulationError={handle_simulation_event}
-				onSimulationExport={handle_simulation_event}
-				onSimulationReportExport={handle_simulation_event}
+				onparameterchange={handle_simulation_event}
+				onsimulationstart={handle_simulation_event}
+				onsimulationpause={handle_simulation_event}
+				onsimulationstop={handle_simulation_event}
+				onsimulationreset={handle_simulation_event}
+				onsimulationstep={handle_simulation_event}
+				onsimulationerror={handle_simulation_event}
+				onsimulationexport={handle_simulation_event}
+				onsimulationreportexport={handle_simulation_event}
 			/>
 		</div>
 	{:else if view_mode === 'diagram' && current_diagram}
@@ -230,12 +244,12 @@
 			<SystemDiagramBlockComponent
 				block={current_diagram}
 				{editable}
-				onParameterChange={handle_diagram_event}
-				onElementClick={handle_diagram_event}
-				onElementHover={handle_diagram_event}
-				onDiagramReset={handle_diagram_event}
-				onDiagramExport={handle_diagram_event}
-				onDiagramError={handle_diagram_event}
+				onparameterchange={handle_diagram_event}
+				onelementclick={handle_diagram_event}
+				onelementhover={handle_diagram_event}
+				ondiagramreset={handle_diagram_event}
+				ondiagramexport={handle_diagram_event}
+				ondiagramerror={handle_diagram_event}
 			/>
 		</div>
 	{/if}

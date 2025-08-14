@@ -17,65 +17,65 @@ type BatchJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cance
 type BatchJobPriority = 'low' | 'normal' | 'high';
 
 interface BatchJobOptions {
-  concurrency?: number;
-  extractInteractive?: boolean;
-  generateQuizzes?: boolean;
-  timeout?: number;
-  priority?: BatchJobPriority;
+	concurrency?: number;
+	extractInteractive?: boolean;
+	generateQuizzes?: boolean;
+	timeout?: number;
+	priority?: BatchJobPriority;
 }
 
 interface BatchJobProgress {
-  total: number;
-  processed: number;
-  successful: number;
-  failed: number;
-  skipped: number;
-  percentage: number;
-  completed: number; // Matches BatchProcessingJob interface
+	total: number;
+	processed: number;
+	successful: number;
+	failed: number;
+	skipped: number;
+	percentage: number;
+	completed: number; // Matches BatchProcessingJob interface
 }
 
 interface BatchJobResult {
-  jobId: string;
-  status: BatchJobStatus;
-  startTime: Date;
-  endTime?: Date;
-  duration?: number;
-  results: ContentProcessingResult[];
-  errors: Error[];
-  progress: BatchJobProgress;
+	jobId: string;
+	status: BatchJobStatus;
+	startTime: Date;
+	endTime?: Date;
+	duration?: number;
+	results: ContentProcessingResult[];
+	errors: Error[];
+	progress: BatchJobProgress;
 }
 
 // Extend the BatchProcessingJob type to include our custom options
 interface ExtendedBatchJob extends Omit<BatchProcessingJob, 'progress' | 'status' | 'options'>, BatchJobOptions {
-  progress: BatchJobProgress;
-  results: ContentProcessingResult[];
-  errors: Error[];
-  status: BatchJobStatus;
-  updatedAt: Date;
-  // Add any missing required properties from BatchProcessingJob
-  id: string;
-  urls: string[];
-  createdAt: Date;
-  // Include options as a required property
-  options: Required<BatchJobOptions>;
+	progress: BatchJobProgress;
+	results: ContentProcessingResult[];
+	errors: Error[];
+	status: BatchJobStatus;
+	updatedAt: Date;
+	// Add any missing required properties from BatchProcessingJob
+	id: string;
+	urls: string[];
+	createdAt: Date;
+	// Include options as a required property
+	options: Required<BatchJobOptions>;
 }
 
 export class BatchProcessingTools {
-  private readonly logger = createLogger('BatchProcessingTools');
-  private readonly activeJobs = new Map<string, ExtendedBatchJob>();
-  private readonly jobQueue: string[] = [];
-  private isProcessing = false;
-  private readonly maxConcurrentJobs = 3;
-  private readonly processingJobs = new Set<string>();
-  
-  // Default batch job options
-  private readonly defaultBatchJobOptions: Required<BatchJobOptions> = {
-    concurrency: 3,
-    extractInteractive: true,
-    generateQuizzes: false,
-    timeout: 30000,
-    priority: 'normal',
-  };
+	private readonly logger = createLogger('BatchProcessingTools');
+	private readonly activeJobs = new Map<string, ExtendedBatchJob>();
+	private readonly jobQueue: string[] = [];
+	private isProcessing = false;
+	private readonly maxConcurrentJobs = 3;
+	private readonly processingJobs = new Set<string>();
+
+	// Default batch job options
+	private readonly defaultBatchJobOptions: Required<BatchJobOptions> = {
+		concurrency: 3,
+		extractInteractive: true,
+		generateQuizzes: false,
+		timeout: 30000,
+		priority: 'normal',
+	};
 
 	/**
 	 * Creates a new batch job for processing multiple URLs
@@ -85,33 +85,33 @@ export class BatchProcessingTools {
 	 */
 	public createBatchJob(urls: string[], options: BatchJobOptions = {}): string {
 		const jobId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const job_options: Required<BatchJobOptions> = {
-      ...this.defaultBatchJobOptions,
-      ...options,
-    };
-    
-    const job: ExtendedBatchJob = {
-      id: jobId,
-      urls: [...urls],
-      status: 'pending',
-      progress: {
-        total: urls.length,
-        processed: 0,
-        successful: 0,
-        failed: 0,
-        skipped: 0,
-        percentage: 0,
-        completed: 0,
-      },
-      results: [],
-      errors: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      // Include all job options
-      ...job_options,
-      // Make sure to include the options object as a separate property
-      options: job_options,
-    };
+		const job_options: Required<BatchJobOptions> = {
+			...this.defaultBatchJobOptions,
+			...options,
+		};
+
+		const job: ExtendedBatchJob = {
+			id: jobId,
+			urls: [...urls],
+			status: 'pending',
+			progress: {
+				total: urls.length,
+				processed: 0,
+				successful: 0,
+				failed: 0,
+				skipped: 0,
+				percentage: 0,
+				completed: 0,
+			},
+			results: [],
+			errors: [],
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			// Include all job options
+			...job_options,
+			// Make sure to include the options object as a separate property
+			options: job_options,
+		};
 
 		// Add job to active jobs map
 		this.activeJobs.set(jobId, job);
@@ -140,12 +140,12 @@ export class BatchProcessingTools {
 	 * Get batch job status
 	 */
 	public async getBatchJobStatus(jobId: string): Promise<BatchJobStatus | undefined> {
-    const job = this.activeJobs.get(jobId);
-    if (!job) {
-      this.logger.warn(`Job ${jobId} not found`);
-      return undefined;
-    }
-    return job.status;
+		const job = this.activeJobs.get(jobId);
+		if (!job) {
+			this.logger.warn(`Job ${jobId} not found`);
+			return undefined;
+		}
+		return job.status;
 	}
 
 	/**
@@ -156,7 +156,7 @@ export class BatchProcessingTools {
 		cancelled: boolean;
 		partialResults: ContentProcessingResult[];
 	}> {
-    this.logger.info(`Cancelling batch job: ${jobId}`);
+		this.logger.info(`Cancelling batch job: ${jobId}`);
 
 		const job = this.activeJobs.get(jobId);
 		if (!job) {
@@ -193,38 +193,38 @@ export class BatchProcessingTools {
 	 * Process the job queue
 	 */
 	public async processJobQueue(): Promise<void> {
-    if (this.isProcessing) {return;}
-    this.isProcessing = true;
+		if (this.isProcessing) { return; }
+		this.isProcessing = true;
 
-    try {
-      while (this.jobQueue.length > 0) {
-        const jobId = this.jobQueue.shift();
-        if (!jobId) {continue;}
+		try {
+			while (this.jobQueue.length > 0) {
+				const jobId = this.jobQueue.shift();
+				if (!jobId) { continue; }
 
-        const job = this.activeJobs.get(jobId);
-        if (!job) {continue;}
+				const job = this.activeJobs.get(jobId);
+				if (!job) { continue; }
 
-        if (this.processingJobs.size >= this.maxConcurrentJobs) {
-          // Move job back to front of queue if we're at capacity
-          this.jobQueue.unshift(jobId);
-          break;
-        }
+				if (this.processingJobs.size >= this.maxConcurrentJobs) {
+					// Move job back to front of queue if we're at capacity
+					this.jobQueue.unshift(jobId);
+					break;
+				}
 
-        this.processingJobs.add(jobId);
-        await new Promise<void>((resolve) => {
-          this.processBatchJob(jobId)
-            .catch((error) => {
-              this.logger.error(`Error processing job ${jobId}:`, error);
-            })
-            .finally(() => {
-              this.processingJobs.delete(jobId);
-              resolve();
-            });
-        });
-      }
-    } finally {
-      this.isProcessing = false;
-    }
+				this.processingJobs.add(jobId);
+				await new Promise<void>((resolve) => {
+					this.processBatchJob(jobId)
+						.catch((error) => {
+							this.logger.error(`Error processing job ${jobId}:`, error);
+						})
+						.finally(() => {
+							this.processingJobs.delete(jobId);
+							resolve();
+						});
+				});
+			}
+		} finally {
+			this.isProcessing = false;
+		}
 	}
 
 	/**
@@ -368,9 +368,14 @@ export class BatchProcessingTools {
 			if (options.extractInteractive) {
 				result.interactiveOpportunities = [
 					{
+						id: `mock_${Date.now()}`,
 						type: 'interactive-chart',
+						title: 'Mock Interactive Chart',
+						description: 'Mock interactive opportunity for testing',
 						confidence: 0.6,
 						reasoning: 'Mock interactive opportunity',
+						sourceElement: 'mock',
+						parameters: {},
 						suggestedInteraction: {
 							type: 'chart-explorer',
 							parameters: {}
@@ -568,9 +573,9 @@ export class BatchProcessingTools {
 		let filtered_jobs = jobs;
 		if (filters) {
 			filtered_jobs = jobs.filter((job) => {
-				if (filters.status && job.status !== filters.status) {return false;}
-				if (filters.createdAfter && job.createdAt < new Date(filters.createdAfter)) {return false;}
-				if (filters.createdBefore && job.createdAt > new Date(filters.createdBefore)) {return false;}
+				if (filters.status && job.status !== filters.status) { return false; }
+				if (filters.createdAfter && job.createdAt < new Date(filters.createdAfter)) { return false; }
+				if (filters.createdBefore && job.createdAt > new Date(filters.createdBefore)) { return false; }
 				return true;
 			});
 		}

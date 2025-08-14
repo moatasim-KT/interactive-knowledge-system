@@ -571,13 +571,13 @@ export class ProcessingPipelineManager {
 				this.logger.debug('Stage completed', {
 					jobId: job.id,
 					stage: stage.name,
-					duration: stage_timing.duration
+					duration: stageTiming.duration
 				});
 
 				this.emitEvent('stage-completed', {
 					jobId: job.id,
 					stage: stage.name,
-					duration: stage_timing.duration,
+					duration: stageTiming.duration,
 					progress: job.progress.overallProgress
 				});
 			}
@@ -629,7 +629,7 @@ export class ProcessingPipelineManager {
 		const issues: string[] = [];
 
 		try {
-			let stageData = {};
+			let stageData: Record<string, unknown> = {};
 
 			switch (stage.name) {
 				case 'fetch':
@@ -686,7 +686,7 @@ export class ProcessingPipelineManager {
 				success: false,
 				data: null,
 				metadata: {
-					processingTime: Date.now() - start_time,
+					processingTime: Date.now() - startTime,
 					confidence: 0,
 					issues
 				}
@@ -1289,3 +1289,36 @@ export class ProcessingPipelineManager {
 
 // Export singleton instance
 export const processingPipelineManager = ProcessingPipelineManager.getInstance();
+
+// Compatibility adapter to match expected API in components
+export const processingPipeline = {
+  startProcessing: async (
+    urls: string[],
+    _options?: { skipProcessing?: boolean; enableAiEnhancements?: boolean }
+  ): Promise<{ success: boolean; id: string }> => {
+    const id = processingPipelineManager.createSingleProcessingJob(urls[0] ?? '');
+    return { success: true, id };
+  },
+  startBatchProcessing: async (
+    urls: string[],
+    _options?: { skipProcessing?: boolean; enableAiEnhancements?: boolean }
+  ): Promise<{ id: string }> => {
+    const id = processingPipelineManager.createBatchProcessingJob(urls);
+    return { id };
+  },
+  onProgressUpdate: (cb: (progress: any) => void): (() => void) => {
+    const listener = (event: any) => cb(event);
+    processingPipelineManager.addEventListener('progress-report', listener);
+    return () => processingPipelineManager.removeEventListener('progress-report', listener);
+  },
+  onJobComplete: (cb: (job: any) => void): (() => void) => {
+    const listener = ({ job }: any) => cb(job);
+    processingPipelineManager.addEventListener('job-completed', listener);
+    return () => processingPipelineManager.removeEventListener('job-completed', listener);
+  },
+  onJobError: (cb: (jobId: string, error: Error) => void): (() => void) => {
+    const listener = ({ job, error }: any) => cb(job.id, new Error(error));
+    processingPipelineManager.addEventListener('job-failed', listener);
+    return () => processingPipelineManager.removeEventListener('job-failed', listener);
+  }
+};

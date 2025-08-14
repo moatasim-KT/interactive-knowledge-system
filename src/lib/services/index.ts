@@ -5,11 +5,7 @@
 
 // Core source management
 export { sourceManager, SourceManager } from './sourceManager.js';
-export type {
-	SourceFilters,
-	SourceUpdateResult,
-	DuplicateDetectionResult
-} from './sourceManager.js';
+
 
 // Content update detection
 export { contentUpdateDetector, ContentUpdateDetector } from './contentUpdateDetector.js';
@@ -68,8 +64,13 @@ export type {
 
 // Unified web content knowledge integration
 export { webContentKnowledgeIntegration, WebContentKnowledgeIntegration } from './webContentKnowledgeIntegration.js';
-export type {
-	ContentIntegrationResult,
-	IntegrationStatus,
-	SearchEnhancementResult
-} from './webContentKnowledgeIntegration.js';
+
+// Offline functionality
+export { offlineManager, OfflineManager } from './offlineManager.js';
+export { offlineQueue, OfflineQueue } from './offlineQueue.js';
+export { syncService, SyncService } from './syncService.js';
+export { networkService, NetworkService } from './networkService.js';
+export { optimisticUpdateManager, OptimisticUpdateManager } from './optimisticUpdates.js';
+export { cloudSyncService, CloudSyncService } from './cloudSyncService.js';
+export { conflictResolver, ConflictResolver } from './conflictResolver.js';
+

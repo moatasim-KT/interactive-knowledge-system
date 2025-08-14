@@ -76,16 +76,16 @@
 			add_toast(event.detail);
 		}
 
-		window.addEventListener('show-toast', handleToastEvent as EventListener);
+		window.addEventListener('show-toast', handle_toast_event as EventListener);
 
 		return () => {
-			window.removeEventListener('show-toast', handleToastEvent as EventListener);
+			window.removeEventListener('show-toast', handle_toast_event as EventListener);
 			delete (window as any).toast;
 		};
 	});
 </script>
 
-<div class={containerClasses}>
+<div class={container_classes}>
 	{#each toasts as toast (toast.id)}
 		<div class="pointer-events-auto">
 			<Toast
@@ -93,7 +93,7 @@
 				title={toast.title}
 				message={toast.message}
 				duration={toast.duration}
-				onDismiss={() => remove_toast(toast.id)}
+				onclose={() => remove_toast(toast.id)}
 			/>
 		</div>
 	{/each}

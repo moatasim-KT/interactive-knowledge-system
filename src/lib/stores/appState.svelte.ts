@@ -46,7 +46,11 @@ export const appState = $state({
 			type: 'info' | 'success' | 'warning' | 'error';
 			message: string;
 			timestamp: Date;
-		}>
+		}>,
+		hasErrors: false,
+		errorCount: 0,
+		lastError: null as string | null,
+		lastErrorTime: null as Date | null
 	}
 });
 
@@ -117,20 +121,32 @@ export const actions = {
 	},
 
 	addKnowledgeNode: (node: KnowledgeNode) => {
-		appState.content.nodes.set(node.id, node);
+		const new_nodes = new Map(appState.content.nodes);
+		new_nodes.set(node.id, node);
+		appState.content.nodes = new_nodes;
 	},
 
 	updateKnowledgeNode: (id: string, updates: Partial<KnowledgeNode>) => {
 		const existing = appState.content.nodes.get(id);
 		if (existing) {
-			appState.content.nodes.set(id, { ...existing, ...updates });
+			const new_nodes = new Map(appState.content.nodes);
+			new_nodes.set(id, { ...existing, ...updates });
+			appState.content.nodes = new_nodes;
 		}
 	},
 
 	removeKnowledgeNode: (id: string) => {
-		appState.content.nodes.delete(id);
-		appState.progress.completedModules.delete(id);
-		appState.progress.userProgress.delete(id);
+		const new_nodes = new Map(appState.content.nodes);
+		new_nodes.delete(id);
+		appState.content.nodes = new_nodes;
+
+		const new_completed = new Set(appState.progress.completedModules);
+		new_completed.delete(id);
+		appState.progress.completedModules = new_completed;
+
+		const new_progress = new Map(appState.progress.userProgress);
+		new_progress.delete(id);
+		appState.progress.userProgress = new_progress;
 	},
 
 	// Search actions
@@ -144,7 +160,9 @@ export const actions = {
 
 	// Progress actions
 	markModuleCompleted: (moduleId: string, score?: number) => {
-		appState.progress.completedModules.add(moduleId);
+		const new_completed = new Set(appState.progress.completedModules);
+		new_completed.add(moduleId);
+		appState.progress.completedModules = new_completed;
 
 		const existing = appState.progress.userProgress.get(moduleId);
 		const progress: UserProgress = {
@@ -160,7 +178,9 @@ export const actions = {
 			completedAt: new Date()
 		};
 
-		appState.progress.userProgress.set(moduleId, progress);
+		const new_progress = new Map(appState.progress.userProgress);
+		new_progress.set(moduleId, progress);
+		appState.progress.userProgress = new_progress;
 	},
 
 	startModule: (moduleId: string) => {
@@ -177,28 +197,32 @@ export const actions = {
 			startedAt: existing?.startedAt || new Date()
 		};
 
-		appState.progress.userProgress.set(moduleId, progress);
+		const new_progress = new Map(appState.progress.userProgress);
+		new_progress.set(moduleId, progress);
+		appState.progress.userProgress = new_progress;
 	},
 
 	updateTimeSpent: (moduleId: string, additionalTime: number) => {
 		const existing = appState.progress.userProgress.get(moduleId);
 		if (existing) {
-			existing.timeSpent += additionalTime;
-			existing.lastAccessed = new Date();
-			appState.progress.userProgress.set(moduleId, existing);
+			const updated = { ...existing, timeSpent: existing.timeSpent + additionalTime, lastAccessed: new Date() };
+			const new_progress = new Map(appState.progress.userProgress);
+			new_progress.set(moduleId, updated);
+			appState.progress.userProgress = new_progress;
 		}
 	},
 
 	loadUserProgress: (progressMap: Map<string, UserProgress>) => {
-		appState.progress.userProgress = progressMap;
+		appState.progress.userProgress = new Map(progressMap);
 
 		// Update completed modules set
-		appState.progress.completedModules.clear();
+		const new_completed = new Set<string>();
 		for (const [moduleId, progress] of progressMap) {
 			if (progress.status === 'completed') {
-				appState.progress.completedModules.add(moduleId);
+				new_completed.add(moduleId);
 			}
 		}
+		appState.progress.completedModules = new_completed;
 
 		// Update total time spent
 		appState.progress.totalTimeSpent = Array.from(progressMap.values()).reduce(
@@ -210,7 +234,9 @@ export const actions = {
 	updateUserProgress: (moduleId: string, updates: Partial<UserProgress>) => {
 		const existing = appState.progress.userProgress.get(moduleId);
 		if (existing) {
-			appState.progress.userProgress.set(moduleId, { ...existing, ...updates });
+			const new_progress = new Map(appState.progress.userProgress);
+			new_progress.set(moduleId, { ...existing, ...updates });
+			appState.progress.userProgress = new_progress;
 		}
 	},
 

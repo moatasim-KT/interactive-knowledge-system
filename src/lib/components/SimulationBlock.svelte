@@ -6,33 +6,36 @@
 		exportSimulationReport,
 		type SimulationResult
 	} from '$lib/utils/simulationExport.js';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		block: SimulationBlock;
 		editable?: boolean;
-		onParameterChange?: (event: { parameter: string; value: any; blockId: string }) => void;
-		onSimulationStart?: (event: { blockId: string }) => void;
-		onSimulationPause?: (event: { blockId: string }) => void;
-		onSimulationStop?: (event: { blockId: string }) => void;
-		onSimulationReset?: (event: { blockId: string }) => void;
-		onSimulationStep?: (event: { step: number; state: any; blockId: string }) => void;
-		onSimulationError?: (event: { error: string; step: number }) => void;
-		onSimulationExport?: (event: { format: string; blockId: string }) => void;
-		onSimulationReportExport?: (event: { blockId: string }) => void;
+		onparameterchange?: (event: CustomEvent) => void;
+		onsimulationstart?: (event: CustomEvent) => void;
+		onsimulationpause?: (event: CustomEvent) => void;
+		onsimulationstop?: (event: CustomEvent) => void;
+		onsimulationreset?: (event: CustomEvent) => void;
+		onsimulationstep?: (event: CustomEvent) => void;
+		onsimulationerror?: (event: CustomEvent) => void;
+		onsimulationexport?: (event: CustomEvent) => void;
+		onsimulationreportexport?: (event: CustomEvent) => void;
 	}
 
-	let {
-		block,
+	let { 
+		block, 
 		editable = false,
-		onParameterChange,
-		onSimulationStart,
-		onSimulationPause,
-		onSimulationStop,
-		onSimulationReset,
-		onSimulationStep,
-		onSimulationError,
-		onSimulationExport,
-		onSimulationReportExport
+		onparameterchange,
+		onsimulationstart,
+		onsimulationpause,
+		onsimulationstop,
+		onsimulationreset,
+		onsimulationstep,
+		onsimulationerror,
+		onsimulationexport,
+		onsimulationreportexport
 	}: Props = $props();
 
 	let simulation_state = $state({ ...block.content.initialState });
@@ -76,7 +79,7 @@
 			}
 		}
 
-		onParameterChange?.({ parameter, value, blockId: block.id });
+		dispatch('parameterChange', { parameter, value, blockId: block.id });
 	}
 
 	// Simulation control functions
@@ -87,7 +90,7 @@
 		is_paused = false;
 
 		run_simulation_step();
-		onSimulationStart?.({ blockId: block.id });
+		dispatch('simulationStart', { blockId: block.id });
 	}
 
 	function pause_simulation() {
@@ -96,7 +99,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		onSimulationPause?.({ blockId: block.id });
+		dispatch('simulationPause', { blockId: block.id });
 	}
 
 	function stop_simulation() {
@@ -106,7 +109,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		onSimulationStop?.({ blockId: block.id });
+		dispatch('simulationStop', { blockId: block.id });
 	}
 
 	function reset_simulation() {
@@ -114,7 +117,7 @@
 		simulation_state = { ...block.content.initialState };
 		step_count = 0;
 		simulation_results = [];
-		onSimulationReset?.({ blockId: block.id });
+		dispatch('simulationReset', { blockId: block.id });
 	}
 
 	// Export simulation results
@@ -139,7 +142,7 @@
 			format
 		);
 
-		onSimulationExport?.({ format, blockId: block.id });
+		dispatch('simulationExport', { format, blockId: block.id });
 	}
 
 	// Export simulation report
@@ -159,14 +162,14 @@
 
 		exportSimulationReport(block.content.simulationType, parameter_values, simulation_results);
 
-		onSimulationReportExport?.({ blockId: block.id });
+		dispatch('simulationReportExport', { blockId: block.id });
 	}
 
 	function step_simulation() {
 		if (is_running && !is_paused) return;
 
 		execute_simulation_step();
-		onSimulationStep?.({
+		dispatch('simulationStep', {
 			step: step_count,
 			state: simulation_state,
 			blockId: block.id
@@ -200,7 +203,7 @@
 
 			step_count++;
 		} catch (error) {
-			onSimulationError?.({ error: (error as Error).message, step: step_count });
+			dispatch('simulationError', { error: (error as Error).message, step: step_count });
 			stop_simulation();
 		}
 	}
@@ -276,7 +279,7 @@
 		<!-- Parameter Controls -->
 		{#if parameters().length > 0}
 			<div class="parameters-section">
-				<ParameterControls parameters={parameters()} onParameterChange={handle_parameter_change} />
+				<ParameterControls parameters={parameters()} onParameterChange={(p) => handle_parameter_change(new CustomEvent('parameterchange', { detail: p }))} />
 			</div>
 		{/if}
 

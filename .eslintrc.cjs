@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* eslint-disable no-undef */
 module.exports = {
 	root: true,
 	env: { browser: true, node: true, es2021: true },
@@ -16,3 +18,5 @@ module.exports = {
 		'no-useless-escape': 'off'
 	}
 };
+
+/* eslint-enable no-undef */

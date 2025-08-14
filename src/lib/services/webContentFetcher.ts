@@ -79,7 +79,26 @@ export class WebContentFetcher {
             const processingTime = Date.now() - startTime;
             this.logger.error(`Failed to fetch content from ${url}:`, error);
 
-            // Return error content
+            // Determine error type for better user messaging
+            const errorObj = error instanceof Error ? error : new Error(String(error));
+            let errorCategory = 'unknown';
+            let userMessage = 'Failed to fetch content';
+
+            if (errorObj.name === 'AbortError' || errorObj.message.includes('aborted')) {
+                errorCategory = 'timeout';
+                userMessage = 'Request timed out';
+            } else if (errorObj.message.includes('fetch') || errorObj.message.includes('network')) {
+                errorCategory = 'network';
+                userMessage = 'Network connection failed';
+            } else if (errorObj.message.includes('HTTP')) {
+                errorCategory = 'http';
+                userMessage = errorObj.message;
+            } else if (errorObj.message.includes('CORS')) {
+                errorCategory = 'cors';
+                userMessage = 'Cross-origin request blocked';
+            }
+
+            // Return error content with enhanced error information
             return {
                 id: `error_${Date.now()}`,
                 url,
@@ -90,26 +109,27 @@ export class WebContentFetcher {
                     images: [],
                     codeBlocks: [],
                     tables: [],
-                    charts: []
+                    charts: [],
+                    blocks: []
                 },
                 metadata: {
-                    domain: new URL(url).hostname,
+                    domain: this.safeParseDomain(url),
                     contentType: 'error',
                     language: 'en',
                     readingTime: 0,
                     wordCount: 0,
                     keywords: [],
-                    description: `Failed to fetch content: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                    description: `${userMessage}: ${errorObj.message}`,
                     attribution: url,
-                    tags: [],
+                    tags: ['error', errorCategory],
                     category: 'error'
                 },
                 extraction: {
                     method: 'heuristic',
                     confidence: 0,
                     qualityScore: 0,
-                    issues: [error instanceof Error ? error.message : 'Unknown error'],
-                    processingTime: processing_time
+                    issues: [errorObj.message],
+                    processingTime: processingTime
                 },
                 fetchedAt: new Date().toISOString(),
                 success: false
@@ -152,7 +172,8 @@ export class WebContentFetcher {
                 images,
                 codeBlocks,
                 tables,
-                charts
+                charts,
+                blocks: []
             },
             metadata,
             extraction: {
@@ -442,11 +463,11 @@ export class WebContentFetcher {
         const class_list = element.className.toLowerCase();
         const id = element.id.toLowerCase();
 
-        if (class_list.includes('line') || id.includes('line')) {return 'line';}
-        if (class_list.includes('bar') || id.includes('bar')) {return 'bar';}
-        if (class_list.includes('pie') || id.includes('pie')) {return 'pie';}
-        if (class_list.includes('scatter') || id.includes('scatter')) {return 'scatter';}
-        if (class_list.includes('area') || id.includes('area')) {return 'area';}
+        if (class_list.includes('line') || id.includes('line')) { return 'line'; }
+        if (class_list.includes('bar') || id.includes('bar')) { return 'bar'; }
+        if (class_list.includes('pie') || id.includes('pie')) { return 'pie'; }
+        if (class_list.includes('scatter') || id.includes('scatter')) { return 'scatter'; }
+        if (class_list.includes('area') || id.includes('area')) { return 'area'; }
 
         return 'unknown';
     }
@@ -476,12 +497,12 @@ export class WebContentFetcher {
         }
 
         // Try to detect language from code content
-        if (code.includes('function') && code.includes('{')) {return 'javascript';}
-        if (code.includes('def ') && code.includes(':')) {return 'python';}
-        if (code.includes('public class') || code.includes('import java')) {return 'java';}
-        if (code.includes('<html') || code.includes('<!DOCTYPE')) {return 'html';}
-        if (code.includes('SELECT') && code.includes('FROM')) {return 'sql';}
-        if (code.startsWith('{') && code.endsWith('}')) {return 'json';}
+        if (code.includes('function') && code.includes('{')) { return 'javascript'; }
+        if (code.includes('def ') && code.includes(':')) { return 'python'; }
+        if (code.includes('public class') || code.includes('import java')) { return 'java'; }
+        if (code.includes('<html') || code.includes('<!DOCTYPE')) { return 'html'; }
+        if (code.includes('SELECT') && code.includes('FROM')) { return 'sql'; }
+        if (code.startsWith('{') && code.endsWith('}')) { return 'json'; }
 
         return 'text';
     }
@@ -566,14 +587,14 @@ export class WebContentFetcher {
         let confidence = 0.5; // Base confidence
 
         // Boost confidence for semantic HTML
-        if (doc.querySelector('main, article, [role="main"]')) {confidence += 0.2;}
+        if (doc.querySelector('main, article, [role="main"]')) { confidence += 0.2; }
 
         // Boost confidence for substantial content
-        if (mainContent.text.length > 500) {confidence += 0.1;}
-        if (mainContent.text.length > 2000) {confidence += 0.1;}
+        if (mainContent.text.length > 500) { confidence += 0.1; }
+        if (mainContent.text.length > 2000) { confidence += 0.1; }
 
         // Boost confidence for structured content
-        if (doc.querySelector('h1, h2, h3')) {confidence += 0.1;}
+        if (doc.querySelector('h1, h2, h3')) { confidence += 0.1; }
 
         return Math.min(confidence, 1.0);
     }
@@ -585,23 +606,44 @@ export class WebContentFetcher {
         let score = 0.5; // Base score
 
         // Content length
-        if (mainContent.text.length > 1000) {score += 0.1;}
-        if (mainContent.text.length > 3000) {score += 0.1;}
+        if (mainContent.text.length > 1000) { score += 0.1; }
+        if (mainContent.text.length > 3000) { score += 0.1; }
 
         // Metadata completeness
-        if (metadata.description && metadata.description.length > 10) {score += 0.1;}
-        if (metadata.description && metadata.description.length > 50) {score += 0.1;}
-        if (metadata.author) {score += 0.05;}
-        if (metadata.publishDate) {score += 0.05;}
-        if (metadata.keywords.length > 0) {score += 0.05;}
+        if (metadata.description && metadata.description.length > 10) { score += 0.1; }
+        if (metadata.description && metadata.description.length > 50) { score += 0.1; }
+        if (metadata.author) { score += 0.05; }
+        if (metadata.publishDate) { score += 0.05; }
+        if (metadata.keywords.length > 0) { score += 0.05; }
 
         // Content structure
         const html_lower = mainContent.html.toLowerCase();
-        if (html_lower.includes('<h1') || html_lower.includes('<h2')) {score += 0.05;}
-        if (html_lower.includes('<p>')) {score += 0.05;}
-        if (html_lower.includes('<ul>') || html_lower.includes('<ol>')) {score += 0.05;}
+        if (html_lower.includes('<h1') || html_lower.includes('<h2')) { score += 0.05; }
+        if (html_lower.includes('<p>')) { score += 0.05; }
+        if (html_lower.includes('<ul>') || html_lower.includes('<ol>')) { score += 0.05; }
 
         return Math.min(score, 1.0);
+    }
+
+    private safeParseDomain(url: string): string {
+        try {
+            return new URL(url).hostname;
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    private isRetryableError(error: Error): boolean {
+        const message = error.message.toLowerCase();
+        return (
+            error.name === 'AbortError' ||
+            message.includes('timeout') ||
+            message.includes('network') ||
+            message.includes('fetch') ||
+            message.includes('503') ||
+            message.includes('502') ||
+            message.includes('500')
+        );
     }
 }
 

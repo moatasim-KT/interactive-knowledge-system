@@ -7,6 +7,9 @@
 		ContentGraph
 	} from '../types/relationships.js';
 	import type { ContentModule } from '../types/content.js';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		modules: ContentModule[];
@@ -14,21 +17,11 @@
 		currentContent?: string | null;
 		width?: number;
 		height?: number;
-		onNodeClick?: (nodeId: string) => void;
-		onNodeHover?: (nodeId: string | null) => void;
 	}
 
-	let {
-		modules,
-		completedContent,
-		currentContent = null,
-		width = 800,
-		height = 600,
-		onNodeClick,
-		onNodeHover
-	}: Props = $props();
+	let { modules, completedContent, currentContent = null, width = 800, height = 600 }: Props = $props();
 
-	let svg_element;
+	let svg_element: SVGSVGElement; // Explicitly type svg_element
 	let nodes: KnowledgeMapNode[] = $state([]);
 	let connections: KnowledgeMapConnection[] = $state([]);
 	let hovered_node = $state(null);
@@ -113,8 +106,8 @@
 							targetId: other_module.id,
 							type: 'related',
 							strength,
-							style: 'dashed',
-							color: '#94a3b8'
+						style: 'dashed',
+						color: '#94a3b8'
 						});
 					}
 				}
@@ -128,7 +121,7 @@
 	/**
 	 * Get the status of a node based on completion and prerequisites
 	 */
-	function get_node_status(node_id): 'locked' | 'available' | 'in-progress' | 'completed' {
+	function get_node_status(node_id: string): 'locked' | 'available' | 'in-progress' | 'completed' {
 		if (completedContent.has(node_id)) {
 			return 'completed';
 		}
@@ -217,17 +210,17 @@
 	/**
 	 * Handle node click
 	 */
-	function handle_node_click(node_id) {
+	function handle_node_click(node_id: string) {
 		selected_node = node_id;
-		onNodeClick?.(node_id);
+		dispatch('nodeclick', node_id);
 	}
 
 	/**
 	 * Handle node hover
 	 */
-	function handle_node_hover(node_id) {
+	function handle_node_hover(node_id: string | null) {
 		hovered_node = node_id;
-		onNodeHover?.(node_id);
+		dispatch('nodehover', node_id);
 	}
 
 	/**
@@ -313,7 +306,7 @@
 </script>
 
 <div class="knowledge-map" style="width: {width}px; height: {height}px;">
-	<svg bind:this={svgElement} {width} {height} class="map-svg">
+	<svg bind:this={svg_element} {width} {height} class="map-svg">
 		<!-- Define arrow markers -->
 		<defs>
 			<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -356,6 +349,9 @@
 					onclick={() => handle_node_click(node.id)}
 					onmouseenter={() => handle_node_hover(node.id)}
 					onmouseleave={() => handle_node_hover(null)}
+					role="button"
+					tabindex="0"
+					onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handle_node_click(node.id); }}
 				/>
 
 				<!-- Node label -->

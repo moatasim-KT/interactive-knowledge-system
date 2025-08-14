@@ -2,21 +2,25 @@
 	import type { InteractiveChartBlock } from '$lib/types/web-content.js';
 	import InteractiveChart from './InteractiveChart.svelte';
 	import DataManipulator from './DataManipulator.svelte';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		block: InteractiveChartBlock;
 		editable?: boolean;
-		onDataChange?: (event: { data: any; filters: any[] }) => void;
-		onChartInteraction?: (event: any) => void;
-		onInteractionExecuted?: (event: any) => void;
 	}
 
-	let { block, editable = false, onDataChange, onChartInteraction, onInteractionExecuted }: Props = $props();
+	let { block, editable = false }: Props = $props();
 
 	let current_data = $state(block.content.data);
 	let active_filters = $state(block.content.filters || []);
-	let chart_config = {
-		...block.content,
+	
+	// Create proper chart config with all required properties
+	const chart_config = $derived(() => ({
+		title: block.content.title || 'Untitled Chart',
+		description: block.content.description || '',
+		parameters: [], // Added parameters property for compatibility
 		layout: {
 			width: 600,
 			height: 400,
@@ -24,7 +28,7 @@
 			responsive: true
 		},
 		styling: {
-			theme: 'light',
+			theme: 'light' as const,
 			colors: ['#0066cc', '#ff6b35', '#28a745', '#ffc107', '#dc3545'],
 			fonts: { family: 'system-ui', size: 12 }
 		},
@@ -34,7 +38,7 @@
 			easing: 'ease-in-out',
 			transitions: ['opacity', 'transform']
 		}
-	};
+	}));
 
 	// Handle data manipulation changes
 	function handle_data_change(event: CustomEvent) {
@@ -42,7 +46,7 @@
 		current_data = data;
 		active_filters = filters;
 
-		onDataChange?.({
+		dispatch('dataChange', {
 			data,
 			filters
 		});
@@ -58,14 +62,14 @@
 				try {
 					// In a real implementation, this would safely execute the interaction effect
 					// For now, we'll just dispatch the interaction
-					onInteractionExecuted?.({ interaction: interaction.parameter, point });
+					dispatch('interactionExecuted', { interaction: interaction.parameter, point });
 				} catch (error) {
 					console.error('Interaction error:', error);
 				}
 			}
 		});
 
-		onChartInteraction?.({
+		dispatch('chartInteraction', {
 			type,
 			point,
 			coordinates,
@@ -107,7 +111,7 @@
 			<DataManipulator
 				data={block.content.data}
 				filters={active_filters}
-				onDataChange={handle_data_change}
+				onDataChange={(p) => handle_data_change(new CustomEvent('datachange', { detail: p }))}
 			/>
 		</div>
 
@@ -115,8 +119,8 @@
 		<div class="chart-display-section">
 			<InteractiveChart
 				data={current_data}
-				config={chart_config}
-				onInteraction={handle_chart_interaction}
+				config={chart_config()}
+				oninteraction={handle_chart_interaction}
 			/>
 		</div>
 
@@ -329,9 +333,17 @@
 		font-weight: 500;
 	}
 
+	/* Mobile responsive design */
 	@media (max-width: 768px) {
 		.interactive-chart-block {
 			padding: 1rem;
+			margin: 0.5rem 0;
+			border-radius: 6px;
+		}
+
+		.chart-header {
+			margin-bottom: 1rem;
+			padding-bottom: 0.75rem;
 		}
 
 		.chart-title-section {
@@ -342,16 +354,33 @@
 
 		.chart-title {
 			font-size: 1.25rem;
+			line-height: 1.3;
+		}
+
+		.chart-type-badge {
+			font-size: 0.75rem;
+			padding: 0.2rem 0.6rem;
+		}
+
+		.chart-description {
+			font-size: 0.85rem;
+		}
+
+		.chart-content {
+			gap: 1rem;
 		}
 
 		.data-controls-section,
 		.chart-display-section,
 		.chart-info {
 			padding: 0.75rem;
+			border-radius: 4px;
 		}
 
 		.chart-display-section {
 			min-height: 300px;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
 		}
 
 		.chart-stats {
@@ -359,8 +388,65 @@
 			gap: 0.5rem;
 		}
 
+		.stat-item {
+			font-size: 0.85rem;
+		}
+
+		.interactions-info h5 {
+			font-size: 0.85rem;
+		}
+
 		.interactions-list {
 			padding-left: 1rem;
+		}
+
+		.interaction-item {
+			font-size: 0.75rem;
+		}
+
+		.source-attribution {
+			font-size: 0.75rem;
+			line-height: 1.3;
+		}
+	}
+
+	/* Touch-friendly interactions */
+	@media (hover: none) and (pointer: coarse) {
+		.interactive-chart-block {
+			user-select: none;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		.chart-display-section {
+			touch-action: pan-x pan-y;
+		}
+	}
+
+	/* Landscape mobile optimization */
+	@media (max-width: 768px) and (orientation: landscape) {
+		.chart-display-section {
+			min-height: 250px;
+		}
+
+		.chart-content {
+			gap: 0.75rem;
+		}
+	}
+
+	/* High contrast mode */
+	@media (prefers-contrast: high) {
+		.interactive-chart-block {
+			border-width: 2px;
+		}
+
+		.data-controls-section,
+		.chart-display-section,
+		.chart-info {
+			border-width: 2px;
+		}
+
+		.chart-type-badge {
+			border: 1px solid currentColor;
 		}
 	}
 </style>

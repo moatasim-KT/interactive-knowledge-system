@@ -63,7 +63,7 @@
 </script>
 
 {#if variant === 'circular'}
-	<div class="relative inline-flex items-center justify-center {sizeClasses}">
+	<div class="relative inline-flex items-center justify-center {size_classes()}">
 		<!-- Background circle -->
 		<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 36 36">
 			<path

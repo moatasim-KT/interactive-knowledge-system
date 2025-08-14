@@ -70,8 +70,9 @@ export const webContentState = $state({
 
 /**
  * Derived state using Svelte 5 $derived rune
+ * Note: Do not export $derived values directly; export accessors returning current value.
  */
-export const filteredSources = $derived(() => {
+const filteredSources = $derived(() => {
     const { items } = webContentState.sources;
     const { searchQuery: uiSearchQuery, filters: uiFilters } = webContentState.ui;
 
@@ -103,7 +104,11 @@ export const filteredSources = $derived(() => {
     return filtered;
 });
 
-export const contentStats = $derived(() => {
+export function getFilteredSources(): WebContentSource[] {
+    return filteredSources();
+}
+
+const contentStats = $derived(() => {
     const sources = Object.keys(webContentState.sources.items).length;
     const content = Object.keys(webContentState.content.items).length;
     const activeJobs = (Object.values(webContentState.batch.jobs) as BatchProcessingJob[])
@@ -117,7 +122,16 @@ export const contentStats = $derived(() => {
     };
 });
 
-export const batchProgress = $derived(() => {
+export function getContentStats(): {
+    totalSources: number;
+    totalContent: number;
+    activeJobs: number;
+    transformationOpportunities: number;
+} {
+    return contentStats();
+}
+
+const batchProgress = $derived(() => {
     const activeJob = webContentState.batch.activeJob;
     if (!activeJob) {return null;}
 
@@ -135,21 +149,16 @@ export const batchProgress = $derived(() => {
     };
 });
 
-/**
- * Legacy function exports for backward compatibility
- * These will be deprecated in favor of the derived values above
- */
-export function getFilteredSources() {
-    return filteredSources;
+export function getBatchProgress(): {
+    completed: number;
+    failed: number;
+    total: number;
+    percentage: number;
+} | null {
+    return batchProgress();
 }
 
-export function getContentStats() {
-    return contentStats;
-}
-
-export function getBatchProgress() {
-    return batchProgress;
-}
+/** Legacy function exports removed to prevent duplicate declarations. */
 
 /**
  * Actions for state mutations

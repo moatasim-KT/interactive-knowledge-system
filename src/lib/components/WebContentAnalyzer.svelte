@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
-	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.js';
-	import { createLogger } from '$lib/utils/logger.js';
-	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui';
+	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.ts';
+	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.ts';
+	import { createLogger } from '$lib/utils/logger.ts';
+	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui/index.ts';
 
 	const logger = createLogger('web-content-analyzer');
 
@@ -49,13 +49,11 @@
 		try {
 			logger.info(`Analyzing content: ${selected_content.id}`);
 
-			const analysis = await interactiveAnalyzer.analyzeContent(selected_content);
+			const analysis = await interactiveAnalyzer.analyzeContent(selected_content.id);
 			
 			analysis_results = {
 				contentId: selected_content.id,
 				opportunities: analysis.opportunities,
-				suggestions: analysis.suggestions,
-				confidence: analysis.confidence,
 				analyzedAt: new Date(),
 				stats: {
 					totalOpportunities: analysis.opportunities.length,
@@ -103,10 +101,11 @@
 			logger.info(`Transforming ${opportunities.length} opportunities`);
 
 			for (const opportunity of opportunities) {
-				const transformation = await interactiveAnalyzer.transformOpportunity(
-					selected_content,
-					opportunity
-				);
+				const transformation = await interactiveAnalyzer.transform(selected_content.id, {
+					type: (opportunity as any).type,
+					domain: (opportunity as any).domain,
+					parameters: (opportunity as any).parameters
+				});
 
 				webContentActions.addTransformationToHistory(transformation);
 				webContentActions.setCurrentTransformation(transformation);
@@ -151,7 +150,7 @@
 	}
 
 	// Get confidence color
-	function get_confidence_color(confidence: number): string {
+	function get_confidence_color(confidence: number): 'error' | 'success' | 'warning' | 'secondary' | 'primary' | 'outline' | 'default' {
 		if (confidence > 0.8) return 'success';
 		if (confidence > 0.5) return 'warning';
 		return 'secondary';
@@ -191,7 +190,7 @@
 				variant="primary"
 			>
 				{#if is_analyzing}
-					<LoadingSpinner size="small" />
+					<LoadingSpinner size="sm" />
 					Analyzing...
 				{:else}
 					🔍 Analyze Content
@@ -200,7 +199,7 @@
 
 			{#if analysis_results}
 				<div class="analysis-stats">
-					<Badge variant="info">
+					<Badge variant="secondary">
 						{analysis_results.stats.totalOpportunities} opportunities
 					</Badge>
 					<Badge variant="success">
@@ -218,20 +217,20 @@
 				<div class="opportunities-header">
 					<h3>Interactive Opportunities</h3>
 					<div class="selection-controls">
-						<Button onclick={select_all_opportunities} variant="outline" size="small">
-							Select All
-						</Button>
-						<Button onclick={clear_all_selections} variant="outline" size="small">
-							Clear All
-						</Button>
-						<Button
-							onclick={transform_opportunities}
-							disabled={selected_opportunities.length === 0}
-							variant="primary"
-							size="small"
-						>
-							Transform Selected ({selected_opportunities.length})
-						</Button>
+						<Button onclick={select_all_opportunities} variant="outline" size="sm">
+						Select All
+					</Button>
+					<Button onclick={clear_all_selections} variant="outline" size="sm">
+						Clear All
+					</Button>
+					<Button
+						onclick={transform_opportunities}
+						disabled={selected_opportunities.length === 0}
+						variant="primary"
+						size="sm"
+					>
+						Transform Selected ({selected_opportunities.length})
+					</Button>
 					</div>
 				</div>
 
@@ -275,7 +274,7 @@
 										<div class="parameters-list">
 											{#each Object.entries(opportunity.parameters) as [key, param] (key)}
 												<span class="parameter-tag">
-													{key}: {param.type}
+													{key}: {(param as any).type}
 												</span>
 											{/each}
 										</div>
@@ -300,27 +299,7 @@
 				{/if}
 			</div>
 
-			{#if analysis_results.suggestions && analysis_results.suggestions.length > 0}
-				<div class="suggestions-section">
-					<h3>Improvement Suggestions</h3>
-					<div class="suggestions-list">
-						{#each analysis_results.suggestions as suggestion (suggestion.id || suggestion.title)}
-							<div class="suggestion-item">
-								<span class="suggestion-icon">💡</span>
-								<div class="suggestion-content">
-									<h4>{suggestion.title}</h4>
-									<p>{suggestion.description}</p>
-									{#if suggestion.impact}
-										<Badge variant="info" size="small">
-											Impact: {suggestion.impact}
-										</Badge>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/if}
+			<!-- Suggestions section removed: analysis_results no longer contains suggestions -->
 		{/if}
 	{:else}
 		<div class="no-content-selected">
@@ -504,52 +483,6 @@
 		background: #f8f9fa;
 		border-radius: 8px;
 		border: 1px solid #e0e0e0;
-	}
-
-	.suggestions-section {
-		margin-top: 2rem;
-	}
-
-	.suggestions-section h3 {
-		margin: 0 0 1rem 0;
-		color: #333;
-		font-size: 1.4rem;
-	}
-
-	.suggestions-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.suggestion-item {
-		display: flex;
-		gap: 1rem;
-		padding: 1rem;
-		background: #fff3cd;
-		border: 1px solid #ffeaa7;
-		border-radius: 8px;
-	}
-
-	.suggestion-icon {
-		font-size: 1.5rem;
-		flex-shrink: 0;
-	}
-
-	.suggestion-content {
-		flex: 1;
-	}
-
-	.suggestion-content h4 {
-		margin: 0 0 0.5rem 0;
-		color: #333;
-		font-size: 1rem;
-	}
-
-	.suggestion-content p {
-		margin: 0 0 0.5rem 0;
-		color: #666;
-		line-height: 1.4;
 	}
 
 	.no-content-selected {

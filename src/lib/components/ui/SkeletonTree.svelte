@@ -27,7 +27,7 @@
 		return items;
 	}
 
-	const tree_data = generate_tree_structure(0, levels);
+	const treeData = generate_tree_structure(0, levels);
 </script>
 
 <div class={`animate-pulse space-y-1 ${className}`}>

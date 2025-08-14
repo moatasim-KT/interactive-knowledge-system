@@ -3,13 +3,14 @@
 	import type { UserProgress } from '../types/user.js';
 	import { progressStorage } from '../storage/userStorage.js';
 
+
 	interface Props {
 		moduleId: string;
 		userId: string;
 		maxScore?: number;
 		passingScore?: number;
 		showGrade?: boolean;
-		onScoreUpdate?: (score: number, passed: boolean) => void;
+		onScoreUpdate?: (detail: { score: number; isPassing: boolean }) => void;
 	}
 
 	let {
@@ -67,7 +68,7 @@
 	};
 
 	// Update score
-	const update_score = async (new_score) => {
+	const update_score = async (new_score: number) => {
 		try {
 			current_score = Math.max(0, Math.min(maxScore, new_score));
 
@@ -78,10 +79,10 @@
 
 			// Update progress in storage
 			const existing_progress = await progressStorage.getProgress(userId, moduleId);
-			const updated_progress = {
+			const updated_progress: UserProgress = {
 				userId,
 				moduleId,
-				status: current_score >= passingScore ? 'completed' : 'in-progress',
+				status: (current_score >= passingScore ? 'completed' : 'in-progress'),
 				score: best_score,
 				timeSpent: existing_progress?.timeSpent || 0,
 				lastAccessed: new Date(),
@@ -95,11 +96,11 @@
 			progress = updated_progress;
 			attempts = updated_progress.attempts;
 
-			// Trigger callback
-			onScoreUpdate?.(current_score, is_passing);
+			// Trigger typed callback prop with a single detail object
+			onScoreUpdate?.({ score: current_score, isPassing: is_passing() });
 
 			// If passing, complete the module
-			if (is_passing) {
+			if (is_passing()) {
 				await progressStorage.completeModule(userId, moduleId, best_score);
 			}
 		} catch (err) {
@@ -118,10 +119,10 @@
 	};
 
 	// Reset score for new attempt
-	const reset_score = () => {
+	export function resetScore() {
 		current_score = 0;
 		update_score(0);
-	};
+	}
 
 	// Set specific score
 	const set_score = (score: number) => {
@@ -138,11 +139,11 @@
 	});
 
 	// Expose methods for parent components
-	export { addPoints, subtractPoints, resetScore, setScore, updateScore };
+	export { add_points as addPoints, subtract_points as subtractPoints, set_score as setScore, update_score as updateScore };
 </script>
 
 <div class="score-tracker bg-white border border-gray-200 rounded-lg p-4">
-	{#if isLoading}
+	{#if is_loading}
 		<div class="flex items-center justify-center py-4">
 			<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
 			<span class="ml-2 text-sm text-gray-600">Loading scores...</span>
@@ -153,7 +154,7 @@
 			<div class="flex items-center justify-center space-x-4">
 				<div class="text-center">
 					<div class="text-3xl font-bold {get_score_color(current_score)}">
-						{currentScore}
+						{current_score}
 					</div>
 					<div class="text-sm text-gray-600">Current</div>
 				</div>
@@ -182,8 +183,8 @@
 				<div class="text-lg font-semibold {get_score_color(current_score)}">
 					{get_percentage(current_score)}%
 				</div>
-				<div class="text-sm {is_passing ? 'text-green-600' : 'text-red-600'}">
-					{is_passing ? '✓ Passing' : '✗ Below passing score'}
+				<div class="text-sm {is_passing() ? 'text-green-600' : 'text-red-600'}">
+					{is_passing() ? '✓ Passing' : '✗ Below passing score'}
 				</div>
 			</div>
 		</div>
@@ -196,7 +197,7 @@
 			</div>
 			<div class="w-full bg-gray-200 rounded-full h-2">
 				<div
-					class="h-2 rounded-full transition-all duration-300 {is_passing
+					class="h-2 rounded-full transition-all duration-300 {is_passing()
 						? 'bg-green-500'
 						: 'bg-blue-500'}"
 					style="width: {Math.min(100, get_percentage(current_score))}%"
@@ -219,7 +220,7 @@
 		<!-- Score Statistics -->
 		<div class="grid grid-cols-3 gap-4 text-center text-sm">
 			<div class="bg-gray-50 p-2 rounded">
-				<div class="font-semibold text-gray-900">{bestScore}</div>
+				<div class="font-semibold text-gray-900">{best_score}</div>
 				<div class="text-gray-600">Best Score</div>
 			</div>
 			<div class="bg-gray-50 p-2 rounded">
@@ -243,7 +244,7 @@
 					</div>
 				</div>
 			</div>
-		{:else if is_passing && attempts === 1}
+		{:else if is_passing() && attempts === 1}
 			<div class="mt-4 bg-green-50 border border-green-200 rounded-md p-3">
 				<div class="flex items-center">
 					<div class="text-green-500 text-lg mr-2">⭐</div>

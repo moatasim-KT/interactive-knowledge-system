@@ -40,13 +40,33 @@ The user interface is highly interactive and stays in sync with the underlying d
 
 ## Features
 
-- **Type-safe content model** – Comprehensive TypeScript types for content blocks, modules, knowledge trees, users, and interactive elements.
-- **Runes-based state management** – Reactive global state with derived values, effects, and persistence helpers.
-- **Local storage layer** – IndexedDB-backed storage for content, relationships, user data, and media assets.
-- **Service layer** – Modular services for network access, synchronization, conflict resolution, content analysis, and offline queueing.
-- **Component library** – Svelte components for knowledge maps, progress dashboards, interactive charts, simulations, editors, and more.
-- **MCP integration** – Tools and server for processing web content using the Model Context Protocol.
-- **Demo routes** – Example pages showcasing progress tracking, relationship management, simulations, code editing, and interactive visualizations.
+### Core Functionality
+
+- **Type-safe content model** – Comprehensive TypeScript types for content blocks, modules, knowledge trees, users, and interactive elements
+- **Runes-based state management** – Reactive global state with derived values, effects, and persistence helpers using Svelte 5
+- **Local storage layer** – IndexedDB-backed storage for content, relationships, user data, and media assets with offline support
+- **Service layer** – Modular services for network access, synchronization, conflict resolution, content analysis, and offline queueing
+
+### Interactive Components
+
+- **Rich component library** – Svelte components for knowledge maps, progress dashboards, interactive charts, simulations, editors, and more
+- **Interactive visualizations** – Charts, neural network visualizers, algorithm simulations, and data exploration tools
+- **Content editor** – WYSIWYG editor supporting multiple content block types including text, code, media, and interactive elements
+- **Knowledge management** – Hierarchical content organization with relationships, prerequisites, and progress tracking
+
+### Web Content Integration
+
+- **MCP server integration** – Built-in Model Context Protocol server for automated web content sourcing and processing
+- **Content transformation** – Intelligent extraction and conversion of web content into interactive learning materials
+- **Batch processing** – Efficient processing of multiple content sources with scheduling and monitoring
+- **Source management** – Organized content source libraries with automatic updates and validation
+
+### Development & Production
+
+- **Production-ready architecture** – Comprehensive error handling, performance optimization, and monitoring
+- **Offline-first design** – Full functionality without internet connection with intelligent sync when online
+- **Responsive design** – Mobile-friendly interface that works across all device sizes
+- **Accessibility compliance** – WCAG 2.1 AA compliant with screen reader support and keyboard navigation
 
 ## Getting Started
 
@@ -66,11 +86,20 @@ npm install
 ### Development Commands
 
 ```bash
-pnpm dev        # Start development server
-pnpm test       # Run unit tests with Vitest
-pnpm lint       # Prettier & ESLint checks
-pnpm build      # Production build
-pnpm preview    # Preview production build
+# Development
+npm run dev        # Start development server with hot reload
+npm run build      # Production build
+npm run preview    # Preview production build locally
+
+# Quality Assurance
+npm run check      # TypeScript and Svelte type checking
+npm run test       # Run unit tests with Vitest
+npm run lint       # Run Prettier and ESLint checks
+
+# Testing
+npm run test -- --run    # Run tests once without watch mode
+npm run test -- --ui     # Run tests with UI interface
+npm run test -- --coverage  # Run tests with coverage report
 ```
 
 ## Architecture Overview
@@ -364,13 +393,21 @@ $effect(() => {
 
 Several demo pages illustrate system capabilities:
 
-- `/` – Main application shell
-- `/knowledge` – Knowledge tree navigation
-- `/progress-demo` – Progress tracking dashboard
-- `/relationships-demo` – Relationship management
-- `/simulation-demo` – Interactive simulation components
-- `/code-demo` – Code editor and execution demo
-- `/demo-interactive-viz` – Interactive visualization showcase
+- `/` – Main application shell with navigation and overview
+- `/knowledge` – Knowledge tree navigation and content management
+- `/progress-demo` – Progress tracking dashboard with analytics
+- `/relationships-demo` – Relationship management and visualization
+- `/simulation-demo` – Interactive simulation components and algorithms
+- `/code-demo` – Code editor with syntax highlighting and execution
+- `/demo-interactive-viz` – Interactive visualization showcase with charts and graphs
+- `/offline-demo` – Offline functionality demonstration and testing
+
+### Getting Started with Demos
+
+1. Start the development server: `npm run dev`
+2. Navigate to `http://localhost:5173`
+3. Explore the demo routes to understand system capabilities
+4. Check the browser console for detailed logging and debugging information
 
 ## Contributing
 
@@ -380,13 +417,95 @@ Several demo pages illustrate system capabilities:
 4. Run `pnpm lint` and `pnpm test`
 5. Submit a pull request
 
+## Troubleshooting
+
+### Common Issues
+
+#### Build Errors
+
+```bash
+# Clear build cache and reinstall dependencies
+rm -rf node_modules package-lock.json .svelte-kit
+npm install
+npm run check
+```
+
+#### TypeScript Errors
+
+```bash
+# Run type checking
+npm run check
+
+# Fix common import issues
+# Ensure all imports use correct file extensions (.ts, .svelte.ts, .svelte)
+```
+
+#### Test Failures
+
+```bash
+# Run tests with verbose output
+npm run test -- --reporter=verbose
+
+# Run specific test file
+npm run test -- src/lib/tests/specific-test.test.ts
+```
+
+#### MCP Server Issues
+
+```bash
+# Check MCP server configuration
+cat .kiro/settings/mcp.json
+
+# Test MCP server startup
+node src/lib/mcp/web-content/test-server-startup.ts
+```
+
+### Performance Issues
+
+- **Slow loading**: Check browser dev tools Network tab for large assets
+- **Memory usage**: Monitor browser dev tools Memory tab during usage
+- **Build performance**: Use `npm run build` to check production build times
+
+### Getting Help
+
+- Check the [documentation](docs/README.md) for detailed guides
+- Review [GitHub Issues](https://github.com/your-repo/issues) for known problems
+- Create a new issue with system details and error logs
+
 ## Roadmap
 
+### Current Focus (v0.1.0)
+
+- ✅ Production-ready TypeScript and Svelte 5 implementation
+- ✅ Comprehensive error handling and boundaries
+- ✅ MCP server integration and web content sourcing
+- ✅ Offline functionality with IndexedDB storage
+- 🔄 Interactive article creation and editing tools
+- 🔄 Responsive design and mobile optimization
+
+### Near Term (v0.2.0)
+
+- Enhanced search and discovery with full-text indexing
 - Advanced visualization types (neural networks, system diagrams)
-- Content editing and authoring tools
-- Enhanced search and discovery
-- Collaborative features and cloud sync
-- Data export/import workflows
+- Content versioning and collaboration features
+- Performance optimization and monitoring
+- Comprehensive testing coverage
+
+### Medium Term (v0.3.0)
+
+- Cloud synchronization and backup
+- Multi-user collaboration and sharing
+- Plugin system for custom content types
+- Advanced analytics and learning insights
+- Export/import workflows (PDF, SCORM, etc.)
+
+### Long Term (v1.0.0)
+
+- AI-powered content recommendations
+- Advanced learning path optimization
+- Integration with external learning platforms
+- Mobile applications (iOS/Android)
+- Enterprise features and deployment options
 
 ## License
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ContentBlock } from '$lib/types/content.js';
-	import type { MediaFile } from '$lib/types/media.js';
+	import type { MediaFile } from '$lib/types/media';
 	import { createEventDispatcher } from 'svelte';
 	import ResponsiveImage from './ResponsiveImage.svelte';
 	import LazyMedia from './LazyMedia.svelte';
@@ -10,6 +10,7 @@
 	interface Props {
 		block: ContentBlock;
 		isSelected: boolean;
+		onupdate?: (event: CustomEvent<Partial<ContentBlock>>) => void;
 	}
 
 	let { block, isSelected }: Props = $props();
@@ -20,7 +21,7 @@
 	}>();
 
 	// Update content and dispatch change
-	function update_content(new_content) {
+	function update_content(new_content: Partial<ContentBlock['content']>) {
 		dispatch('update', {
 			content: new_content,
 			metadata: {
@@ -44,8 +45,8 @@
 	}
 
 	// Handle media upload
-	function handle_media_upload(event: CustomEvent<MediaFile>) {
-		const media_file = event.detail;
+	function handle_media_upload(e: CustomEvent<MediaFile>) {
+		const media_file = e.detail;
 		update_content({
 			...block.content,
 			src: media_file.url,
@@ -61,8 +62,9 @@
 		});
 	}
 
-	function handle_media_upload_error(event: CustomEvent<string>) {
-		console.error('Media upload error:', event.detail);
+	function handle_media_upload_error(e: CustomEvent<string>) {
+		const error = e.detail;
+		console.error('Media upload error:', error);
 		// You could show a toast notification here
 	}
 
@@ -105,9 +107,9 @@
 		<div
 			class="text-editor"
 			contenteditable="true"
-			bind:this={textEditor}
-			oninput={handleTextInput}
-			onblur={handleTextInput}
+			bind:this={text_editor}
+			oninput={handle_text_input}
+			onblur={handle_text_input}
 		>
 			{@html block.content.html || '<p>Enter your text here...</p>'}
 		</div>
@@ -128,8 +130,8 @@
 			{:else if isSelected}
 				<MediaUpload
 					accept="image/*"
-					onupload={handleMediaUpload}
-					onerror={handleMediaUploadError}
+					onupload={handle_media_upload}
+					onerror={handle_media_upload_error}
 					class="image-upload"
 				/>
 			{:else}
@@ -147,7 +149,7 @@
 						oninput={(e) =>
 							update_content({
 								...block.content,
-								alt: e.currentTarget.value
+								alt: (e.currentTarget as HTMLInputElement).value
 							})}
 						class="text-input"
 					/>
@@ -159,7 +161,7 @@
 						oninput={(e) =>
 							update_content({
 								...block.content,
-								caption: e.currentTarget.value
+								caption: (e.currentTarget as HTMLInputElement).value
 							})}
 						class="text-input"
 					/>
@@ -181,8 +183,8 @@
 			{:else if isSelected}
 				<MediaUpload
 					accept="video/*"
-					onupload={handleMediaUpload}
-					onerror={handleMediaUploadError}
+					onupload={handle_media_upload}
+					onerror={handle_media_upload_error}
 					class="video-upload"
 				/>
 			{:else}
@@ -200,7 +202,7 @@
 						oninput={(e) =>
 							update_content({
 								...block.content,
-								title: e.currentTarget.value
+								title: (e.currentTarget as HTMLInputElement).value
 							})}
 						class="text-input"
 					/>
@@ -211,7 +213,7 @@
 						oninput={(e) =>
 							update_content({
 								...block.content,
-								description: e.currentTarget.value
+								description: (e.currentTarget as HTMLTextAreaElement).value
 							})}
 						class="textarea-input"
 						rows="3"
@@ -239,7 +241,7 @@
 							onchange={(e) =>
 								update_content({
 									...block.content,
-									language: e.currentTarget.value
+									language: (e.currentTarget as HTMLSelectElement).value
 								})}
 							class="language-select"
 						>
@@ -259,7 +261,7 @@
 					oninput={(e) =>
 						update_content({
 							...block.content,
-							code: e.currentTarget.value
+							code: (e.currentTarget as HTMLTextAreaElement).value
 						})}
 					class="code-textarea"
 					placeholder="Enter your code here..."
@@ -278,7 +280,7 @@
 						oninput={(e) =>
 							update_content({
 								...block.content,
-								question: e.currentTarget.value
+								question: (e.currentTarget as HTMLInputElement).value
 							})}
 						class="question-input"
 					/>
@@ -288,7 +290,7 @@
 						onchange={(e) =>
 							update_content({
 								...block.content,
-								type: e.currentTarget.value
+								type: (e.currentTarget as HTMLSelectElement).value
 							})}
 						class="quiz-type-select"
 					>
@@ -315,7 +317,7 @@
 								<input
 									type="text"
 									value={option}
-									oninput={(e) => update_quiz_option(index, e.currentTarget.value)}
+									oninput={(e) => update_quiz_option(index, (e.currentTarget as HTMLInputElement).value)}
 									class="option-input"
 								/>
 								<button
@@ -328,7 +330,7 @@
 							</div>
 						{/each}
 
-						<button onclick={addQuizOption} class="add-option-btn" type="button">
+						<button onclick={add_quiz_option} class="add-option-btn" type="button">
 							➕ Add Option
 						</button>
 					</div>
@@ -372,7 +374,7 @@
 							oninput={(e) =>
 								update_content({
 									...block.content,
-									correctAnswer: e.currentTarget.value
+									correctAnswer: (e.currentTarget as HTMLInputElement).value
 								})}
 							class="answer-input"
 						/>
@@ -397,7 +399,7 @@
 							oninput={(e) =>
 								update_content({
 									...block.content,
-									front: e.currentTarget.value
+									front: (e.currentTarget as HTMLTextAreaElement).value
 								})}
 							class="flashcard-textarea"
 							placeholder="Front of the card"
@@ -412,7 +414,7 @@
 							oninput={(e) =>
 								update_content({
 									...block.content,
-									back: e.currentTarget.value
+									back: (e.currentTarget as HTMLTextAreaElement).value
 								})}
 							class="flashcard-textarea"
 							placeholder="Back of the card"
@@ -503,6 +505,7 @@
 		border: 1px solid #ddd;
 		border-radius: 4px;
 		background: white;
+		font-size: 0.9rem;
 	}
 
 	.code-textarea {
@@ -638,7 +641,7 @@
 	}
 
 	/* Flashcard Block */
-	.flashcard-editor {
+	.flashcard-block {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 1rem;

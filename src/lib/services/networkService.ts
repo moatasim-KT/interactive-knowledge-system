@@ -25,7 +25,7 @@ export class NetworkService {
 	}
 
 	private initializeNetworkMonitoring(): void {
-		if (typeof window === 'undefined') {return;}
+		if (typeof window === 'undefined') { return; }
 
 		// Basic online/offline detection
 		window.addEventListener('online', this.handleOnline.bind(this));
@@ -86,11 +86,16 @@ export class NetworkService {
 	private async checkConnectivity(): Promise<boolean> {
 		try {
 			// Try to fetch a small resource to verify connectivity
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000);
+
 			const response = await fetch('/favicon.ico', {
 				method: 'HEAD',
 				cache: 'no-cache',
-				signal: AbortSignal.timeout(5000)
+				signal: controller.signal
 			});
+
+			clearTimeout(timeoutId);
 			return response.ok;
 		} catch {
 			return false;
@@ -133,7 +138,7 @@ export class NetworkService {
 	}
 
 	destroy(): void {
-		if (typeof window === 'undefined') {return;}
+		if (typeof window === 'undefined') { return; }
 
 		window.removeEventListener('online', this.handleOnline.bind(this));
 		window.removeEventListener('offline', this.handleOffline.bind(this));

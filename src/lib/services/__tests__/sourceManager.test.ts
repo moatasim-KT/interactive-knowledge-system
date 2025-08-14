@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { WebContent, SourceFilters } from '../../types/web-content.js';
+import type { WebContent } from '../../types/web-content.js';
+import type { SourceFilters } from '../sourceManager.js';
 
 describe('Source Management Types', () => {
 	it('should have proper SourceFilters interface', () => {
@@ -86,7 +87,7 @@ describe('Source Management Types', () => {
 		expect(Object.keys(emptyFilters)).toHaveLength(0);
 
 		// Test partial filters
-		const partialFilters = {
+		const partialFilters: SourceFilters = {
 			domain: 'github.com',
 			tags: ['javascript']
 		};

@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import type { KnowledgeNode } from '$lib/types/knowledge.js';
+	import type { KnowledgeNode } from '$lib/types/knowledge';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		nodes?: KnowledgeNode[];
@@ -13,9 +16,9 @@
 		onNodeMove?: (nodeId: string, newParentId: string | null) => void;
 	}
 
-	let {
-		nodes = [],
-		showActions = true,
+	let { 
+		nodes = [], 
+		showActions = true, 
 		onNodeSelect,
 		onNodeAdd,
 		onNodeDelete,
@@ -36,17 +39,17 @@
 	});
 
 	// Build hierarchical structure from flat array
-	function build_hierarchy(flat_nodes): KnowledgeNode[] {
+	function build_hierarchy(flat_nodes: KnowledgeNode[]): KnowledgeNode[] {
 		const node_map = new Map<string, KnowledgeNode>();
-		const root_nodes = [];
+		const root_nodes: KnowledgeNode[] = [];
 
 		// First pass: create map of all nodes
-		flat_nodes.forEach((node) => {
+		flat_nodes.forEach((node: KnowledgeNode) => {
 			node_map.set(node.id, { ...node, children: [] });
 		});
 
 		// Second pass: build hierarchy
-		flat_nodes.forEach((node) => {
+		flat_nodes.forEach((node: KnowledgeNode) => {
 			const node_with_children = node_map.get(node.id)!;
 			if (node.parent) {
 				const parent = node_map.get(node.parent);
@@ -66,7 +69,7 @@
 	}
 
 	// Toggle node expansion
-	function toggle_expanded(node_id) {
+	function toggle_expanded(node_id: string) {
 		if (expanded_nodes.has(node_id)) {
 			expanded_nodes.delete(node_id);
 		} else {
@@ -84,18 +87,19 @@
 		goto(url, { replaceState: true });
 
 		// Call custom handler if provided
+		dispatch('nodeselect', node);
 		onNodeSelect?.(node);
 	}
 
 	// Handle adding new node
-	function add_node(parent_id, type: KnowledgeNode['type'] = 'lesson') {
-		const new_node = {
+	function add_node(parent_id: string | null | undefined, type: KnowledgeNode['type'] = 'lesson') {
+		const new_node: KnowledgeNode = { // Explicitly type new_node
 			id: crypto.randomUUID(),
 			title: 'New ' + type.charAt(0).toUpperCase() + type.slice(1),
 			type,
 			parent: parent_id || undefined,
 			metadata: {
-				difficulty: 1,
+				difficulty: 1, // Changed to 1 to match the literal type '1 | 2 | 3 | 4 | 5'
 				estimatedTime: 15,
 				prerequisites: [],
 				tags: []
@@ -111,11 +115,11 @@
 		}
 
 		// Call custom handler if provided
-		onNodeAdd?.(parent_id);
+		dispatch('nodeadd', parent_id ?? null); // Ensure parent_id is string | null
 	}
 
 	// Handle node deletion
-	function delete_node(node_id) {
+	function delete_node(node_id: string) {
 		if (confirm('Are you sure you want to delete this node and all its children?')) {
 			// Find and delete all children recursively
 			const delete_recursively = (id: string) => {
@@ -135,7 +139,7 @@
 			}
 
 			// Call custom handler if provided
-			onNodeDelete?.(node_id);
+			dispatch('nodedelete', node_id);
 		}
 	}
 
@@ -161,7 +165,7 @@
 		target.style.opacity = '';
 	}
 
-	function handle_drag_over(event: DragEvent, target_node_id) {
+	function handle_drag_over(event: DragEvent, target_node_id: string) {
 		event.preventDefault();
 		if (!dragged_node || dragged_node.id === target_node_id) return;
 
@@ -173,9 +177,12 @@
 		drop_target = null;
 	}
 
-	function handle_drop(event: DragEvent, target_node_id) {
+	function handle_drop(event: DragEvent, target_node_id: string) {
 		event.preventDefault();
-		if (!dragged_node || dragged_node.id === target_node_id) return;
+
+		if (dragged_node === null || dragged_node.id === target_node_id) {
+			return;
+		}
 
 		const target_node = appState.content.nodes.get(target_node_id);
 		if (!target_node) return;
@@ -200,14 +207,14 @@
 		}
 
 		// Call custom handler if provided
-		onNodeMove?.(dragged_node.id, new_parent || null);
+		dispatch('nodemove', { nodeId: dragged_node.id, newParentId: new_parent || null });
 
 		dragged_node = null;
 		drop_target = null;
 	}
 
 	// Check if nodeId is a descendant of ancestorId
-	function is_descendant(node_id, ancestor_id): boolean {
+	function is_descendant(node_id: string, ancestor_id: string): boolean {
 		const node = appState.content.nodes.get(node_id);
 		if (!node || !node.parent) return false;
 		if (node.parent === ancestor_id) return true;
@@ -252,11 +259,11 @@
 	</div>
 
 	<div class="tree-content">
-		{#each treeNodes as node (node.id)}
+		{#each tree_nodes() as node (node.id)} <!-- Call tree_nodes() here -->
 			{@render TreeNode(node, 0)}
 		{/each}
 
-		{#if tree_nodes.length === 0}
+		{#if tree_nodes().length === 0} <!-- Call tree_nodes() here -->
 			<div class="empty-state">
 				<p>No knowledge nodes yet.</p>
 				{#if showActions}
@@ -277,9 +284,9 @@
 		role={showActions ? 'treeitem' : 'none'}
 		aria-label={showActions ? `Draggable ${node.type}: ${node.title}` : undefined}
 		ondragstart={(e) => handle_drag_start(e, node)}
-		ondragend={handleDragEnd}
+		ondragend={handle_drag_end}
 		ondragover={(e) => handle_drag_over(e, node.id)}
-		ondragleave={handleDragLeave}
+		ondragleave={handle_drag_leave}
 		ondrop={(e) => handle_drop(e, node.id)}
 	>
 		<div class="node-content">
@@ -302,7 +309,9 @@
 					title={`${node.type}: ${node.title}`}
 				>
 					<span class="node-icon">{get_node_icon(node)}</span>
-					<span class="node-title">{node.title}</span>
+					<span class="node-title">
+						{node.title}
+					</span>
 				</button>
 
 				{#if node.progress?.completed}
@@ -509,7 +518,7 @@
 
 	.node-title {
 		font-size: 0.9rem;
-		truncate: true;
+		/* truncate: true; */ /* Removed as it's not a standard CSS property */
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

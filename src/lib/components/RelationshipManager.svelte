@@ -1,28 +1,26 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type {
-		ContentLink,
-		RelationshipType,
-		ContentRecommendation
-	} from '../types/relationships.js';
+	import type { ContentLink, RelationshipType, ContentRecommendation } from '../types/relationships';
 	import type { ContentModule } from '../types/content.js';
 	import { relationshipStorage } from '../storage/relationshipStorage.js';
-	import { similarityEngine } from '../utils/similarityEngine.js';
+	import { similarityEngine } from '../utils/similarityEngine';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		currentModule: ContentModule;
 		allModules: ContentModule[];
 		completedContent: Set<string>;
-		onRelationshipChange?: () => void;
 	}
 
-	let { currentModule, allModules, completedContent, onRelationshipChange }: Props = $props();
+	let { currentModule, allModules, completedContent }: Props = $props();
 
-	let existing_links = $state([]);
+	let existing_links = $state<ContentLink[]>([]); // Explicitly type existing_links
 	let recommendations: ContentRecommendation[] = $state([]);
 	let show_add_relationship = $state(false);
 	let selected_module = $state('');
-	let selected_relation_type = $state('related');
+	let selected_relation_type = $state<RelationshipType>('related'); // Explicitly type selected_relation_type
 	let relationship_strength = $state(1.0);
 	let loading = $state(false);
 
@@ -100,7 +98,7 @@
 
 			// Reload links and notify parent
 			await load_existing_links();
-			onRelationshipChange?.();
+			dispatch('relationshipchange');
 
 			// Reset form
 			selected_module = '';
@@ -117,12 +115,12 @@
 	/**
 	 * Remove a relationship
 	 */
-	async function remove_relationship(link_id) {
+	async function remove_relationship(link_id: string) {
 		loading = true;
 		try {
 			await relationshipStorage.deleteLink(link_id);
 			await load_existing_links();
-			onRelationshipChange?.();
+			dispatch('relationshipchange');
 		} catch (error) {
 			console.error('Failed to remove relationship:', error);
 		} finally {
@@ -133,7 +131,7 @@
 	/**
 	 * Update relationship strength
 	 */
-	async function update_relationship_strength(link: ContentLink, new_strength) {
+	async function update_relationship_strength(link: ContentLink, new_strength: number) {
 		loading = true;
 		try {
 			const updated_link = {
@@ -142,7 +140,7 @@
 			};
 			await relationshipStorage.updateLink(updated_link);
 			await load_existing_links();
-			onRelationshipChange?.();
+			dispatch('relationshipchange');
 		} catch (error) {
 			console.error('Failed to update relationship:', error);
 		} finally {
@@ -153,7 +151,7 @@
 	/**
 	 * Get module title by ID
 	 */
-	function get_module_title(module_id): string {
+	function get_module_title(module_id: string): string {
 		const module = allModules.find((m) => m.id === module_id);
 		return module ? module.title : 'Unknown Module';
 	}
@@ -196,7 +194,7 @@
 
 			await load_existing_links();
 			await load_recommendations();
-			onRelationshipChange?.();
+			dispatch('relationshipchange');
 		} catch (error) {
 			console.error('Failed to accept recommendation:', error);
 		} finally {
@@ -207,7 +205,7 @@
 	/**
 	 * Map recommendation type to relationship type
 	 */
-	function get_recommendation_relation_type(rec_type): RelationshipType {
+	function get_recommendation_relation_type(rec_type: string): RelationshipType {
 		switch (rec_type) {
 			case 'next-in-sequence':
 				return 'sequence';
@@ -284,7 +282,7 @@
 			<div class="form-actions">
 				<button
 					class="btn btn-primary"
-					onclick={addRelationship}
+					onclick={add_relationship}
 					disabled={!selected_module || loading}
 				>
 					Add Relationship
@@ -304,7 +302,7 @@
 			<p class="no-relationships">No relationships defined yet.</p>
 		{:else}
 			<div class="relationships-list">
-				{#each existingLinks as link (link.id)}
+				{#each existing_links as link (link.id)}
 					<div class="relationship-item">
 						<div class="relationship-info">
 							<div class="relationship-title">
@@ -331,7 +329,7 @@
 								max="1.0"
 								step="0.1"
 								value={link.strength}
-								onchange={(e) => update_relationship_strength(link, parseFloat(e.target.value))}
+								onchange={(e) => update_relationship_strength(link, parseFloat((e.target as HTMLInputElement).value))}
 								disabled={loading}
 								class="strength-slider"
 							/>

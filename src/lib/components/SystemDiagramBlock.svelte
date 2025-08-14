@@ -5,24 +5,29 @@
 	interface Props {
 		block: SystemDiagramBlock;
 		editable?: boolean;
-		onParameterChange?: (event: any) => void;
-		onElementClick?: (event: any) => void;
-		onElementHover?: (event: any) => void;
-		onDiagramReset?: (event: any) => void;
-		onDiagramExport?: (event: any) => void;
-		onDiagramError?: (event: any) => void;
+		onparameterchange?: (event: CustomEvent) => void;
+		onelementclick?: (event: CustomEvent) => void;
+		onelementhover?: (event: CustomEvent) => void;
+		ondiagramreset?: (event: CustomEvent) => void;
+		ondiagramexport?: (event: CustomEvent) => void;
+		ondiagramerror?: (event: CustomEvent) => void;
 	}
 
-	let { 
+	import { createEventDispatcher } from 'svelte';
+
+const dispatch = createEventDispatcher<{
+			parameterChange: { parameter: string; value: any };
+			diagramerror: { error: string };
+			elementclick: { elementId: string; element: any; state: any; blockId: string };
+			elementhover: { elementId: string; element: any; state: any; blockId: string };
+			diagramreset: Record<string, never>;
+			diagramexport: { format: string };
+		}>();
+
+let { 
 		block, 
-		editable = false,
-		onParameterChange,
-		onElementClick,
-		onElementHover,
-		onDiagramReset,
-		onDiagramExport,
-		onDiagramError
-	}: Props = $props();
+		editable = false
+		}: Props = $props();
 
 	let svg_container = $state<SVGSVGElement>();
 	let diagram_state = $state({ ...block.content.initialState });
@@ -57,7 +62,7 @@
 		update_diagram_state();
 		render_diagram();
 
-		onParameterChange?.({ parameter, value });
+		dispatch('parameterChange', { parameter, value });
 	}
 
 	// Update diagram state based on current parameters
@@ -77,7 +82,7 @@
 				diagram_state = update_function(diagram_state, parameter_values) || diagram_state;
 			}
 		} catch (error) {
-			onDiagramError?.({ error: (error as Error).message });
+			dispatch('diagramerror', { error: (error as Error).message });
 		}
 	}
 
@@ -89,7 +94,7 @@
 		// Find element data
 		const element = block.content.elements.find((el) => el.id === element_id);
 		if (element) {
-			onElementClick?.({
+			dispatch('elementclick', {
 				elementId: element_id,
 				element,
 				state: diagram_state,
@@ -105,12 +110,12 @@
 		if (element_id) {
 			const element = block.content.elements.find((el) => el.id === element_id);
 			if (element) {
-				onElementHover?.({
-					elementId: element_id,
-					element,
-					state: diagram_state,
-					blockId: block.id
-				});
+							dispatch('elementhover', {
+				elementId: element_id,
+				element,
+				state: diagram_state,
+				blockId: block.id
+			});
 			}
 		}
 	}
@@ -295,7 +300,7 @@
 		selected_element = null;
 		hover_element = null;
 		render_diagram();
-		onDiagramReset?.({});
+		dispatch('diagramreset', {});
 	}
 
 	// Export diagram as SVG
@@ -312,7 +317,7 @@
 		link.click();
 
 		URL.revokeObjectURL(url);
-		onDiagramExport?.({ format: 'svg' });
+		dispatch('diagramexport', { format: 'svg' });
 	}
 
 	// Initialize diagram on mount
@@ -365,7 +370,7 @@
 		{#if parameters.length > 0}
 			<div class="parameters-section">
 				<h4 class="section-title">Parameters</h4>
-				<ParameterControls parameters={parameters()} onParameterChange={handle_parameter_change} />
+				<ParameterControls parameters={parameters()} onParameterChange={(p) => handle_parameter_change(new CustomEvent('parameterchange', { detail: p }))} />
 			</div>
 		{/if}
 

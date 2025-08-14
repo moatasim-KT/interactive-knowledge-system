@@ -9,3 +9,4 @@ export * from './code';
 export * from './sync';
 export * from './web-content';
 export * from './component-props';
+export * from './toast';

@@ -82,7 +82,7 @@ class MediaStorage {
 			const media_store = transaction.objectStore(MEDIA_STORE);
 			const metadata_store = transaction.objectStore(METADATA_STORE);
 
-			let media_data = null;
+			let media_data: ArrayBuffer | string | null = null;
 			let metadata: MediaFile | null = null;
 
 			const media_request = media_store.get(id);

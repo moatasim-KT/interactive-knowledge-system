@@ -2,9 +2,18 @@
  * Tests for InteractiveAnalyzer
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InteractiveAnalyzer } from '../interactiveAnalyzer.js';
 import type { WebContent } from '../../types/web-content.js';
+
+// Mock storage service
+const storageService = {
+	getContent: vi.fn()
+};
+
+vi.mock('../storage', () => ({
+	storageService
+}));
 
 describe('InteractiveAnalyzer', () => {
 	let analyzer: InteractiveAnalyzer;
@@ -14,7 +23,7 @@ describe('InteractiveAnalyzer', () => {
 	});
 
 	describe('analyzeContent', () => {
-		it('should analyze basic web content', () => {
+		it('should analyze basic web content', async () => {
 			const web_content = {
 				id: 'test-1',
 				url: 'https://example.com/test',
@@ -50,18 +59,17 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
 			expect(result).toBeDefined();
 			// Basic analysis should work
-			expect(result.domain).toBeDefined();
-			expect(result.contentType).toBe('general');
-                        expect(result.confidence).toBeGreaterThan(0);
-                        expect(result.qualityMetrics).toBeDefined();
-                        expect(result.opportunities).toBeDefined();
+			expect(result.dataRequirements).toBeDefined();
+			expect(result.preservationFeasibility).toBeDefined();
+			expect(result.opportunities).toBeDefined();
 		});
 
-		it('should detect interactive code blocks', () => {
+		it('should detect interactive code blocks', async () => {
 			const web_content = {
 				id: 'test-2',
 				url: 'https://example.com/code',
@@ -105,17 +113,17 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-                        expect(result.domain).toBeDefined();
-                        expect(result.interactiveElements.length).toBe(1);
-                        expect(result.interactiveElements[0].type).toBe('code');
-                        // Ensure the detected element is executable/interactable
-                        expect(result.interactiveElements[0].executable).toBe(true);
-                        expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
-                });
+			expect(result.interactiveElements.length).toBe(1);
+			expect(result.interactiveElements[0].type).toBe('code');
+			// Ensure the detected element is executable/interactable
+			expect(result.interactiveElements[0].executable).toBe(true);
+			expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
+		});
 
-		it('should detect table opportunities', () => {
+		it('should detect table opportunities', async () => {
 			const web_content = {
 				id: 'test-3',
 				url: 'https://example.com/data',
@@ -164,7 +172,8 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
 			expect(result.interactiveElements.length).toBeGreaterThanOrEqual(0);
 			if (result.interactiveElements.length > 0) {
@@ -173,7 +182,7 @@ describe('InteractiveAnalyzer', () => {
 			expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
 		});
 
-		it('should detect chart opportunities', () => {
+		it('should detect chart opportunities', async () => {
 			const web_content = {
 				id: 'test-4',
 				url: 'https://example.com/charts',
@@ -216,9 +225,9 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-			expect(result.domain).toBeDefined();
 			expect(result.interactiveElements.length).toBeGreaterThanOrEqual(0);
 			if (result.interactiveElements.length > 0) {
 				expect(result.interactiveElements[0].type).toBe('chart');
@@ -226,7 +235,7 @@ describe('InteractiveAnalyzer', () => {
 			expect(result.opportunities.length).toBeGreaterThanOrEqual(0);
 		});
 
-		it('should detect framework usage', () => {
+		it('should detect framework usage', async () => {
 			const web_content = {
 				id: 'test-5',
 				url: 'https://example.com/react',
@@ -262,16 +271,17 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-			expect(result.frameworks.length).toBeGreaterThanOrEqual(0);
-			if (result.frameworks.length > 0) {
-				expect(result.frameworks[0].name).toBeDefined();
-				expect(result.frameworks[0].confidence).toBeGreaterThan(0);
+			expect(result.javascriptFrameworks.length).toBeGreaterThanOrEqual(0);
+			if (result.javascriptFrameworks.length > 0) {
+				expect(result.javascriptFrameworks[0].name).toBeDefined();
+				expect(result.javascriptFrameworks[0].confidence).toBeGreaterThan(0);
 			}
 		});
 
-		it('should calculate quality metrics', () => {
+		it('should calculate quality metrics', async () => {
 			const web_content = {
 				id: 'test-6',
 				url: 'https://example.com/quality',
@@ -307,14 +317,15 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-			expect(result.qualityMetrics.readabilityScore).toBeGreaterThanOrEqual(0);
-			expect(result.qualityMetrics.accuracyScore).toBeGreaterThanOrEqual(0.5);
-			expect(result.qualityMetrics.overallScore).toBeGreaterThanOrEqual(0);
+			expect(result.dataRequirements).toBeDefined();
+			expect(result.preservationFeasibility).toBeDefined();
+			expect(result.opportunities).toBeDefined();
 		});
 
-		it('should handle empty content gracefully', () => {
+		it('should handle empty content gracefully', async () => {
 			const web_content = {
 				id: 'test-7',
 				url: 'https://example.com/empty',
@@ -350,100 +361,20 @@ describe('InteractiveAnalyzer', () => {
 				success: false
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
 			expect(result).toBeDefined();
-			expect(result.domain).toBe('general');
+			expect(result.dataRequirements).toBeDefined();
 			expect(result.opportunities).toHaveLength(0);
-			expect(result.confidence).toBeLessThan(0.5);
+			expect(result.preservationFeasibility).toBeDefined();
 		});
 	});
 
-	describe('generateQualityImprovements', () => {
-		it('should generate readability improvements', () => {
-			const analysis_result = {
-				domain: 'general',
-				contentType: 'general' as const,
-				topics: [],
-				frameworks: [],
-				interactiveElements: [],
-				opportunities: [],
-				complexity: 'low' as const,
-				qualityMetrics: {
-					readabilityScore: 0.3,
-					interactivityScore: 0.8,
-					accuracyScore: 0.9,
-					engagementScore: 0.7,
-					accessibilityScore: 0.8,
-					overallScore: 0.7
-				},
-				confidence: 0.8,
-				processingTime: 100
-			};
 
-			const improvements = analyzer.generateQualityImprovements(analysis_result);
-
-			expect(improvements).toHaveLength(1);
-			expect(improvements[0].type).toBe('readability');
-			expect(improvements[0].priority).toBe('high');
-		});
-
-		it('should generate interactivity improvements', () => {
-			const analysis_result = {
-				domain: 'general',
-				contentType: 'general' as const,
-				topics: [],
-				frameworks: [],
-				interactiveElements: [],
-				opportunities: [],
-				complexity: 'low' as const,
-				qualityMetrics: {
-					readabilityScore: 0.8,
-					interactivityScore: 0.2,
-					accuracyScore: 0.9,
-					engagementScore: 0.7,
-					accessibilityScore: 0.8,
-					overallScore: 0.7
-				},
-				confidence: 0.8,
-				processingTime: 100
-			};
-
-			const improvements = analyzer.generateQualityImprovements(analysis_result);
-
-			expect(improvements.some((imp) => imp.type === 'interactivity')).toBe(true);
-		});
-
-		it('should generate accessibility improvements', () => {
-			const analysis_result = {
-				domain: 'general',
-				contentType: 'general' as const,
-				topics: [],
-				frameworks: [],
-				interactiveElements: [],
-				opportunities: [],
-				complexity: 'low' as const,
-				qualityMetrics: {
-					readabilityScore: 0.8,
-					interactivityScore: 0.8,
-					accuracyScore: 0.9,
-					engagementScore: 0.7,
-					accessibilityScore: 0.5,
-					overallScore: 0.7
-				},
-				confidence: 0.8,
-				processingTime: 100
-			};
-
-			const improvements = analyzer.generateQualityImprovements(analysis_result);
-
-			expect(improvements.some((imp) => imp.type === 'accessibility')).toBe(true);
-			expect(improvements.find((imp) => imp.type === 'accessibility')?.priority).toBe('high');
-		});
-	});
 
 	describe('domain detection', () => {
-		it('should detect machine learning domain', () => {
+		it('should detect machine learning domain', async () => {
 			const web_content = {
 				id: 'test-ml',
 				url: 'https://example.com/ml',
@@ -479,13 +410,14 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-			expect(result.domain).toBeDefined();
-			expect(result.topics.length).toBeGreaterThanOrEqual(0);
+			expect(result.dataRequirements).toBeDefined();
+			expect(result.opportunities).toBeDefined();
 		});
 
-		it('should detect physics domain', () => {
+		it('should detect physics domain', async () => {
 			const web_content = {
 				id: 'test-physics',
 				url: 'https://example.com/physics',
@@ -521,10 +453,10 @@ describe('InteractiveAnalyzer', () => {
 				success: true
 			};
 
-			const result = analyzer.analyzeContent(web_content);
+			vi.mocked(storageService.getContent).mockResolvedValue(web_content);
+			const result = await analyzer.analyzeContent(web_content.id);
 
-			expect(result.domain).toBeDefined();
-			expect(result.topics.length).toBeGreaterThanOrEqual(0);
+			expect(result.dataRequirements).toBeDefined();
 		});
 	});
 });

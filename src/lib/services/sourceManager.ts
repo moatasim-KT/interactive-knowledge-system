@@ -15,12 +15,24 @@ import type {
 } from '../types/web-content.js';
 import type { ContentModule } from '../types/content.js';
 
+export interface SourceFilters {
+	domain?: string;
+	category?: string;
+	status?: string;
+	tags?: string[];
+	limit?: number;
+	offset?: number;
+	dateRange?: { start: Date; end: Date };
+	qualityThreshold?: number;
+	searchTerm?: string;
+}
+
 export class SourceManager {
 	private logger = createLogger('source-manager');
 	private initialized = false;
 
 	async initialize(): Promise<void> {
-		if (this.initialized) {return;}
+		if (this.initialized) { return; }
 
 		await storageService.initialize();
 		this.initialized = true;
@@ -365,7 +377,7 @@ export class SourceManager {
 			const validation_results = [];
 
 			for (const source of sources_to_validate) {
-				if (!source) {continue;}
+				if (!source) { continue; }
 
 				const issues: string[] = [];
 				const suggestions: string[] = [];
@@ -480,13 +492,13 @@ export class SourceManager {
 				const suggestions: string[] = [];
 
 				try {
-                                const controller = new AbortController();
-                                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+					const controller = new AbortController();
+					const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 					const response = await fetch(source.url, {
 						method: 'HEAD',
-                                                signal: controller.signal
+						signal: controller.signal
 					});
-                                        clearTimeout(timeoutId);
+					clearTimeout(timeoutId);
 
 					const response_time = Date.now() - start_time;
 
@@ -571,12 +583,12 @@ export class SourceManager {
 		this.logger.info('Detecting duplicate sources');
 
 		try {
-		const sources = await storageService.getAllSources();
+			const sources = await storageService.getAllSources();
 			const duplicates: DuplicateDetectionResult[] = [];
 			const processed = new Set<string>();
 
 			for (const source of sources) {
-				if (processed.has(source.id)) {continue;}
+				if (processed.has(source.id)) { continue; }
 
 				const similar_sources = sources.filter(
 					(s) =>
@@ -636,7 +648,7 @@ export class SourceManager {
 	}> {
 		await this.ensureInitialized();
 
-			const sources = await storageService.getAllSources();
+		const sources = await storageService.getAllSources();
 		const now = new Date();
 		const one_day_ago = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 		const one_week_ago = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -727,6 +739,30 @@ export class SourceManager {
 	}
 
 	/**
+	 * Get a single source by ID
+	 */
+	async getSource(sourceId: string): Promise<WebContentSource | null> {
+		await this.ensureInitialized();
+		return await storageService.getSource(sourceId);
+	}
+
+	/**
+	 * Get all sources
+	 */
+	async getAllSources(): Promise<WebContentSource[]> {
+		await this.ensureInitialized();
+		return await storageService.getAllSources();
+	}
+
+	/**
+	 * Delete a source
+	 */
+	async deleteSource(sourceId: string): Promise<void> {
+		await this.ensureInitialized();
+		await storageService.deleteSource(sourceId);
+	}
+
+	/**
 	 * Get content recommendations based on imported sources
 	 */
 	async getContentRecommendations(
@@ -750,7 +786,7 @@ export class SourceManager {
 			);
 
 			// Enrich recommendations with source information
-		const sources = await storageService.getAllSources();
+			const sources = await storageService.getAllSources();
 			const enriched_recommendations = [];
 			for (const rec of recommendations) {
 				const source = sources.find(s => s.usage.generatedModules.includes(rec.contentId));

@@ -30,9 +30,14 @@
 		is_mobile = window_width < 640;
 		is_tablet = window_width >= 640 && window_width < 1024;
 
-		// Auto-close sidebar on mobile
-		if (is_mobile && sidebarOpen) {
+		// Auto-close sidebar on mobile when switching from larger screen
+		if (is_mobile && sidebarOpen && window_width < 640) {
 			sidebarOpen = false;
+		}
+		
+		// Auto-open sidebar on desktop
+		if (window_width >= 1024 && !sidebarOpen) {
+			sidebarOpen = true;
 		}
 	}
 
@@ -44,6 +49,48 @@
 		if (is_mobile) {
 			sidebarOpen = false;
 		}
+	}
+
+	// Touch gesture support for sidebar
+	let touch_start_x = 0;
+	let touch_start_y = 0;
+	let is_swiping = false;
+
+	function handle_touch_start(event: TouchEvent) {
+		if (!is_mobile) return;
+		
+		const touch = event.touches[0];
+		touch_start_x = touch.clientX;
+		touch_start_y = touch.clientY;
+		is_swiping = false;
+	}
+
+	function handle_touch_move(event: TouchEvent) {
+		if (!is_mobile || !touch_start_x) return;
+		
+		const touch = event.touches[0];
+		const diff_x = touch.clientX - touch_start_x;
+		const diff_y = touch.clientY - touch_start_y;
+		
+		// Check if this is a horizontal swipe
+		if (Math.abs(diff_x) > Math.abs(diff_y) && Math.abs(diff_x) > 10) {
+			is_swiping = true;
+			
+			// Swipe right from left edge to open sidebar
+			if (touch_start_x < 20 && diff_x > 50 && !sidebarOpen) {
+				sidebarOpen = true;
+			}
+			// Swipe left to close sidebar
+			else if (diff_x < -50 && sidebarOpen) {
+				sidebarOpen = false;
+			}
+		}
+	}
+
+	function handle_touch_end() {
+		touch_start_x = 0;
+		touch_start_y = 0;
+		is_swiping = false;
 	}
 
 	onMount(() => {
@@ -66,8 +113,10 @@
 			'bg-surface border-r border-border',
 			'transform transition-transform duration-300 ease-in-out',
 			'flex flex-col',
+			'safe-area-inset-left',
 			sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-			is_mobile ? 'w-full max-w-sm' : ''
+			is_mobile ? 'w-full max-w-sm mobile-scroll' : '',
+			'touch-pan-y' // Enable vertical panning for touch devices
 		].join(' ')
 	);
 
@@ -75,6 +124,8 @@
 		[
 			'flex-1 flex flex-col',
 			'transition-all duration-300',
+			'safe-area-inset-right',
+			'mobile-scroll',
 			!is_mobile && sidebarOpen ? `lg:ml-[${sidebarWidth}]` : ''
 		].join(' ')
 	);
@@ -90,10 +141,22 @@
 
 <svelte:window bind:innerWidth={window_width} />
 
-<div class={layout_classes}>
+<div 
+	class={layout_classes}
+	ontouchstart={handle_touch_start}
+	ontouchmove={handle_touch_move}
+	ontouchend={handle_touch_end}
+>
 	<!-- Mobile Overlay -->
 	{#if is_mobile}
-		<div class={overlay_classes} onclick={close_sidebar} aria-hidden="true"></div>
+		<div
+			class={overlay_classes}
+			role="button"
+			tabindex="0"
+			aria-label="Close sidebar overlay"
+			onclick={close_sidebar}
+			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && close_sidebar()}
+		></div>
 	{/if}
 
 	<!-- Sidebar -->
@@ -133,11 +196,11 @@
 	<div class={main_classes}>
 		<!-- Header -->
 		{#if header}
-			<header class="bg-surface border-b border-border sticky top-0 z-sticky">
-				<!-- Mobile Menu Button -->
-				<div class="flex items-center gap-4 p-4 lg:hidden">
+			<header class="bg-surface border-b border-border sticky top-0 z-sticky safe-area-inset-top">
+				<!-- Mobile Header -->
+				<div class="flex items-center justify-between p-4 lg:hidden">
 					<button
-						class="p-2 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded-md transition-colors"
+						class="touch-target p-2 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded-md transition-colors"
 						onclick={toggle_sidebar}
 						aria-label="Toggle sidebar"
 					>
@@ -149,9 +212,19 @@
 							/>
 						</svg>
 					</button>
+					
+					<!-- Mobile header content (simplified) -->
+					<div class="flex-1 text-center">
+						<h1 class="text-lg font-semibold text-text-primary truncate">
+							Interactive Knowledge System
+						</h1>
+					</div>
+					
+					<!-- Mobile actions placeholder -->
+					<div class="w-10"></div>
 				</div>
 
-				<!-- Header Content -->
+				<!-- Desktop Header Content -->
 				<div class="hidden lg:block">
 					{@render header?.()}
 				</div>
@@ -226,5 +299,46 @@
 		.lg\:ml-\[280px\] {
 			margin-left: 280px;
 		}
+	}
+
+	/* Touch gesture support */
+	.touch-pan-y {
+		touch-action: pan-y;
+	}
+
+	/* Mobile scroll optimization */
+	.mobile-scroll {
+		-webkit-overflow-scrolling: touch;
+		scroll-behavior: smooth;
+	}
+
+	/* Safe area support */
+	.safe-area-inset-left {
+		padding-left: env(safe-area-inset-left);
+	}
+	.safe-area-inset-right {
+		padding-right: env(safe-area-inset-right);
+	}
+	.safe-area-inset-top {
+		padding-top: env(safe-area-inset-top);
+	}
+
+	/* Touch targets */
+	.touch-target {
+		min-height: 44px;
+		min-width: 44px;
+	}
+
+	/* Layout utilities */
+	.flex-1 {
+		flex: 1 1 0%;
+	}
+	.text-center {
+		text-align: center;
+	}
+	.truncate {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>

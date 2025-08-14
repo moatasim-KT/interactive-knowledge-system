@@ -6,7 +6,10 @@
 		validateMediaFile,
 		formatFileSize
 	} from '$lib/utils/mediaOptimization.js';
-	import { mediaStorage } from '$lib/storage/mediaStorage.js';
+	import { mediaStorage } from '$lib/storage/mediaStorage';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		accept?: string;
@@ -14,9 +17,8 @@
 		options?: MediaUploadOptions;
 		class?: string;
 		disabled?: boolean;
-		onUpload?: (file: MediaFile) => void;
-		onError?: (error: string) => void;
-		onProgress?: (progress: { loaded: number; total: number }) => void;
+		onupload?: (event: CustomEvent<MediaFile>) => void;
+		onerror?: (event: CustomEvent<string>) => void;
 	}
 
 	let {
@@ -24,10 +26,7 @@
 		multiple = false,
 		options = {},
 		class: className = '',
-		disabled = false,
-		onUpload,
-		onError,
-		onProgress
+		disabled = false
 	}: Props = $props();
 
 	// State
@@ -64,7 +63,7 @@
 				// Validate file
 				const validation = validateMediaFile(file, upload_options);
 				if (!validation.valid) {
-					onError?.(validation.error || 'Invalid file');
+					dispatch('error', validation.error || 'Invalid file');
 					continue;
 				}
 
@@ -73,10 +72,10 @@
 
 				// Update progress
 				upload_progress = ((i + 1) / total_files) * 100;
-				onProgress?.({ loaded: i + 1, total: total_files });
+				dispatch('progress', { loaded: i + 1, total: total_files });
 			}
 		} catch (error) {
-			onError?.(error instanceof Error ? error.message : 'Upload failed');
+			dispatch('error', error instanceof Error ? error.message : 'Upload failed');
 		} finally {
 			is_uploading = false;
 			upload_progress = 0;
@@ -84,17 +83,22 @@
 	}
 
 	async function process_and_upload_file(file: File) {
-		const media_file = {
+		const media_file: MediaFile = {
 			id: crypto.randomUUID(),
 			name: file.name,
-			type: file.type.startsWith('image/') ? 'image' : 'video',
+			type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio',
 			mimeType: file.type,
 			size: file.size,
 			url: '',
+			thumbnailUrl: undefined,
 			metadata: {
 				created: new Date(),
-				modified: new Date()
-			}
+				modified: new Date(),
+				width: undefined,
+				height: undefined,
+				duration: undefined
+			},
+			optimized: undefined
 		};
 
 		let processed_data;
@@ -138,12 +142,16 @@
 		}
 
 		// Store in IndexedDB
-		await mediaStorage.storeMedia(media_file, processed_data);
+		if (processed_data !== undefined) {
+			await mediaStorage.storeMedia(media_file, processed_data);
+		} else {
+			dispatch('error', 'Processed data is undefined, cannot store media.');
+		}
 
 		// Set URL for retrieval
 		media_file.url = `media://${media_file.id}`;
 
-		onUpload?.(media_file);
+		dispatch('upload', media_file);
 	}
 
 	function handle_file_input(event: Event) {

@@ -19,10 +19,6 @@ export {
 export {
     webContentState,
     webContentActions,
-    filteredSources,
-    contentStats,
-    batchProgress,
-    // Legacy function exports for backward compatibility
     getFilteredSources,
     getContentStats,
     getBatchProgress

@@ -1,31 +1,128 @@
 <script lang="ts">
-	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
-	import { webContentFetcher } from '$lib/services/webContentFetcher.js';
-	import { sourceManager } from '$lib/services/sourceManager.js';
-	import { createLogger } from '$lib/utils/logger.js';
-	import { Button, Input, LoadingSpinner, Toast } from '$lib/components/ui';
+	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import type { WebContentSource, BatchProcessingJob } from '$lib/types/web-content.ts';
+	import { processingPipeline } from '$lib/services/processingPipeline.ts';
+	import { webContentActions } from '$lib/stores/webContentState.svelte.ts';
+	import { Button, Input, LoadingSpinner } from '$lib/components/ui/index.ts';
+	import { ErrorBoundary, LoadingFallback, FallbackComponent } from './index.js';
+	import { errorHandler } from '../utils/errorHandler.js';
 
-	const logger = createLogger('web-content-importer');
+	interface Props {
+		allowBatchImport?: boolean;
+		onImportSuccess?: (source: WebContentSource | BatchProcessingJob) => void;
+		onImportError?: (error: string) => void;
+	}
 
-	// Component state
-	let importUrl = $state('');
-	let importOptions = $state({
-		extractInteractive: true,
-		generateQuizzes: false,
-		preserveFormatting: true,
-		timeout: 30000
+	let { allowBatchImport = true, onImportSuccess, onImportError }: Props = $props();
+
+	let single_url = $state('');
+	let batch_urls_input = $state('');
+	let is_importing = $state(false);
+	let error = $state<string | null>(null);
+	let import_progress = $state({
+		total: 0,
+		completed: 0,
+		failed: 0,
+		overallProgress: 0,
+		currentStage: 'Idle'
 	});
-	let isImporting = $state(false);
-	let importProgress = $state(0);
-	let importStatus = $state('');
+	let batch_job_id = $state<string | null>(null);
 
-	// Batch import state
-	let batchUrls = $state('');
-	let isBatchImporting = $state(false);
-	let batchProgress = $state({ completed: 0, total: 0, failed: 0 });
+	// Import options
+	let skip_processing = $state(false);
+	let enable_ai_enhancements = $state(false);
 
-	// Validation
-	function isValidUrl(url: string): boolean {
+	const dispatch = createEventDispatcher();
+
+	async function handle_single_import() {
+		error = null;
+		if (!single_url.trim()) {
+			error = 'URL cannot be empty.';
+			return;
+		}
+		if (!validate_url(single_url)) {
+			error = 'Invalid URL format.';
+			return;
+		}
+
+		is_importing = true;
+		import_progress = { total: 1, completed: 0, failed: 0, overallProgress: 0, currentStage: 'Starting' };
+
+		const result = await errorHandler.handleAsync(
+			() => processingPipeline.startProcessing([single_url], {
+				skipProcessing: skip_processing,
+				enableAiEnhancements: enable_ai_enhancements
+			}),
+			{
+				operation: 'single-import',
+				component: 'WebContentImporter',
+				metadata: { url: single_url }
+			},
+			{
+				showToast: true,
+				retryable: true,
+				maxRetries: 2,
+				onError: (err) => {
+					error = errorHandler.getUserFriendlyMessage(err, { 
+						operation: 'single-import', 
+						component: 'WebContentImporter' 
+					});
+					onImportError?.(error);
+				}
+			}
+		);
+
+		if (result.success) {
+			batch_job_id = result.data.id;
+		}
+
+		is_importing = false;
+	}
+
+	async function handle_batch_import() {
+		error = null;
+		const urls = batch_urls_input.split('\n').map((url) => url.trim()).filter((url) => url && validate_url(url));
+
+		if (urls.length === 0) {
+			error = 'No valid URLs found for batch import.';
+			return;
+		}
+
+		is_importing = true;
+		import_progress = { total: urls.length, completed: 0, failed: 0, overallProgress: 0, currentStage: 'Starting Batch' };
+
+		const result = await errorHandler.handleAsync(
+			() => processingPipeline.startBatchProcessing(urls, {
+				skipProcessing: skip_processing,
+				enableAiEnhancements: enable_ai_enhancements
+			}),
+			{
+				operation: 'batch-import',
+				component: 'WebContentImporter',
+				metadata: { urlCount: urls.length }
+			},
+			{
+				showToast: true,
+				retryable: true,
+				maxRetries: 1,
+				onError: (err) => {
+					error = errorHandler.getUserFriendlyMessage(err, { 
+						operation: 'batch-import', 
+						component: 'WebContentImporter' 
+					});
+					onImportError?.(error);
+				}
+			}
+		);
+
+		if (result.success) {
+			batch_job_id = result.data.id;
+		}
+
+		is_importing = false;
+	}
+
+	function validate_url(url: string): boolean {
 		try {
 			new URL(url);
 			return true;
@@ -34,506 +131,164 @@
 		}
 	}
 
-	// Single URL import
-	async function importSingleUrl() {
-		if (!importUrl.trim()) {
-			webContentActions.addNotification({
-				type: 'warning',
-				message: 'Please enter a URL to import'
-			});
-			return;
-		}
-
-		if (!isValidUrl(importUrl)) {
-			webContentActions.addNotification({
-				type: 'error',
-				message: 'Please enter a valid URL'
-			});
-			return;
-		}
-
-		isImporting = true;
-		importProgress = 0;
-		importStatus = 'Fetching content...';
-
-		try {
-			logger.info(`Starting import for URL: ${importUrl}`);
-
-			// Fetch content
-			importProgress = 25;
-			importStatus = 'Extracting content...';
-			const content = await webContentFetcher.fetch(importUrl, {
-				timeout: importOptions.timeout,
-				extractAssets: true,
-				cleanContent: true,
-				preserveInteractivity: importOptions.extractInteractive
-			});
-
-			if (!content.success) {
-				throw new Error('Failed to fetch content');
+	// Subscribe to pipeline progress updates
+	onMount(() => {
+		const unsubscribe = processingPipeline.onProgressUpdate((progress) => {
+			if (batch_job_id && progress.jobId === batch_job_id) {
+				import_progress = progress;
+			} else if (!batch_job_id && progress.total === 1) {
+				// Single import progress
+				import_progress = progress;
 			}
+		});
 
-			// Add to content store
-			importProgress = 50;
-			importStatus = 'Processing content...';
-			webContentActions.addContent(content);
-
-			// Create source entry
-			importProgress = 75;
-			importStatus = 'Creating source entry...';
-			const source = await sourceManager.addSource({
-				url: importUrl,
-				content: content,
-				options: importOptions
-			});
-
-			webContentActions.addSource(source);
-
-			// Complete
-			importProgress = 100;
-			importStatus = 'Import completed successfully';
-
-			webContentActions.addNotification({
-				type: 'success',
-				message: `Successfully imported content from ${new URL(importUrl).hostname}`
-			});
-
-			// Reset form
-			importUrl = '';
-			setTimeout(() => {
-				isImporting = false;
-				importProgress = 0;
-				importStatus = '';
-			}, 1000);
-
-		} catch (error) {
-			logger.error('Import failed:', error);
-			
-			webContentActions.addNotification({
-				type: 'error',
-				message: `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-			});
-
-			isImporting = false;
-			importProgress = 0;
-			importStatus = '';
-		}
-	}
-
-	// Handle URL paste event
-	function handleUrlPaste(event: ClipboardEvent) {
-		const pastedText = event.clipboardData?.getData('text/plain') || '';
-		if (pastedText.includes('\n') || pastedText.includes(',')) {
-			event.preventDefault();
-			batchUrls = pastedText;
-		}
-	}
-
-	// Handle drop event
-	function handleDrop(event: DragEvent) {
-		event.preventDefault();
-		// Handle file drops if needed
-	}
-
-	// Handle drag over event
-	function handleDragOver(event: DragEvent) {
-		event.preventDefault();
-	}
-
-	// Batch URL import
-	async function importBatchUrls() {
-		const urls = batchUrls
-			.split('\n')
-			.map(url => url.trim())
-			.filter(url => url.length > 0);
-
-		if (urls.length === 0) {
-			webContentActions.addNotification({
-				type: 'warning',
-				message: 'Please enter URLs to import (one per line)'
-			});
-			return;
-		}
-
-		// Validate URLs
-		const invalidUrls = urls.filter(url => !isValidUrl(url));
-		if (invalidUrls.length > 0) {
-			webContentActions.addNotification({
-				type: 'error',
-				message: `Invalid URLs found: ${invalidUrls.slice(0, 3).join(', ')}${invalidUrls.length > 3 ? '...' : ''}`
-			});
-			return;
-		}
-
-		isBatchImporting = true;
-		batchProgress = { completed: 0, total: urls.length, failed: 0 };
-
-		try {
-			logger.info(`Starting batch import for ${urls.length} URLs`);
-
-			// Create batch job
-			const batchJob = {
-				id: `batch_${Date.now()}`,
-				urls,
-				status: 'processing' as const,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				progress: 0,
-				results: urls.map(url => ({
-					url,
-					status: 'pending' as const,
-					contentId: null,
-					error: null
-				})),
-				options: importOptions
-			};
-
-			webContentActions.addBatchJob(batchJob);
-			webContentActions.setActiveBatchJob(batchJob);
-
-			// Process URLs with concurrency limit
-			const concurrency = 3;
-			const results = [];
-
-			for (let i = 0; i < urls.length; i += concurrency) {
-				const batch = urls.slice(i, i + concurrency);
-				const batchPromises = batch.map(async (url) => {
-					try {
-						const content = await webContentFetcher.fetch(url, {
-							timeout: importOptions.timeout,
-							extractAssets: true,
-							cleanContent: true,
-							preserveInteractivity: importOptions.extractInteractive
-						});
-
-						if (content.success) {
-							webContentActions.addContent(content);
-							
-							const source = await sourceManager.addSource({
-								url,
-								title: content.metadata?.title || new URL(url).hostname,
-								domain: new URL(url).hostname,
-								metadata: content.metadata || {},
-								options: importOptions
-							});
-							
-							webContentActions.addSource(source);
-							// Update batch progress
-							batchProgress.completed++;
-							batchProgress = { ...batchProgress }; // Trigger reactivity
-
-							// Update job status
-							const completed = batchProgress.completed + batchProgress.failed;
-							const progress = Math.round((completed / batchProgress.total) * 100);
-
-							webContentActions.updateBatchJob(batchJob.id, {
-								progress,
-								updatedAt: new Date(),
-								results: batchJob.results.map(result => 
-									result.url === url ? { ...result, status: 'completed', contentId: content.id } : result
-								)
-							});
-
-							return { success: true, url, contentId: content.id };
-						} catch (error) {
-							logger.error(`Failed to import ${url}:`, error);
-							
-							// Update batch progress
-							batchProgress.failed++;
-							batchProgress = { ...batchProgress }; // Trigger reactivity
-
-							// Update job status
-							webContentActions.updateBatchJob(batchJob.id, {
-								updatedAt: new Date(),
-								results: batchJob.results.map(result => 
-									result.url === url ? { ...result, status: 'failed', error: error.message } : result
-								)
-							});
-
-							return { success: false, url, error: error.message };
-						}
-					});
-
-					const batch_results = await Promise.all(batchPromises);
-					results.push(...batch_results);
-				}
-
-				// Wait for all promises to settle
-				const batchResults = await Promise.all(batchPromises);
-				results.push(...batchResults);
+		const unsubscribeComplete = processingPipeline.onJobComplete((job) => {
+			if (job.id === batch_job_id) {
+				import_progress = {
+					total: job.total,
+					completed: job.completed,
+					failed: job.failed,
+					overallProgress: 100,
+					currentStage: 'Completed'
+				};
+				batch_job_id = null; // Clear batch job ID
 			}
+		});
 
-			// Mark job as completed
-			webContentActions.updateBatchJob(batchJob.id, {
-				status: 'completed',
-				updatedAt: new Date(),
-				results: batchJob.results.map(result => {
-					const resultItem = results.find(r => r.url === result.url);
-					return {
-						...result,
-						status: resultItem?.success ? 'completed' : 'failed',
-						contentId: resultItem?.contentId || null,
-						error: resultItem?.error || null
-					};
-				})
-			});
-
-			webContentActions.addNotification({
-				type: 'success',
-				message: `Batch import completed: ${batchProgress.completed} succeeded, ${batchProgress.failed} failed`
-			});
-
-		} catch (error) {
-			logger.error('Batch import failed:', error);
-			webContentActions.addNotification({
-				type: 'error',
-				message: `Batch import failed: ${error.message}`
-			});
-		} finally {
-			isBatchImporting = false;
-		}
-	}
-
-	// Handle URL paste
-	function handle_url_paste(event: ClipboardEvent) {
-		const pasted_text = event.clipboardData?.getData('text') || '';
-		if (is_valid_url(pasted_text)) {
-			import_url = pasted_text;
-		}
-	}
-
-	// Handle drag and drop
-	function handle_drop(event: DragEvent) {
-		event.preventDefault();
-		const dropped_text = event.dataTransfer?.getData('text') || '';
-		
-		if (is_valid_url(dropped_text)) {
-			import_url = dropped_text;
-		} else {
-			// Check if it's multiple URLs
-			const lines = dropped_text.split('\n').map(line => line.trim()).filter(line => line);
-			const valid_urls = lines.filter(line => is_valid_url(line));
-			
-			if (valid_urls.length > 1) {
-				batch_urls = valid_urls.join('\n');
-			} else if (valid_urls.length === 1) {
-				import_url = valid_urls[0];
+		const unsubscribeError = processingPipeline.onJobError((jobId, err) => {
+			if (jobId === batch_job_id || (!batch_job_id && import_progress.total === 1)) {
+				error = err.message;
+				onImportError?.(err.message);
 			}
-		}
-	}
+		});
 
-	function handle_drag_over(event: DragEvent) {
-		event.preventDefault();
-	}
+		return () => {
+			unsubscribe();
+			unsubscribeComplete();
+			unsubscribeError();
+		};
+	});
 </script>
 
-<div class="web-content-importer">
-	<div class="importer-header">
-		<h2>Import Web Content</h2>
-		<p>Import content from web pages and transform it into interactive learning materials</p>
-	</div>
+<ErrorBoundary 
+	context={{ component: 'WebContentImporter', operation: 'render' }}
+	showDetails={false}
+	enableRetry={true}
+>
+	<div class="web-content-importer">
+	<div class="importer-section">
+		<h3 class="section-title">Import Web Content</h3>
 
-	<div class="importer-tabs">
-		<button 
-			class="tab-button"
-			class:active={webContentState.ui.activeView === 'single'}
-			onclick={() => webContentActions.setActiveView('single')}
-		>
-			Single URL
-		</button>
-		<button 
-			class="tab-button"
-			class:active={webContentState.ui.activeView === 'batch'}
-			onclick={() => webContentActions.setActiveView('batch')}
-		>
-			Batch Import
-		</button>
-	</div>
-
-	{#if webContentState.ui.activeView === 'single'}
-		<div class="single-import-section">
-			<div class="url-input-section">
-				<label for="import-url">URL to Import</label>
-				<div 
-					class="url-input-container"
-					on:drop={handleDrop}
-					on:dragover={handleDragOver}
-				>
-					<Input
-						id="import-url"
-						bind:value={importUrl}
-						placeholder="https://example.com/article"
-						disabled={isImporting}
-						on:paste={handleUrlPaste}
-					/>
-					<Button
-						on:click={importSingleUrl}
-						disabled={is_importing || !import_url.trim()}
-						variant="primary"
-					>
-						{#if isImporting}
-							<LoadingSpinner size="sm" />
-							Import
-						{:else}
-							Import
-						{/if}
-					</Button>
-				</div>
-			</div>
-
-			{#if isImporting}
-				<div class="import-progress">
-					<div class="progress-bar">
-						<div class="progress-fill" style="width: {importProgress}%"></div>
-					</div>
-					<p class="progress-status">{importStatus}</p>
-				</div>
-			{/if}
-
-			<div class="import-options">
-				<h3>Import Options</h3>
-				<div class="options-grid">
-					<label class="option-item">
-						<input
-							type="checkbox"
-							bind:checked={import_options.extractInteractive}
-							disabled={isImporting}
-						/>
-						Extract interactive elements
-					</label>
-					<label class="option-item">
-						<input
-							type="checkbox"
-							bind:checked={import_options.generateQuizzes}
-							disabled={isImporting}
-						/>
-						Generate quizzes from content
-					</label>
-					<label class="option-item">
-						<input
-							type="checkbox"
-							bind:checked={import_options.preserveFormatting}
-							disabled={isImporting}
-						/>
-						Preserve original formatting
-					</label>
-				</div>
-			</div>
-		</div>
-	{:else}
-		<div class="batch-import-section">
-			<div class="batch-input-section">
-				<label for="batch-urls">URLs to Import (one per line)</label>
-				<textarea
-					id="batch-urls"
-					bind:value={batchUrls}
-					placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
-					disabled={isBatchImporting}
-					rows="8"
-				></textarea>
-				<Button
-					on:click={importBatchUrls}
-					disabled={is_batch_importing || !batch_urls.trim()}
-					variant="primary"
-				>
-					{#if isBatchImporting}
-						<LoadingSpinner size="sm" />
-						Import Batch
+		<!-- Single URL Import -->
+		<div class="url-input-section">
+			<label for="single-url">Import Single URL:</label>
+			<div class="url-input-container">
+				<Input
+					id="single-url"
+					type="url"
+					placeholder="Enter URL to import (e.g., https://example.com/article)"
+					bind:value={single_url}
+					disabled={is_importing}
+					class="flex-1"
+				/>
+				<Button onclick={handle_single_import} disabled={is_importing || !single_url.trim()}>
+					{#if is_importing && import_progress.total === 1}
+						<LoadingSpinner size="sm" class="mr-2" /> Importing...
 					{:else}
-						Import Batch
+						Import
 					{/if}
 				</Button>
 			</div>
-
-			{#if isBatchImporting}
-				<div class="batch-progress">
-					<div class="progress-stats">
-						<span class="stat">Total: {batch_progress.total}</span>
-						<span class="stat success">Completed: {batch_progress.completed}</span>
-						<span class="stat error">Failed: {batch_progress.failed}</span>
-					</div>
-					<div class="progress-bar">
-						<div 
-							class="progress-fill" 
-							style="width: {batch_progress.total > 0 ? ((batch_progress.completed + batch_progress.failed) / batch_progress.total) * 100 : 0}%"
-						></div>
-					</div>
-				</div>
-			{/if}
 		</div>
-	{/if}
 
-	<!-- Notifications -->
-	{#each webContentState.ui.notifications as notification (notification.id)}
-		<Toast
-			type={notification.type}
-			message={notification.message}
-			on:close={() => webContentActions.removeNotification(notification.id)}
-		/>
-	{/each}
+		{#if allowBatchImport}
+			<div class="divider">OR</div>
+
+			<!-- Batch URL Import -->
+			<div class="batch-input-section">
+				<label for="batch-urls">Batch Import URLs (one per line):</label>
+				<textarea
+					id="batch-urls"
+					placeholder="Enter multiple URLs, one per line"
+					rows="8"
+					bind:value={batch_urls_input}
+					disabled={is_importing}
+				></textarea>
+				<Button onclick={handle_batch_import} disabled={is_importing || !batch_urls_input.trim()}>
+					{#if is_importing && batch_job_id}
+						<LoadingSpinner size="sm" class="mr-2" /> Batch Importing...
+					{:else}
+						Batch Import
+					{/if}
+				</Button>
+			</div>
+		{/if}
+
+		<!-- Import Options -->
+		<div class="import-options">
+			<h3>Import Options</h3>
+			<div class="options-grid">
+				<label class="option-item">
+					<input type="checkbox" bind:checked={skip_processing} disabled={is_importing} />
+					<span>Skip advanced processing (faster import)</span>
+				</label>
+				<label class="option-item">
+					<input type="checkbox" bind:checked={enable_ai_enhancements} disabled={is_importing} />
+					<span>Enable AI content enhancements</span>
+				</label>
+			</div>
+		</div>
+
+		<!-- Progress Display -->
+		{#if is_importing || import_progress.completed > 0 || import_progress.failed > 0}
+			<div class="import-progress">
+				<h3>Import Progress</h3>
+				<div class="progress-bar">
+					<div class="progress-fill" style="width: {import_progress.overallProgress}%;"></div>
+				</div>
+				<p class="progress-status">
+					{import_progress.currentStage} ({import_progress.completed} / {import_progress.total} completed, {import_progress.failed} failed)
+				</p>
+				<div class="progress-stats">
+					<span class="stat success">Success: {import_progress.completed}</span>
+					<span class="stat error">Failed: {import_progress.failed}</span>
+					<span class="stat">Total: {import_progress.total}</span>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Error Display -->
+		{#if error}
+			<div class="error-message">
+				⚠️ {error}
+			</div>
+		{/if}
+	</div>
 </div>
+</ErrorBoundary>
 
 <style>
 	.web-content-importer {
-		max-width: 800px;
-		margin: 0 auto;
-		padding: 2rem;
-		background: #fff;
+		background: var(--bg-color, #ffffff);
+		border: 1px solid var(--border-color, #e1e5e9);
 		border-radius: 12px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		padding: 1.5rem;
+		margin: 1rem;
+		font-family: system-ui, -apple-system, sans-serif;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 	}
 
-	.importer-header {
-		text-align: center;
-		margin-bottom: 2rem;
-	}
-
-	.importer-header h2 {
-		margin: 0 0 0.5rem 0;
-		color: #333;
-		font-size: 1.8rem;
-	}
-
-	.importer-header p {
-		margin: 0;
-		color: #666;
-		font-size: 1rem;
-	}
-
-	.importer-tabs {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 2rem;
-		border-bottom: 1px solid #e0e0e0;
-	}
-
-	.tab-button {
-		padding: 0.75rem 1.5rem;
-		border: none;
-		background: transparent;
-		border-bottom: 2px solid transparent;
-		cursor: pointer;
-		font-size: 1rem;
-		color: #666;
-		transition: all 0.2s;
-	}
-
-	.tab-button:hover {
-		color: #333;
-		background: #f8f9fa;
-	}
-
-	.tab-button.active {
-		color: #007bff;
-		border-bottom-color: #007bff;
-		background: #f0f8ff;
-	}
-
-	.single-import-section,
-	.batch-import-section {
+	.importer-section {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+	}
+
+	.section-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--text-primary, #1a1a1a);
+		margin-bottom: 1rem;
 	}
 
 	.url-input-section label,
@@ -541,7 +296,7 @@
 		display: block;
 		margin-bottom: 0.5rem;
 		font-weight: 600;
-		color: #333;
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	.url-input-container {
@@ -549,95 +304,126 @@
 		gap: 1rem;
 		align-items: flex-end;
 		padding: 1rem;
-		border: 2px dashed #ddd;
+		border: 2px dashed var(--border-light, #e9ecef);
 		border-radius: 8px;
 		transition: border-color 0.2s;
 	}
 
 	.url-input-container:hover {
-		border-color: #007bff;
+		border-color: var(--primary-color, #007bff);
 	}
 
 	.batch-input-section textarea {
 		width: 100%;
 		padding: 1rem;
-		border: 1px solid #ddd;
+		border: 1px solid var(--input-border, #ced4da);
 		border-radius: 8px;
 		font-family: monospace;
 		font-size: 0.9rem;
 		resize: vertical;
 		margin-bottom: 1rem;
+		background: var(--input-bg, #ffffff);
+		color: var(--text-primary, #1a1a1a);
 	}
 
 	.batch-input-section textarea:focus {
 		outline: none;
-		border-color: #007bff;
-		box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+		border-color: var(--input-focus-border, #007bff);
+		box-shadow: 0 0 0 2px var(--input-focus-shadow, rgba(0, 123, 255, 0.25));
 	}
 
-	.import-progress,
-	.batch-progress {
-		padding: 1rem;
-		background: #f8f9fa;
+	.divider {
+		text-align: center;
+		margin: 1.5rem 0;
+		color: var(--text-secondary, #666666);
+		position: relative;
+	}
+
+	.divider::before,
+	.divider::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		width: 40%;
+		height: 1px;
+		background: var(--border-light, #e9ecef);
+	}
+
+	.divider::before {
+		left: 0;
+	}
+
+	.divider::after {
+		right: 0;
+	}
+
+	.import-progress {
+		padding: 1.5rem;
+		background: var(--progress-bg, #f8f9fa);
 		border-radius: 8px;
-		border: 1px solid #e0e0e0;
+		border: 1px solid var(--border-light, #e0e0e0);
 	}
 
 	.progress-bar {
 		width: 100%;
-		height: 8px;
-		background: #e0e0e0;
-		border-radius: 4px;
+		height: 10px;
+		background: var(--progress-bar-bg, #e0e0e0);
+		border-radius: 5px;
 		overflow: hidden;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.progress-fill {
 		height: 100%;
-		background: linear-gradient(90deg, #007bff, #0056b3);
+		background: linear-gradient(90deg, var(--primary-color, #007bff), var(--primary-dark-color, #0056b3));
 		transition: width 0.3s ease;
+		border-radius: 5px;
 	}
 
 	.progress-status {
-		margin: 0;
-		font-size: 0.9rem;
-		color: #666;
+		margin: 0 0 1rem 0;
+		font-size: 0.95rem;
+		color: var(--text-primary, #333);
 		text-align: center;
+		font-weight: 500;
 	}
 
 	.progress-stats {
 		display: flex;
-		justify-content: space-between;
+		justify-content: space-around;
 		margin-bottom: 1rem;
-		font-size: 0.9rem;
+		font-size: 0.85rem;
+		gap: 0.5rem;
 	}
 
 	.stat {
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
-		background: #f0f0f0;
+		padding: 0.4rem 0.8rem;
+		border-radius: 16px;
+		background: var(--stat-bg, #f0f0f0);
+		color: var(--text-secondary, #666);
+		font-weight: 600;
 	}
 
 	.stat.success {
-		background: #d4edda;
-		color: #155724;
+		background: var(--success-light, #d4edda);
+		color: var(--success-dark, #155724);
 	}
 
 	.stat.error {
-		background: #f8d7da;
-		color: #721c24;
+		background: var(--error-light, #f8d7da);
+		color: var(--error-dark, #721c24);
 	}
 
 	.import-options {
 		padding: 1.5rem;
-		background: #f8f9fa;
+		background: var(--options-bg, #f8f9fa);
 		border-radius: 8px;
-		border: 1px solid #e0e0e0;
+		border: 1px solid var(--border-light, #e0e0e0);
 	}
 
 	.import-options h3 {
 		margin: 0 0 1rem 0;
-		color: #333;
+		color: var(--text-primary, #333);
 		font-size: 1.1rem;
 	}
 
@@ -647,28 +433,27 @@
 		gap: 1rem;
 	}
 
-	.option-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		cursor: pointer;
+	.error-message {
+		padding: 1rem;
+		background: var(--error-light, #f8d7da);
+		border: 1px solid var(--error-dark, #f5c6cb);
+		border-radius: 8px;
+		color: var(--error-dark, #721c24);
 		font-size: 0.9rem;
-		color: #555;
-	}
-
-	.option-item input[type="checkbox"] {
-		margin: 0;
+		font-weight: 500;
+		text-align: center;
 	}
 
 	@media (max-width: 768px) {
 		.web-content-importer {
 			padding: 1rem;
-			margin: 1rem;
+			margin: 0.5rem;
 		}
 
 		.url-input-container {
 			flex-direction: column;
 			align-items: stretch;
+			gap: 0.75rem;
 		}
 
 		.options-grid {
@@ -678,6 +463,7 @@
 		.progress-stats {
 			flex-direction: column;
 			gap: 0.5rem;
+			align-items: flex-start;
 		}
 	}
 </style>

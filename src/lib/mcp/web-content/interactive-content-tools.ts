@@ -298,7 +298,7 @@ export class InteractiveContentTools {
 			const regex = new RegExp(`<${selector.replace(/[[\]]/g, '\\$&')}[^>]*>`, 'gi');
 			const matches = html.match(regex) || [];
 
-			matches.forEach((match, index) => {
+			matches.forEach((match: string, index: number) => {
 				elements.push({
 					id: `element_${elements.length}`,
 					type: selector,
@@ -349,7 +349,7 @@ export class InteractiveContentTools {
 
 		// Look for script tags
 		const script_matches = html.match(/<script[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
-		script_matches.forEach((match) => {
+		script_matches.forEach((match: string) => {
 			const src_match = match.match(/src=["']([^"']+)["']/);
 			if (src_match) {
 				dependencies.push({
@@ -362,7 +362,7 @@ export class InteractiveContentTools {
 
 		// Look for CSS links
 		const link_matches = html.match(/<link[^>]*href=["']([^"']+)["'][^>]*>/gi) || [];
-		link_matches.forEach((match) => {
+		link_matches.forEach((match: string) => {
 			const href_match = match.match(/href=["']([^"']+)["']/);
 			if (href_match && match.includes('stylesheet')) {
 				dependencies.push({
@@ -405,9 +405,17 @@ export class InteractiveContentTools {
 		// Check for charts and data visualizations
 		if (content.content.charts && content.content.charts.length > 0) {
 			opportunities.push({
+				id: `chart_${Date.now()}`,
 				type: 'interactive-chart',
+				title: 'Interactive Chart',
+				description: 'Make static charts interactive with zoom and filtering',
 				confidence: 0.9,
 				reasoning: 'Static charts detected that can be made interactive',
+				sourceElement: 'charts',
+				parameters: {
+					zoom: { type: 'toggle', value: true },
+					filter: { type: 'dropdown', value: 'All' }
+				},
 				suggestedInteraction: {
 					type: 'chart-explorer',
 					parameters: {
@@ -426,9 +434,17 @@ export class InteractiveContentTools {
 		// Check for code blocks
 		if (content.content.codeBlocks && content.content.codeBlocks.length > 0) {
 			opportunities.push({
+				id: `code_${Date.now()}`,
 				type: 'interactive-code',
+				title: 'Interactive Code Editor',
+				description: 'Make code blocks executable and editable',
 				confidence: 0.8,
 				reasoning: 'Code blocks detected that can be made executable',
+				sourceElement: 'codeBlocks',
+				parameters: {
+					editable: { type: 'toggle', value: true },
+					runnable: { type: 'toggle', value: true }
+				},
 				suggestedInteraction: {
 					type: 'code-editor',
 					parameters: {
@@ -442,9 +458,17 @@ export class InteractiveContentTools {
 		// Check for tables
 		if (content.content.tables && content.content.tables.length > 0) {
 			opportunities.push({
+				id: `table_${Date.now()}`,
 				type: 'interactive-table',
+				title: 'Interactive Data Table',
+				description: 'Add sorting and filtering to data tables',
 				confidence: 0.7,
 				reasoning: 'Data tables detected that can be made interactive',
+				sourceElement: 'tables',
+				parameters: {
+					sortable: { type: 'toggle', value: true },
+					filterable: { type: 'toggle', value: true }
+				},
 				suggestedInteraction: {
 					type: 'data-table',
 					parameters: {
@@ -463,9 +487,17 @@ export class InteractiveContentTools {
 			text_content.includes('machine learning')
 		) {
 			opportunities.push({
+				id: `simulation_${Date.now()}`,
 				type: 'simulation',
+				title: 'Algorithm Simulation',
+				description: 'Create interactive simulation of the described algorithm',
 				confidence: 0.6,
 				reasoning: 'Algorithmic or ML content detected that can be simulated',
+				sourceElement: 'text_content',
+				parameters: {
+					learningRate: { type: 'slider', value: 0.01 },
+					epochs: { type: 'slider', value: 100 }
+				},
 				suggestedInteraction: {
 					type: 'parameter-simulation',
 					parameters: {

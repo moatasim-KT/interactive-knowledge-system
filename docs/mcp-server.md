@@ -4,6 +4,42 @@
 
 The Interactive Knowledge System includes a built-in MCP (Model Context Protocol) server for web content sourcing and processing. This server provides tools for fetching, analyzing, and integrating web content into your knowledge base.
 
+The MCP server acts as a bridge between external web content and your local knowledge system, automatically extracting, processing, and transforming web content into interactive learning materials.
+
+### Key Features
+
+- **Intelligent Content Extraction**: Automatically identifies and extracts main content from web pages
+- **Multi-Domain Support**: Specialized extractors for GitHub, documentation sites, blogs, and more
+- **Interactive Transformation**: Converts static content into interactive learning blocks
+- **Batch Processing**: Efficiently processes multiple URLs concurrently
+- **Source Management**: Organized content source libraries with automatic updates
+- **Quality Assessment**: Evaluates content quality and provides improvement suggestions
+
+### Quick Start
+
+1. **Start the MCP Server**:
+
+   ```bash
+   npm run dev  # Server starts automatically with the main application
+   ```
+
+2. **Test Server Connection**:
+
+   ```bash
+   node src/lib/mcp/web-content/test-server-startup.ts
+   ```
+
+3. **Fetch Your First Content**:
+
+   ```javascript
+   import { webContentMcpServer } from '$lib/mcp/web-content';
+
+   const result = await webContentMcpServer.executeTool('fetchWebContent', {
+     url: 'https://example.com/article',
+     options: { mainContentOnly: true }
+   });
+   ```
+
 ## Architecture
 
 ### MCP Server Components

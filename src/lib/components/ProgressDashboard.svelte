@@ -80,11 +80,15 @@
 	<div class="flex items-center justify-between mb-6">
 		<h2 class="text-2xl font-bold text-gray-900">Learning Progress</h2>
 		<button
-			onclick={loadProgressData}
+			onclick={load_progress_data}
 			class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-			disabled={isLoading}
+			disabled={is_loading}
 		>
-			{is_loading ? 'Loading...' : 'Refresh'}
+			{#if is_loading}
+				Loading...
+			{:else}
+				Refresh
+			{/if}
 		</button>
 	</div>
 
@@ -106,7 +110,7 @@
 		</div>
 	{/if}
 
-	{#if isLoading}
+	{#if is_loading}
 		<div class="flex items-center justify-center py-12">
 			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
 			<span class="ml-3 text-gray-600">Loading progress data...</span>

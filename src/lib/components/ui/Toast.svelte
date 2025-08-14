@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		type?: 'success' | 'error' | 'warning' | 'info';
@@ -7,8 +9,9 @@
 		message: string;
 		duration?: number;
 		dismissible?: boolean;
-		onDismiss?: () => void;
 		class?: string;
+		onclose?: () => void;
+		actions?: Array<{ label: string; action: () => void }>;
 	}
 
 	let {
@@ -17,7 +20,6 @@
 		message,
 		duration = 5000,
 		dismissible = true,
-		onDismiss,
 		class: className = ''
 	}: Props = $props();
 
@@ -48,7 +50,7 @@
 	function dismiss() {
 		visible = false;
 		setTimeout(() => {
-			onDismiss?.();
+			dispatch('close');
 		}, 200); // Wait for exit animation
 	}
 

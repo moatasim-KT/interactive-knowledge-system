@@ -7,12 +7,9 @@
 	interface Props {
 		codeContent: CodeBlockContent;
 		existingShare?: CodeSnippetShare;
-		onShare?: (share: CodeSnippetShare) => void;
-		onUpdate?: (share: CodeSnippetShare) => void;
-		onCancel?: () => void;
 	}
 
-	let { codeContent, existingShare, onShare, onUpdate, onCancel }: Props = $props();
+	let { codeContent, existingShare }: Props = $props();
 
 	// Event dispatcher
 	const dispatch = createEventDispatcher<{
@@ -68,10 +65,10 @@
 			};
 
 			if (existingShare) {
-				if (onUpdate) onUpdate(share_object);
+				dispatch('update', share_object);
 				dispatch('update', share_object);
 			} else {
-				if (onShare) onShare(share_object);
+				dispatch('share', share_object);
 				dispatch('share', share_object);
 			}
 		} catch (err) {
@@ -82,7 +79,6 @@
 	}
 
 	function handle_cancel() {
-		if (onCancel) onCancel();
 		dispatch('cancel');
 	}
 
@@ -120,14 +116,32 @@
 	}
 </script>
 
-<div class="share-modal-overlay" onclick={handleCancel}>
-	<div class="share-modal" onclick={(e) => e.stopPropagation()}>
+<div
+    class="share-modal-overlay"
+    role="button"
+    tabindex="0"
+    onclick={handle_cancel}
+    onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handle_cancel()}
+>
+    <div
+        class="share-modal"
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                handle_cancel();
+            }
+        }}
+    >
 		<div class="modal-header">
 			<h3>{existingShare ? 'Update' : 'Share'} Code Snippet</h3>
-			<button onclick={handleCancel} class="close-btn">✖️</button>
+			<button onclick={handle_cancel} class="close-btn">✖️</button>
 		</div>
 
-		<form onsubmit={handleSubmit} class="share-form">
+		<form onsubmit={handle_submit} class="share-form">
 			<div class="form-group">
 				<label for="title">Title *</label>
 				<input
@@ -194,9 +208,9 @@
 			<div class="form-actions">
 				<button
 					type="button"
-					onclick={handleCancel}
+					onclick={handle_cancel}
 					class="btn btn-secondary"
-					disabled={isSubmitting}
+					disabled={is_submitting}
 				>
 					Cancel
 				</button>
@@ -209,14 +223,14 @@
 							navigator.clipboard.writeText(temp_url);
 						}}
 						class="btn btn-outline"
-						disabled={isSubmitting}
+						disabled={is_submitting}
 					>
 						📋 Copy Temp Link
 					</button>
 				{/if}
 
 				<button type="submit" class="btn btn-primary" disabled={!is_valid || is_submitting}>
-					{#if isSubmitting}
+					{#if is_submitting}
 						⏳ {existingShare ? 'Updating...' : 'Sharing...'}
 					{:else}
 						🚀 {existingShare ? 'Update' : 'Share'}
@@ -243,14 +257,14 @@
 				</div>
 
 				<div class="share-url">
-					<label>Share URL:</label>
-					<div class="url-input-group">
-						<input type="text" value={shareUrl} readonly class="url-input" />
-						<button type="button" onclick={copyShareUrl} class="copy-btn" title="Copy URL">
-							📋
-						</button>
-					</div>
-				</div>
+                    <label for="share-url-input">Share URL:</label>
+                    <div class="url-input-group">
+                        <input id="share-url-input" type="text" value={share_url} readonly class="url-input" />
+                        <button type="button" onclick={copy_share_url} class="copy-btn" title="Copy URL">
+                            📋
+                        </button>
+                    </div>
+                </div>
 			</div>
 		{/if}
 	</div>

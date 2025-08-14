@@ -84,13 +84,8 @@
 		border-color: var(--color-border);
 	}
 
-	.space-y-2 > * + * {
-		margin-top: 0.5rem;
-	}
-	.space-y-3 > * + * {
-		margin-top: 0.75rem;
-	}
-	.space-y-4 > * + * {
+	
+	:global(.space-y-4 > * + *) {
 		margin-top: 1rem;
 	}
 

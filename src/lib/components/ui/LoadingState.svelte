@@ -31,7 +31,7 @@
 		class: className = ''
 	}: Props = $props();
 
-	let container_classes = $derived(['animate-fade-in', className].filter(Boolean).join(' '));
+	let containerClasses = $derived(['animate-fade-in', className].filter(Boolean).join(' '));
 </script>
 
 <div class={containerClasses}>

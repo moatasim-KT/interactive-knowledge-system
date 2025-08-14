@@ -75,4 +75,50 @@
 	:global(.hover\:border-primary-300:hover) {
 		border-color: var(--color-primary-300);
 	}
+
+	/* Mobile responsive adjustments */
+	@media (max-width: 768px) {
+		:global(.p-3) {
+			padding: 0.6rem;
+		}
+		:global(.p-4) {
+			padding: 0.8rem;
+		}
+		:global(.p-6) {
+			padding: 1rem;
+		}
+		:global(.p-8) {
+			padding: 1.2rem;
+		}
+	}
+
+	/* Touch-friendly interactions */
+	@media (hover: none) and (pointer: coarse) {
+		:global(.cursor-pointer) {
+			-webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+			touch-action: manipulation;
+		}
+
+		:global(.hover\:shadow-md) {
+			/* Remove hover effects on touch devices */
+			box-shadow: var(--shadow-base);
+		}
+
+		:global(.focus-ring:focus) {
+			/* Enhanced focus for touch devices */
+			outline: 3px solid var(--color-border-focus);
+			outline-offset: 2px;
+		}
+	}
+
+	/* High contrast mode */
+	@media (prefers-contrast: high) {
+		:global(.border) {
+			border-width: 2px;
+		}
+		
+		:global(.border-2) {
+			border-width: 3px;
+		}
+	}
 </style>

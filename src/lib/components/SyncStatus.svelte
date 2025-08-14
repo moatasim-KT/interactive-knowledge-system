@@ -87,7 +87,7 @@
 		<div class="sync-actions">
 			<button
 				class="sync-button"
-				onclick={handleSyncNow}
+				onclick={handle_sync_now}
 				disabled={!sync_status.canSync}
 				title="Sync now"
 			>
@@ -151,7 +151,7 @@
 				</div>
 			{/if}
 
-			<button class="clear-button" onclick={handleClearOffline} title="Clear offline data">
+			<button class="clear-button" onclick={handle_clear_offline} title="Clear offline data">
 				🗑️ Clear Offline Data
 			</button>
 		</div>

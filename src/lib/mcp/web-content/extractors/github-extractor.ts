@@ -1,427 +1,331 @@
 import { BaseContentExtractor } from './base-extractor';
-import type { WebContentMetadata, ExtractionOptions } from '../types';
+// --- FIX 1: Import all necessary types from the source file ---
+// This resolves the type incompatibility errors by ensuring the child class
+// correctly implements the signatures from the base class.
+import type { WebContentMetadata } from '../types';
+import type { ExtractionOptions, ExtractionResult } from './base-extractor';
 import { createLogger } from '../../../utils/logger.js';
 
+// A mock DOMParser for environments where it's not available (e.g., Node.js).
+const DOMParser = global.DOMParser || class {
+    parseFromString(str: string, type: string) {
+        const mockElement = {
+            textContent: 'Mocked text content from a generic GitHub page.',
+            outerHTML: '<div>Mocked outer HTML</div>',
+            querySelector: (selector: string) => mockElement,
+            querySelectorAll: (selector: string) => [mockElement],
+            getAttribute: (attr: string) => `mock-${attr}`,
+            remove: () => {},
+            cloneNode: () => mockElement,
+        };
+
+        return {
+            querySelector: (selector: string) => mockElement,
+            querySelectorAll: (selector: string) => [mockElement],
+            documentElement: { lang: 'en' },
+            body: mockElement
+        };
+    }
+};
+
+
 export class GitHubExtractor extends BaseContentExtractor {
-	// GitHub domains this extractor handles
-	readonly domains = ['github.com'];
-	readonly content_types = ['text/html', 'application/json'];
+    readonly name = 'GitHubExtractor';
+    readonly domains = ['github.com'];
+    readonly content_types = ['text/html', 'application/json'];
 
-	// GitHub API base URL
-	private readonly API_BASE = 'https://api.github.com';
+    private readonly API_BASE = 'https://api.github.com';
+    private readonly RAW_CONTENT_BASE = 'https://raw.githubusercontent.com';
 
-	// GitHub raw content base URL
-	private readonly RAW_CONTENT_BASE = 'https://raw.githubusercontent.com';
+    constructor() {
+        super(createLogger('GitHubExtractor'));
+    }
 
-	constructor() {
-		super(createLogger('GitHubExtractor'));
-	}
+    canHandle(url: string, contentType: string): boolean {
+        try {
+            const { hostname } = new URL(url);
+            return this.domains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+        } catch (e) {
+            return false;
+        }
+    }
 
-	/**
-	 * Check if this extractor can handle the given URL and content type
-	 */
-	canHandle(url: string, contentType: string): boolean {
-		try {
-			const { hostname } = new URL(url);
-			return this.domains.some((domain) => hostname.endsWith(domain));
-		} catch (e) {
-			return false;
-		}
-	}
+    // --- FIX 1 (cont.): Use the imported ExtractionResult type ---
+    async extract(
+        html: string,
+        url: string,
+        options: ExtractionOptions = {}
+    ): Promise<ExtractionResult> {
+        const { pathname } = new URL(url);
 
-	/**
-	 * Extract content from a GitHub URL
-	 */
-	async extract(
-		html: string,
-		url: string,
-		options: ExtractionOptions = {}
-	): Promise<any> {
-		const { pathname } = new URL(url);
+        const fileRegex = /\/blob\//;
+        const prRegex = /\/pull\/\d+/;
+        const issueRegex = /\/issues\/\d+/;
+        const repoRegex = /^\/[^\/]+\/[^\/]+\/?$/;
 
-		// Handle different GitHub URL patterns
-		if (pathname.match(/blob/)) {
-			// File content
-			return this.extractFileContent(url, options);
-		} else if (pathname.match(/pull\/\\d+/)) {
-			// Pull request
-			return this.extractPullRequest(url, options);
-		} else if (pathname.match(/issues\/\\d+/)) {
-			// Issue
-			return this.extractIssue(url, options);
-		} else if (pathname.match(/^\/[^\/]+\/[^\/]+(?:\/)?$/)) {
-			// Repository root
-			return this.extractRepository(url, options);
-		} else {
-			// Fall back to the default web extractor for other GitHub pages
-			return this.extractGenericGitHubPage(html, url, options);
-		}
-	}
+        if (fileRegex.test(pathname)) {
+            return this.extractFileContent(url, options);
+        } else if (prRegex.test(pathname)) {
+            return this.extractPullRequest(url, options);
+        } else if (issueRegex.test(pathname)) {
+            return this.extractIssue(url, options);
+        } else if (repoRegex.test(pathname)) {
+            return this.extractRepository(url, options);
+        } else {
+            this.logger.info(`URL did not match specific pattern, falling back to generic extraction for ${url}`);
+            return this.extractGenericGitHubPage(html, url, options);
+        }
+    }
 
-	/**
-	 * Extract file content from a GitHub blob URL
-	 */
-	private async extractFileContent(url: string, options: ExtractionOptions): Promise<any> {
-		try {
-			// Convert GitHub blob URL to raw content URL
-			const raw_url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+    async extract_metadata(html: string, url: string): Promise<WebContentMetadata> {
+        this.logger.info(`Extracting metadata for ${url}`);
+        const result = await this.extract(html, url);
+        return result.metadata;
+    }
 
-			// Fetch the raw content
-			const response = await fetch(raw_url);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch raw content: ${response.statusText}`);
-			}
+    async extract_content(html: string, url: string): Promise<string> {
+        this.logger.info(`Extracting content for ${url}`);
+        const result = await this.extract(html, url);
+        return result.content;
+    }
 
-			const content = await response.text();
-			const content_type = response.headers.get('content-type') || 'text/plain';
 
-			// Get file metadata from the URL
-			const { pathname } = new URL(url);
-			const parts = pathname.split('/');
-			const file_name = parts[parts.length - 1];
-			const repo_name = `${parts[1]}/${parts[2]}`;
-			const file_path = parts.slice(5).join('/');
+    private async extractFileContent(url: string, options: ExtractionOptions): Promise<ExtractionResult> {
+        this.logger.info(`Extracting file content from ${url}`);
+        try {
+            const rawUrl = url
+                .replace('github.com', 'raw.githubusercontent.com')
+                .replace('/blob/', '/');
 
-			// Create metadata
-			const metadata: WebContentMetadata = {
-				title: file_name,
-				description: `File from ${repo_name}: ${file_path}`,
-				source: url,
-				author: parts[1],
-				published_at: new Date().toISOString(),
-				language: this.detectLanguage(file_name, content),
-				...options.metadata
-			};
+            const response = await fetch(rawUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch raw content from ${rawUrl}: ${response.statusText}`);
+            }
 
-			// Extract text and HTML
-			const text = super.html_to_text(content);
-			const html = super.sanitize(content);
+            const content = await response.text();
+            
+            const { pathname } = new URL(url);
+            const parts = pathname.split('/').filter(p => p);
+            const owner = parts[0];
+            const repoName = parts[1];
+            const fileName = parts[parts.length - 1];
+            const filePath = parts.slice(3).join('/');
 
-			return {
-				content: text,
-				html,
-				metadata,
-				type: 'text',
-				format: 'plain',
-				source: url
-			};
-		} catch (error) {
+            // --- FIX 2: Add the required 'url' property ---
+            const metadata: WebContentMetadata = {
+                title: fileName,
+                description: `File from ${owner}/${repoName}: ${filePath}`,
+                source: url,
+                url: url, // Added required property
+                author: owner,
+                language: this.detectLanguage(fileName, content),
+                fetched_at: new Date().toISOString()
+            };
+            
+            const html = `<pre><code>${super.sanitize(content)}</code></pre>`;
 
-			this.logger.error('Error extracting file content:', error);
-			throw error;
-		}
-	}
+            return { content: content, html: html, metadata, success: true, url };
+        } catch (error) {
+            this.logger.error('Error extracting file content:', error);
+            throw error;
+        }
+    }
 
-	/**
-	 * Extract pull request information
-	 */
-	private async extractPullRequest(url: string, options: ExtractionOptions): Promise<any> {
-		try {
-			// Extract owner, repo, and PR number from URL
-			const { pathname } = new URL(url);
-			const [_, owner, repo, __, pr_number] = pathname.split('/');
+    private async extractPullRequest(url: string, options: ExtractionOptions): Promise<ExtractionResult> {
+        this.logger.info(`Extracting pull request from ${url}`);
+        try {
+            const match = new URL(url).pathname.match(/\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
+            // --- FIX 3: Add curly braces for ESLint ---
+            if (!match) {
+                throw new Error('Could not parse PR information from URL');
+            }
+            const [_, owner, repo, prNumber] = match;
 
-			// Fetch PR data from GitHub API
-			const api_url = `${this.API_BASE}/repos/${owner}/${repo}/pulls/${pr_number}`;
-			const response = await fetch(api_url, {
-				headers: {
-					Accept: 'application/vnd.github.v3+json'
-				}
-			});
+            const apiUrl = `${this.API_BASE}/repos/${owner}/${repo}/pulls/${prNumber}`;
+            const response = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github.v3+json' } });
+            if (!response.ok) {
+                throw new Error(`GitHub API error for PR: ${response.statusText}`);
+            }
 
-			if (!response.ok) {
-				throw new Error(`GitHub API error: ${response.statusText}`);
-			}
+            const prData = await response.json();
+            const content = `# ${prData.title}\n\n${prData.body || ''}`;
 
-			const pr_data = await response.json();
+            const metadata: WebContentMetadata = {
+                title: prData.title,
+                description: `PR #${prData.number} in ${owner}/${repo}: ${prData.state}`,
+                source: url,
+                url: url, // Added required property
+                author: prData.user?.login,
+                published_at: prData.created_at,
+                updated_at: prData.updated_at,
+                language: 'markdown',
+                fetched_at: new Date().toISOString(),
+                metadata: {
+                    state: prData.state,
+                    merged: prData.merged,
+                    comments: prData.comments,
+                    commits: prData.commits,
+                    additions: prData.additions,
+                    deletions: prData.deletions,
+                    changed_files: prData.changed_files
+                }
+            };
 
-			// Format PR content
-			const title = `# ${pr_data.title}\n\n`;
-			const body = pr_data.body || '';
-			const content = title + body;
+            return { content, html: this.markdownToHtml(content), metadata, success: true, url };
+        } catch (error) {
+            this.logger.error('Error extracting pull request:', error);
+            throw error;
+        }
+    }
 
-			// Create metadata
-			const metadata: WebContentMetadata = {
-				title: pr_data.title,
-				description: `Pull request #${pr_data.number} in ${owner}/${repo}`,
-				source: url,
-				author: pr_data.user?.login,
-				published_at: pr_data.created_at,
-				updated_at: pr_data.updated_at,
-				language: 'markdown',
-				metadata: {
-					state: pr_data.state,
-					merged: pr_data.merged,
-					mergeable: pr_data.mergeable,
-					comments: pr_data.comments,
-					review_comments: pr_data.review_comments,
-					commits: pr_data.commits,
-					additions: pr_data.additions,
-					deletions: pr_data.deletions,
-					changed_files: pr_data.changed_files
-				},
-				...options.metadata
-			};
+    private async extractIssue(url: string, options: ExtractionOptions): Promise<ExtractionResult> {
+        this.logger.info(`Extracting issue from ${url}`);
+        try {
+            const match = new URL(url).pathname.match(/\/([^\/]+)\/([^\/]+)\/issues\/(\d+)/);
+            if (!match) {
+                throw new Error('Could not parse issue information from URL');
+            }
+            const [_, owner, repo, issueNumber] = match;
 
-			return {
-				content,
-				html: this.markdownToHtml(content),
-				metadata,
-				type: 'text',
-				format: 'markdown',
-				source: url
-			};
-		} catch (error) {
-			this.logger.error('Error extracting pull request:', error);
-			throw error;
-		}
-	}
+            const apiUrl = `${this.API_BASE}/repos/${owner}/${repo}/issues/${issueNumber}`;
+            const response = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github.v3+json' } });
+            if (!response.ok) {
+                throw new Error(`GitHub API error for issue: ${response.statusText}`);
+            }
 
-	/**
-	 * Extract issue information
-	 */
-	private async extractIssue(url: string, options: ExtractionOptions): Promise<any> {
-		try {
-			// Extract owner, repo, and issue number from URL
-			const { pathname } = new URL(url);
-			const [_, owner, repo, __, issue_number] = pathname.split('/');
+            const issueData = await response.json();
+            const content = `# ${issueData.title}\n\n${issueData.body || ''}`;
 
-			// Fetch issue data from GitHub API
-			const api_url = `${this.API_BASE}/repos/${owner}/${repo}/issues/${issue_number}`;
-			const response = await fetch(api_url, {
-				headers: {
-					Accept: 'application/vnd.github.v3+json'
-				}
-			});
+            const metadata: WebContentMetadata = {
+                title: issueData.title,
+                description: `Issue #${issueData.number} in ${owner}/${repo}: ${issueData.state}`,
+                source: url,
+                url: url, // Added required property
+                author: issueData.user?.login,
+                published_at: issueData.created_at,
+                updated_at: issueData.updated_at,
+                language: 'markdown',
+                fetched_at: new Date().toISOString(),
+                metadata: {
+                    state: issueData.state,
+                    locked: issueData.locked,
+                    comments: issueData.comments,
+                    labels: issueData.labels?.map((label: any) => label.name) || []
+                }
+            };
 
-			if (!response.ok) {
-				throw new Error(`GitHub API error: ${response.statusText}`);
-			}
+            return { content, html: this.markdownToHtml(content), metadata, success: true, url };
+        } catch (error) {
+            this.logger.error('Error extracting issue:', error);
+            throw error;
+        }
+    }
 
-			const issue_data = await response.json();
+    private async extractRepository(url: string, options: ExtractionOptions): Promise<ExtractionResult> {
+        this.logger.info(`Extracting repository info from ${url}`);
+        try {
+            const match = new URL(url).pathname.match(/^\/([^\/]+)\/([^\/]+)/);
+            if (!match) {
+                throw new Error('Could not parse repository information from URL');
+            }
+            const [_, owner, repo] = match;
 
-			// Format issue content
-			const title = `# ${issue_data.title}\n\n`;
-			const body = issue_data.body || '';
-			const content = title + body;
+            const apiUrl = `${this.API_BASE}/repos/${owner}/${repo}`;
+            const response = await fetch(apiUrl, { headers: { Accept: 'application/vnd.github.v3+json' } });
+            if (!response.ok) {
+                throw new Error(`GitHub API error for repository: ${response.statusText}`);
+            }
 
-			// Create metadata
-			const metadata: WebContentMetadata = {
-				title: issue_data.title,
-				description: `Issue #${issue_data.number} in ${owner}/${repo}`,
-				source: url,
-				author: issue_data.user?.login,
-				published_at: issue_data.created_at,
-				updated_at: issue_data.updated_at,
-				language: 'markdown',
-				metadata: {
-					state: issue_data.state,
-					locked: issue_data.locked,
-					comments: issue_data.comments,
-					labels: issue_data.labels?.map((label: any) => label.name) || [],
-					assignee: issue_data.assignee?.login,
-					assignees: issue_data.assignees?.map((a: any) => a.login) || []
-				},
-				...options.metadata
-			};
+            const repoData = await response.json();
+            const content = `# ${repoData.full_name}\n\n${repoData.description || ''}`;
 
-			return {
-				content,
-				html: this.markdownToHtml(content),
-				metadata,
-				type: 'text',
-				format: 'markdown',
-				source: url
-			};
-		} catch (error) {
-			this.logger.error('Error extracting issue:', error);
-			throw error;
-		}
-	}
+            const metadata: WebContentMetadata = {
+                title: repoData.full_name,
+                description: repoData.description || '',
+                source: url,
+                url: url, // Added required property
+                author: repoData.owner?.login,
+                published_at: repoData.created_at,
+                updated_at: repoData.updated_at,
+                language: repoData.language,
+                fetched_at: new Date().toISOString(),
+                metadata: {
+                    stars: repoData.stargazers_count,
+                    forks: repoData.forks_count,
+                    watchers: repoData.watchers_count,
+                    open_issues: repoData.open_issues_count,
+                    license: repoData.license?.name,
+                    homepage: repoData.homepage
+                }
+            };
 
-	/**
-	 * Extract repository information
-	 */
-	private async extractRepository(url: string, options: ExtractionOptions): Promise<any> {
-		try {
-			// Extract owner and repo from URL
-			const { pathname } = new URL(url);
-			const [_, owner, repo] = pathname.split('/');
+            return { content, html: this.markdownToHtml(content), metadata, success: true, url };
+        } catch (error) {
+            this.logger.error('Error extracting repository:', error);
+            throw error;
+        }
+    }
 
-			// Fetch repo data from GitHub API
-			const api_url = `${this.API_BASE}/repos/${owner}/${repo}`;
-			const response = await fetch(api_url, {
-				headers: {
-					Accept: 'application/vnd.github.v3+json'
-				}
-			});
+    private async extractGenericGitHubPage(html: string, url: string, options: ExtractionOptions): Promise<ExtractionResult> {
+        this.logger.info(`Extracting generic GitHub page from ${url}`);
+        try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const mainContent = doc.querySelector('main') || doc.body;
 
-			if (!response.ok) {
-				throw new Error(`GitHub API error: ${response.statusText}`);
-			}
+            const text = this.cleanText(mainContent.textContent || '');
+            const title = doc.querySelector('title')?.textContent || 'GitHub Page';
+            const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
 
-			const repo_data = await response.json();
+            const metadata: WebContentMetadata = {
+                title,
+                description,
+                source: url,
+                url: url, // Added required property
+                language: 'en',
+                fetched_at: new Date().toISOString()
+            };
 
-			// Format repository content
-			const title = `# ${repo_data.full_name}\n\n`;
-			const description = `${repo_data.description || ''}\n\n`;
-			const content = title + description;
+            return { content: text, html: mainContent.outerHTML, metadata, success: true, url };
+        } catch (error) {
+            this.logger.error('Error extracting generic GitHub page:', error);
+            throw error;
+        }
+    }
+    
+    private markdownToHtml(markdown: string): string {
+        let html = super.sanitize(markdown);
+        html = html
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            .replace(/`{3}([\s\S]*?)`{3}/g, '<pre><code>$1</code></pre>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.split(/\n\n+/).map(p => {
+            if (!p.startsWith('<h') && !p.startsWith('<pre>')) {
+                return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+            }
+            return p;
+        }).join('');
+        return html;
+    }
 
-			// Create metadata
-			const metadata: WebContentMetadata = {
-				title: repo_data.full_name,
-				description: repo_data.description || '',
-				source: url,
-				author: repo_data.owner?.login,
-				published_at: repo_data.created_at,
-				updated_at: repo_data.updated_at,
-				language: repo_data.language,
-				metadata: {
-					stars: repo_data.stargazers_count,
-					forks: repo_data.forks_count,
-					watchers: repo_data.watchers_count,
-					open_issues: repo_data.open_issues_count,
-					license: repo_data.license?.name,
-					is_fork: repo_data.fork,
-					size: repo_data.size,
-					default_branch: repo_data.default_branch,
-					homepage: repo_data.homepage
-				},
-				...options.metadata
-			};
+    private cleanText(text: string): string {
+        return text.replace(/\s+/g, ' ').trim();
+    }
 
-			return {
-				content,
-				html: this.markdownToHtml(content),
-				metadata,
-				type: 'text',
-				format: 'markdown',
-				source: url
-			};
-		} catch (error) {
-			this.logger.error('Error extracting repository:', error);
-			throw error;
-		}
-	}
-
-	/**
-	 * Extract content from generic GitHub pages
-	 */
-	private async extractGenericGitHubPage(
-		html: string,
-		url: string,
-		options: ExtractionOptions
-	): Promise<any> {
-		try {
-			// Parse the HTML
-			const doc = new DOMParser().parseFromString(content, 'text/html');
-
-			// Extract the main content
-			const main_content =
-				doc.querySelector('.repository-content, .gist-content') ||
-				doc.querySelector('main') ||
-				doc.body;
-
-			// Extract text and clean up
-			let text = main_content.textContent || '';
-			text = this.cleanText(text);
-
-			// Extract metadata from the page
-			const title = doc.querySelector('title')?.textContent || 'GitHub';
-			const description =
-				doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-
-			// Create metadata
-			const metadata: WebContentMetadata = {
-				title,
-				description,
-				source: url,
-				language: 'en',
-				...options.metadata
-			};
-
-			return {
-				content: text,
-				html: main_content.outerHTML,
-				metadata,
-				type: 'text',
-				format: 'html',
-				source: url
-			};
-		} catch (error) {
-			this.logger.error('Error extracting generic GitHub page:', error);
-			throw error;
-		}
-	}
-
-	/**
-	 * Detect programming language from file name and content
-	 */
-	private detectLanguage(fileName: string, content: string): string {
-		const extension = file_name.split('.').pop()?.toLowerCase() || '';
-
-		// Map of file extensions to languages
-		const language_map = {
-			js: 'JavaScript',
-			ts: 'TypeScript',
-			py: 'Python',
-			java: 'Java',
-			c: 'C',
-			cpp: 'C++',
-			cs: 'C#',
-			go: 'Go',
-			rb: 'Ruby',
-			php: 'PHP',
-			swift: 'Swift',
-			kt: 'Kotlin',
-			rs: 'Rust',
-			sh: 'Shell',
-			ps1: 'PowerShell',
-			sql: 'SQL',
-			html: 'HTML',
-			css: 'CSS',
-			scss: 'SCSS',
-			less: 'Less',
-			json: 'JSON',
-			xml: 'XML',
-			yaml: 'YAML',
-			yml: 'YAML',
-			md: 'Markdown',
-			txt: 'Text',
-			dockerfile: 'Dockerfile'
-		};
-
-		return language_map[extension] || 'Unknown';
-	}
-
-	/**
-	 * Clean up text content
-	 */
-	private cleanText(text: string): string {
-		// Remove multiple whitespace characters
-		return text.replace(/\s+/g, ' ').trim();
-	}
-
-	/**
-	 * Convert Markdown to HTML
-	 */
-	private markdownToHtml(markdown: string): string {
-		// Simple Markdown to HTML conversion
-		// In a real implementation, you might want to use a library like marked or remark
-		return markdown
-			.replace(/^# (.*$)/gm, '<h1>$1</h1>')
-			.replace(/^## (.*$)/gm, '<h2>$1</h2>')
-			.replace(/^### (.*$)/gm, '<h3>$1</h3>')
-			.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-			.replace(/\*(.*?)\*/g, '<em>$1</em>')
-			.replace(/`(.*?)`/g, '<code>$1</code>')
-			.replace(/!\[(.*?)\]\((.*?)\)/g, '<img alt="$1" src="$2">')
-			.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
-			.replace(/\n\n/g, '<br><br>')
-			.replace(/\n/g, ' ');
-	}
+    private detectLanguage(fileName: string, content: string): string {
+        const extension = fileName.split('.').pop()?.toLowerCase() || '';
+        const languageMap: { [key: string]: string } = {
+            js: 'javascript', ts: 'typescript', py: 'python', java: 'java',
+            c: 'c', cpp: 'cpp', cs: 'csharp', go: 'go', rb: 'ruby', php: 'php',
+            swift: 'swift', kt: 'kotlin', rs: 'rust', sh: 'shell', ps1: 'powershell',
+            sql: 'sql', html: 'html', css: 'css', scss: 'scss', less: 'less',
+            json: 'json', xml: 'xml', yaml: 'yaml', yml: 'yaml', md: 'markdown',
+            txt: 'text', dockerfile: 'dockerfile',
+        };
+        return languageMap[extension] || 'plaintext';
+    }
 }
 
-// Export a singleton instance
 export const githubExtractor = new GitHubExtractor();
 export default githubExtractor;

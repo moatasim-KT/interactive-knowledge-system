@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { generateId } from '$lib/utils/accessibility.js';
+
 	interface Props {
 		variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 		size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -7,8 +9,21 @@
 		fullWidth?: boolean;
 		type?: 'button' | 'submit' | 'reset';
 		onclick?: (event: MouseEvent) => void;
+		onkeydown?: (event: KeyboardEvent) => void;
 		class?: string;
 		children?: any;
+		// Accessibility props
+		'aria-label'?: string;
+		'aria-describedby'?: string;
+		'aria-expanded'?: boolean;
+		'aria-pressed'?: boolean;
+		'aria-controls'?: string;
+		'aria-haspopup'?: boolean | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+		id?: string;
+		role?: string;
+		title?: string;
+		loadingText?: string;
+		tabindex?: number;
 	}
 
 	let {
@@ -19,8 +34,20 @@
 		fullWidth = false,
 		type = 'button',
 		onclick,
+		onkeydown,
 		class: className = '',
 		children,
+		'aria-label': ariaLabel,
+		'aria-describedby': ariaDescribedby,
+		'aria-expanded': ariaExpanded,
+		'aria-pressed': ariaPressed,
+		'aria-controls': ariaControls,
+		'aria-haspopup': ariaHaspopup,
+		id = generateId('button'),
+		role,
+		title,
+		loadingText = 'Loading...',
+		tabindex,
 		...rest
 	}: Props = $props();
 
@@ -65,9 +92,32 @@
 	);
 </script>
 
-<button {type} {disabled} class={classes} {onclick} {...rest}>
+<button 
+	{id}
+	{type} 
+	disabled={disabled || loading}
+	class={classes}
+	onclick={onclick}
+	onkeydown={onkeydown}
+	aria-label={ariaLabel}
+	aria-describedby={ariaDescribedby}
+	aria-expanded={ariaExpanded}
+	aria-pressed={ariaPressed}
+	aria-controls={ariaControls}
+	aria-haspopup={ariaHaspopup}
+	aria-busy={loading}
+	{role}
+	{title}
+	{tabindex}
+	{...rest}
+>
 	{#if loading}
-		<svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+		<svg 
+			class="animate-spin w-4 h-4" 
+			fill="none" 
+			viewBox="0 0 24 24"
+			aria-hidden="true"
+		>
 			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
 			></circle>
 			<path
@@ -76,9 +126,12 @@
 				d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
 			></path>
 		</svg>
+		<span class="sr-only">{loadingText}</span>
 	{/if}
 
-	{@render children?.()}
+	<span class={loading ? 'opacity-0' : ''}>
+		{@render children?.()}
+	</span>
 </button>
 
 <style>

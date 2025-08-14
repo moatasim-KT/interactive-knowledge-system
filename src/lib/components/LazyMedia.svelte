@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { LazyLoadOptions } from '$lib/types/media.js';
+	import type { LazyLoadOptions } from '$lib/types/media';
 
 	interface Props {
 		src: string;

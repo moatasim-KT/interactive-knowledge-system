@@ -243,7 +243,6 @@ class ThreeWayMergeStrategy implements ConflictResolutionStrategy {
 				...remote.preferences,
 				...local.preferences // Local preferences take precedence
 			},
-			lastModified: new Date()
 		};
 	}
 

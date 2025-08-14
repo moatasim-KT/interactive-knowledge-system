@@ -1,13 +1,15 @@
 <script lang="ts">
 	import type { VisualizationConfig } from '$lib/types/web-content.js';
+	import { createEventDispatcher } from 'svelte';
 
 	interface Props {
 		data: any;
 		config: VisualizationConfig;
-		onInteraction?: (event: { type: string; [key: string]: any }) => void;
+		oninteraction?: (payload: any) => void;
+		onInteraction?: (payload: any) => void;
 	}
 
-	let { data, config, onInteraction }: Props = $props();
+	let { data, config, oninteraction }: Props = $props();
 
 	let chart_container = $state<HTMLElement>();
 	let is_zoomed = $state(false);
@@ -69,7 +71,7 @@
 	}
 
 	function create_yscale(data: any[]) {
-		if (!data.length) return (y: any) => inner_height;
+		if (!data.length) return (y: any) => inner_height();
 
 		const values = data.map((d) => d.y).filter((y) => typeof y === 'number');
 		const min = Math.min(...values);
@@ -98,7 +100,7 @@
 				content: `${closest.label}: ${closest.y}`
 			};
 
-			onInteraction?.({
+			oninteraction?.({
 				type: 'hover',
 				point: closest,
 				coordinates: { x, y }
@@ -109,18 +111,24 @@
 	function handle_mouse_leave() {
 		hovered_point = null;
 		tooltip = null;
-		onInteraction?.({ type: 'hover-end' });
+		oninteraction?.({ type: 'hover-end' });
 	}
 
-	function handle_click(event: MouseEvent) {
+	function handle_click(event: MouseEvent | KeyboardEvent) {
 		if (!chart_container) return;
 		const rect = chart_container.getBoundingClientRect();
-		const x = event.clientX - rect.left - margin().left;
-		const y = event.clientY - rect.top - margin().top;
+		// For keyboard events, approximate activation at center of chart area
+		const is_mouse = 'clientX' in event && 'clientY' in event;
+		const x = (is_mouse
+			? (event as MouseEvent).clientX - rect.left
+			: rect.width / 2) - margin().left;
+		const y = (is_mouse
+			? (event as MouseEvent).clientY - rect.top
+			: rect.height / 2) - margin().top;
 
 		const closest = find_closest_point(x, y);
 		if (closest) {
-			onInteraction?.({
+			oninteraction?.({
 				type: 'click',
 				point: closest,
 				coordinates: { x, y }
@@ -135,7 +143,7 @@
 		zoom_level = Math.max(0.5, Math.min(3, zoom_level * delta));
 		is_zoomed = zoom_level !== 1;
 
-		onInteraction?.({
+		oninteraction?.({
 			type: 'zoom',
 			zoomLevel: zoom_level,
 			isZoomed: is_zoomed
@@ -150,7 +158,7 @@
 		let min_distance = Infinity;
 
 		data.forEach((point, index) => {
-			const px = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x);
+			const px = x_scale()(point.x, index);
 			const py = y_scale()(point.y);
 			const distance = Math.sqrt((mouse_x - px) ** 2 + (mouse_y - py) ** 2);
 
@@ -166,17 +174,18 @@
 	function reset_zoom() {
 		zoom_level = 1;
 		is_zoomed = false;
-		onInteraction?.({ type: 'zoom-reset' });
+		oninteraction?.({ type: 'zoom-reset' });
 	}
 
 	// Initialize chart when mounted
 	$effect(() => {
 		if (chart_container) {
-			onInteraction?.({ type: 'mount', config });
+				oninteraction?.({ type: 'mount', config });
 		}
 	});
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_no_noninteractive_tabindex -->
 <div
 	class="interactive-chart"
 	bind:this={chart_container}
@@ -184,7 +193,13 @@
 	onmouseleave={handle_mouse_leave}
 	onclick={handle_click}
 	onwheel={handle_wheel}
-	role="img"
+    role="application"
+	onkeydown={(e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			handle_click(e);
+		}
+	}}
 	aria-label={config.title || 'Interactive Chart'}
 >
 	<!-- Chart Controls -->
@@ -245,7 +260,7 @@
 				<path
 					d={processed_data()
 						.map((point, index) => {
-							const x = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x);
+							const x = x_scale()(point.x, index);
 							const y = y_scale()(point.y);
 							return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
 						})
@@ -258,8 +273,8 @@
 
 			<!-- Data points -->
 			{#each processed_data() as point, index (point.label || index)}
-				{@const x = typeof x_scale() === 'function' ? x_scale()(point.x, index) : x_scale()(point.x)}
-				{@const y = y_scale()(point.y)}
+				{@const x = x_scale()(point.x, index) as number}
+				{@const y = y_scale()(point.y) as number}
 				<circle
 					cx={x}
 					cy={y}

@@ -10,7 +10,7 @@ export interface MediaFile {
 	size: number;
 	url: string;
 	thumbnailUrl?: string;
-	metadata: {
+		metadata: {
 		width?: number;
 		height?: number;
 		duration?: number;

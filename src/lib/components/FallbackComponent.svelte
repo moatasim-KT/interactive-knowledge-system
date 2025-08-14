@@ -1,36 +1,34 @@
 <script lang="ts">
 	import { Button, Card } from './ui';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	interface Props {
 		title?: string;
 		message?: string;
 		showRetry?: boolean;
-		onRetry?: () => void;
 		icon?: string;
 		error?: Error | null;
 		errorInfo?: any;
+		onretry?: () => void;
 	}
 
 	let {
 		title = 'Component Error',
 		message = 'This component failed to load properly.',
 		showRetry = true,
-		onRetry,
 		icon = '⚠️',
 		error = null,
 		errorInfo = null
 	}: Props = $props();
 
 	function handleRetry() {
-		if (onRetry) {
-			onRetry();
-		} else {
-			window.location.reload();
-		}
+		dispatch('retry');
 	}
 </script>
 
-<Card variant="outline" padding="lg" class="fallback-component">
+<Card variant="outlined" padding="lg" class="fallback-component">
 	<div class="text-center">
 		<div class="text-3xl mb-3">{icon}</div>
 		<h4 class="text-md font-medium mb-2 text-text-primary">{title}</h4>
@@ -66,7 +64,7 @@
 </Card>
 
 <style>
-	.fallback-component {
+	:global(.fallback-component) {
 		min-height: 200px;
 		display: flex;
 		align-items: center;

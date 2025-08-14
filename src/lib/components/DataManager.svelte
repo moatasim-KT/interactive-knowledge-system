@@ -11,33 +11,33 @@
 	// Service instance
 	const data_service = createDataManagementService();
 
-	// State
-	let active_tab = 'export';
-	let is_loading = false;
-	let message = '';
-	let message_type = 'info';
+	// State (reactive)
+	let active_tab = $state<'export' | 'import' | 'backups'>('export');
+	let is_loading = $state(false);
+	let message = $state('');
+	let message_type = $state<'info' | 'success' | 'warning' | 'error'>('info');
 
 	// Export state
-	let export_options = { ...DEFAULT_EXPORT_OPTIONS };
-	let export_filename = '';
+	let export_options = $state({ ...DEFAULT_EXPORT_OPTIONS });
+	let export_filename = $state('');
 
 	// Import state
-	let import_options = { ...DEFAULT_IMPORT_OPTIONS };
-	let import_file = null;
-	let import_content = '';
+	let import_options = $state({ ...DEFAULT_IMPORT_OPTIONS });
+	let import_file = $state<File | null>(null);
+	let import_content = $state('');
 
 	// Backup state
-	let backups: BackupMetadata[] = [];
-	let selected_backup = null;
-	let backup_name = '';
-	let backup_description = '';
-	let restore_options = {
+	let backups: BackupMetadata[] = $state([]);
+	let selected_backup = $state(null);
+	let backup_name = $state('');
+	let backup_description = $state('');
+	let restore_options = $state({
 		overwriteExisting: false,
 		mergeWithExisting: true,
 		restoreProgress: true,
 		restoreSettings: false,
 		createBackupBeforeRestore: true
-	};
+	});
 
 	// Load backups on component mount
 	$effect(() => {
@@ -271,8 +271,8 @@
 			Import
 		</button>
 		<button
-			class="tab {active_tab === 'backup' ? 'active' : ''}"
-			onclick={() => (active_tab = 'backup')}
+			class="tab {active_tab === 'backups' ? 'active' : ''}"
+			onclick={() => (active_tab = 'backups')}
 		>
 			Backup & Restore
 		</button>
@@ -376,7 +376,7 @@
 					{is_loading ? 'Importing...' : 'Import Data'}
 				</button>
 			</div>
-		{:else if active_tab === 'backup'}
+		{:else if active_tab === 'backups'}
 			<div class="backup-panel">
 				<div class="backup-create">
 					<h3>Create Backup</h3>

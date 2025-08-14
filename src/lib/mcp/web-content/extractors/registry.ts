@@ -93,7 +93,10 @@ export class ExtractorRegistry {
 			return {
 				content: '',
 				html: '',
-				metadata: { url },
+				metadata: {
+					url,
+					fetched_at: new Date().toISOString()
+				},
 				error,
 				success: false,
 				url
@@ -116,7 +119,20 @@ export class ExtractorRegistry {
 			return {
 				content: '',
 				html: '',
-				metadata: { url },
+				metadata: {
+					url,
+					domain: new URL(url).hostname,
+					contentType: 'unknown',
+					language: 'en',
+					readingTime: 0,
+					wordCount: 0,
+					keywords: [],
+					description: '',
+					attribution: url,
+					tags: [],
+					category: 'general',
+					fetched_at: new Date().toISOString()
+				},
 				error: error instanceof Error ? error : new Error(error_message),
 				success: false,
 				url

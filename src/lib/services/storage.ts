@@ -8,7 +8,7 @@ import type {
 	WebContentSource,
 	WebContent,
 	BatchProcessingJob,
-	ContentTemplate
+
 } from '../types/web-content.js';
 
 interface WebContentDB extends DBSchema {

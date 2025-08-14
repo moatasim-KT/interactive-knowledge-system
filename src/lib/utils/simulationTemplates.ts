@@ -855,6 +855,11 @@ export function createSimulationFromTemplate(
 				extractionMethod: 'template',
 				confidence: 1.0
 			}
+		},
+		metadata: {
+			created: new Date(),
+			modified: new Date(),
+			version: 1
 		}
 	};
 }
@@ -893,6 +898,11 @@ export function createDiagramFromTemplate(
 				extractionMethod: 'template',
 				confidence: 1.0
 			}
+		},
+		metadata: {
+			created: new Date(),
+			modified: new Date(),
+			version: 1
 		}
 	};
 }

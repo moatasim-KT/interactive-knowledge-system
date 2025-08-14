@@ -9,12 +9,22 @@ import {
 	type VersionRecord
 } from './database.js';
 
+interface IndexConfig {
+	readonly name: string;
+	readonly keyPath: string | string[];
+	readonly unique: boolean;
+	readonly multiEntry?: boolean;
+}
+
 /**
  * IndexedDB wrapper class providing CRUD operations and versioning
  */
 export class IndexedDBStorage {
 	private db: IDBDatabase | null = null;
 	private initPromise: Promise<void> | null = null;
+	private get available(): boolean {
+		return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
+	}
 
 	/**
 	 * Initialize the database connection
@@ -24,14 +34,27 @@ export class IndexedDBStorage {
 			return this.initPromise;
 		}
 
+		// If running in SSR/Node where indexedDB is unavailable, resolve immediately (no-op)
+		if (!this.available) {
+			this.initPromise = Promise.resolve();
+			return this.initPromise;
+		}
+
 		this.initPromise = new Promise((resolve, reject) => {
-			const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+			// Add timeout to prevent hanging in test environments
+			const timeout = setTimeout(() => {
+				reject(new Error('Database initialization timeout'));
+			}, 5000);
+
+			const request = window.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
 
 			request.onerror = () => {
+				clearTimeout(timeout);
 				reject(new Error(`Failed to open database: ${request.error?.message}`));
 			};
 
 			request.onsuccess = () => {
+				clearTimeout(timeout);
 				this.db = request.result;
 				resolve();
 			};
@@ -52,11 +75,11 @@ export class IndexedDBStorage {
 		Object.values(OBJECT_STORES).forEach((store_config) => {
 			if (!db.objectStoreNames.contains(store_config.name)) {
 				const store = db.createObjectStore(store_config.name, {
-					keyPath: store_config.keyPath
+					keyPath: store_config.keyPath as string | string[]
 				});
 
 				// Create indexes
-				store_config.indexes.forEach((index_config) => {
+				store_config.indexes.forEach((index_config: IndexConfig) => {
 					const keyPath = Array.isArray(index_config.keyPath)
 						? [...index_config.keyPath]
 						: index_config.keyPath;
@@ -76,9 +99,11 @@ export class IndexedDBStorage {
 	 * Ensure database is initialized
 	 */
 	private async ensureInitialized(): Promise<IDBDatabase> {
-		if (!this.db && !this.initPromise) {
-			throw new Error('Database not initialized');
+		// If IndexedDB is not available (SSR), short-circuit
+		if (!this.available) {
+			throw new Error('IndexedDB is not available in this environment');
 		}
+		// If initialization hasn't started or DB not ready, start it now
 		if (!this.db) {
 			await this.init();
 		}
@@ -95,6 +120,10 @@ export class IndexedDBStorage {
 		storeName: T,
 		key: IDBValidKey
 	): Promise<DatabaseSchema[T] | undefined> {
+		if (!this.available) {
+			// SSR fallback: nothing in DB
+			return undefined;
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -115,6 +144,9 @@ export class IndexedDBStorage {
 		query?: IDBValidKey | IDBKeyRange,
 		count?: number
 	): Promise<Array<DatabaseSchema[T]>> {
+		if (!this.available) {
+			return [];
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -135,6 +167,10 @@ export class IndexedDBStorage {
 		data: DatabaseSchema[T],
 		changeDescription?: string
 	): Promise<void> {
+		if (!this.available) {
+			// No-op in SSR
+			return;
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -166,6 +202,10 @@ export class IndexedDBStorage {
 		data: DatabaseSchema[T],
 		changeDescription?: string
 	): Promise<void> {
+		if (!this.available) {
+			// No-op in SSR
+			return;
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -193,6 +233,10 @@ export class IndexedDBStorage {
 	 * Generic method to delete a record
 	 */
 	async delete<T extends keyof DatabaseSchema>(storeName: T, key: IDBValidKey): Promise<void> {
+		if (!this.available) {
+			// No-op in SSR
+			return;
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -214,6 +258,9 @@ export class IndexedDBStorage {
 		query: IDBValidKey | IDBKeyRange,
 		count?: number
 	): Promise<Array<DatabaseSchema[T]>> {
+		if (!this.available) {
+			return [];
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -231,6 +278,9 @@ export class IndexedDBStorage {
 	 * Get version history for an entity
 	 */
 	async getVersionHistory(entityId: string, entityType: string): Promise<VersionRecord[]> {
+		if (!this.available) {
+			return [];
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -252,6 +302,9 @@ export class IndexedDBStorage {
 	 * Get a specific version of an entity
 	 */
 	async getVersion(entityId: string, version: number): Promise<VersionRecord | undefined> {
+		if (!this.available) {
+			return undefined;
+		}
 		const db = await this.ensureInitialized();
 
 		return new Promise((resolve, reject) => {
@@ -303,8 +356,7 @@ export class IndexedDBStorage {
 
 	/**
 	 * Extract version number from data
-	 */
-	private getEntityVersion(data: any): number {
+	 */	private getEntityVersion(data: any): number {
 		return data.metadata?.version || data.version || 1;
 	}
 

@@ -1,32 +1,51 @@
 <script lang="ts">
 	import type { ChartData } from '$lib/types/web-content.js';
 	import { createEventDispatcher } from 'svelte';
+
+	interface Props {
+		data: ChartData;
+		hierarchyField?: string;
+		valueField?: string;
+		chartType?: 'line' | 'bar' | 'scatter' | 'heatmap';
+		ondrillDown?: (event: CustomEvent) => void;
+		ondrillUp?: (event: CustomEvent) => void;
+		onreset?: (event: CustomEvent) => void;
+		onchartInteraction?: (event: CustomEvent) => void;
+	}
 	import AdvancedInteractiveChart from './AdvancedInteractiveChart.svelte';
 
-	export let data: ChartData;
-	export let hierarchyField: string = '';
-	export let valueField: string = 'value';
-	export let chartType: 'line' | 'bar' | 'scatter' | 'heatmap' = 'bar';
+	let { 
+		data, 
+		hierarchyField = '', 
+		valueField = 'value', 
+		chartType = 'bar',
+		ondrillDown,
+		ondrillUp,
+		onreset,
+		onchartInteraction
+	}: Props = $props();
 
 	const dispatch = createEventDispatcher();
 
 	// Drill-down state
-	let drill_stack: any[] = [];
-	let current_level = 0;
-	let current_data: any[] = [];
-	let breadcrumbs: string[] = [];
-	let hierarchy_levels: string[] = [];
-	let aggregation_method: 'sum' | 'avg' | 'count' | 'min' | 'max' = 'sum';
+	let drill_stack = $state<any[]>([]);
+	let current_level = $state(0);
+	let current_data = $state<any[]>([]);
+	let breadcrumbs = $state<string[]>([]);
+	let hierarchy_levels = $state<string[]>([]);
+	let aggregation_method = $state<'sum' | 'avg' | 'count' | 'min' | 'max'>('sum');
 
 	// Animation state
-	let is_transitioning = false;
-	let transition_direction: 'down' | 'up' = 'down';
+	let is_transitioning = $state(false);
+	let transition_direction = $state<'down' | 'up'>('down');
 
 	// Initialize hierarchy levels from data structure
-	$: if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
-		hierarchy_levels = detect_hierarchy_levels(data.data);
-		current_data = process_data_for_level(data.data, 0);
-	}
+	$effect(() => {
+		if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+			hierarchy_levels = detect_hierarchy_levels(data.data);
+			current_data = process_data_for_level(data.data, 0);
+		}
+	});
 
 	function detect_hierarchy_levels(raw_data: any[]): string[] {
 		if (!raw_data.length) return [];
@@ -227,8 +246,8 @@
 		});
 	}
 
-	function handle_chart_interaction(event: CustomEvent) {
-		const { type, point } = event.detail;
+	function handle_chart_interaction(event: CustomEvent | { detail: { type: string; point?: any } }) {
+		const { type, point } = 'detail' in event ? event.detail : event;
 
 		if (type === 'click' && point && point.children) {
 			drill_down(point);
@@ -262,8 +281,8 @@
 		return item.length > 20 ? item.substring(0, 17) + '...' : item;
 	}
 
-	// Chart configuration for drill-down
-	const drill_down_config = {
+	// Chart configuration for drill-down (reactive)
+	const drill_down_config = $derived(() => ({
 		layout: {
 			width: 800,
 			height: 500,
@@ -283,7 +302,7 @@
 		},
 		xAxisLabel: get_level_name(current_level),
 		yAxisLabel: `${aggregation_method.charAt(0).toUpperCase() + aggregation_method.slice(1)} of ${valueField}`
-	};
+	}));
 </script>
 
 <div class="drill-down-chart">
@@ -300,10 +319,11 @@
 
 		<div class="header-controls">
 			<div class="aggregation-control">
-				<label>Aggregation:</label>
+				<label for="aggregation-method">Aggregation:</label>
 				<select
+					id="aggregation-method"
 					value={aggregation_method}
-					on:change={(e) => change_aggregation(e.currentTarget.value)}
+					onchange={(e) => change_aggregation(e.currentTarget.value)}
 					class="aggregation-select"
 				>
 					<option value="sum">Sum</option>
@@ -318,7 +338,7 @@
 				<button
 					class="drill-up-btn"
 					disabled={drill_stack.length === 0}
-					on:click={() => drill_up()}
+					onclick={() => drill_up()}
 					type="button"
 				>
 					↑ Up
@@ -326,7 +346,7 @@
 				<button
 					class="reset-btn"
 					disabled={drill_stack.length === 0}
-					on:click={reset_to_root}
+					onclick={reset_to_root}
 					type="button"
 				>
 					🏠 Root
@@ -338,14 +358,14 @@
 	<!-- Breadcrumb Navigation -->
 	{#if breadcrumbs.length > 0}
 		<div class="breadcrumb-nav">
-			<button class="breadcrumb-item root" on:click={reset_to_root} type="button"> 🏠 Root </button>
+			<button class="breadcrumb-item root" onclick={reset_to_root} type="button"> 🏠 Root </button>
 
 			{#each breadcrumbs as crumb, index (index)}
 				<span class="breadcrumb-separator">›</span>
 				<button
 					class="breadcrumb-item"
 					class:active={index === breadcrumbs.length - 1}
-					on:click={() => drill_up(index)}
+					onclick={() => drill_up(index)}
 					type="button"
 				>
 					{format_breadcrumb_item(crumb, index)}
@@ -365,9 +385,9 @@
 			data={{ ...data, data: current_data }}
 			{chartType}
 			config={drill_down_config}
-			on:hover={handle_chart_interaction}
-			on:select={handle_chart_interaction}
-			on:zoom={handle_chart_interaction}
+			onHover={(p) => handle_chart_interaction({ detail: { type: 'hover', ...p } })}
+			onSelect={(p) => handle_chart_interaction({ detail: { type: 'select', ...p } })}
+			onZoom={(p) => handle_chart_interaction({ detail: { type: 'zoom', ...p } })}
 		/>
 
 		<!-- Drill-down hint -->
@@ -467,7 +487,7 @@
 								</td>
 								<td class="actions-cell">
 									{#if item.children && item.children.length > 0}
-										<button class="drill-down-btn" on:click={() => drill_down(item)} type="button">
+										<button class="drill-down-btn" onclick={() => drill_down(item)} type="button">
 											🔍 Drill Down
 										</button>
 									{:else}

@@ -24,8 +24,8 @@
 		...rest
 	}: Props = $props();
 
-	const percentage = $derived(() => Math.min(Math.max((value / max) * 100, 0), 100));
-	const display_label = $derived(() => label || `${Math.round(percentage)}%`);
+	const percentage = $derived(Math.min(Math.max((value / max) * 100, 0), 100));
+	const display_label = $derived(label || `${Math.round(percentage)}%`);
 
 	const size_classes = {
 		sm: 'h-1',
@@ -61,7 +61,7 @@
 <div class="space-y-1">
 	{#if showLabel}
 		<div class="flex justify-between items-center text-sm">
-			<span class="text-text-secondary">{displayLabel}</span>
+			<span class="text-text-secondary">{display_label}</span>
 			<span class="text-text-muted">{Math.round(percentage)}%</span>
 		</div>
 	{/if}
@@ -74,7 +74,7 @@
 			aria-valuenow={value}
 			aria-valuemin="0"
 			aria-valuemax={max}
-			aria-label={displayLabel}
+			aria-label={display_label}
 		></div>
 	</div>
 </div>

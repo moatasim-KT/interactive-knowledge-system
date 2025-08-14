@@ -389,7 +389,7 @@ export class ContentUpdateDetector {
 		const changes: any = {};
 
 		// Check if title changed (basic heuristic)
-		const title_match = current_content.match(/<title[^>]*>([^<]+)<\/title>/i);
+		const title_match = currentContent.match(/<title[^>]*>([^<]+)<\/title>/i);
 		const current_title = title_match ? title_match[1].trim() : '';
 		if (current_title && current_title !== source.title) {
 			changes.title = true;

@@ -24,7 +24,6 @@
 		showExecuteButton?: boolean;
 		showVersionHistory?: boolean;
 		height?: string;
-		onContentChange?: (content: CodeBlockContent) => void;
 	}
 
 	let {
@@ -34,8 +33,7 @@
 		showLineNumbers = true,
 		showExecuteButton = true,
 		showVersionHistory = true,
-		height = '300px',
-		onContentChange
+		height = '300px'
 	}: Props = $props();
 
 	// Event dispatcher
@@ -43,6 +41,7 @@
 		execute: CodeExecutionResult;
 		save: CodeBlockContent;
 		versionCreated: CodeBlockContent;
+		contentchange: CodeBlockContent; // Added this line
 	}>();
 
 	// Component state
@@ -166,9 +165,7 @@
 
 	function updateContent(updates: Partial<CodeBlockContent>) {
 		content = { ...content, ...updates };
-		if (onContentChange) {
-			onContentChange(content);
-		}
+		dispatch('contentchange', content);
 	}
 
 	async function executeCode() {
@@ -220,9 +217,7 @@
 		versionHistory = codeVersioningService.getVersionHistory(content);
 
 		dispatch('versionCreated', newContent);
-		if (onContentChange) {
-			onContentChange(newContent);
-		}
+		dispatch('contentchange', newContent);
 	}
 
 	function restoreVersion(versionId) {
@@ -242,9 +237,7 @@
 				});
 			}
 
-			if (onContentChange) {
-				onContentChange(content);
-			}
+			dispatch('contentchange', content);
 		}
 	}
 

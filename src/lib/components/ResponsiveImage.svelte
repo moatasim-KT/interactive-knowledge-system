@@ -1,6 +1,6 @@
 <script lang="ts">
 	import LazyMedia from './LazyMedia.svelte';
-	import type { ResponsiveImageSizes, LazyLoadOptions } from '$lib/types/media.js';
+	import type { ResponsiveImageSizes, LazyLoadOptions } from '$lib/types/media';
 
 	interface Props {
 		src: string;
@@ -89,7 +89,7 @@
 <figure class="responsive-image-container {className}" {style}>
 	{#if lazyLoad}
 		<LazyMedia
-			src={bestSrc}
+			src={best_src}
 			{alt}
 			type="image"
 			{placeholder}
@@ -108,8 +108,8 @@
 			{/if}
 			<img
 				{src}
-				srcset={srcSet}
-				sizes={sizesAttr}
+				srcset={src_set}
+				sizes={sizes_attr}
 				{alt}
 				{width}
 				{height}

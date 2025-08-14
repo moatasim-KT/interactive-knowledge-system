@@ -5,7 +5,7 @@
 		getFilteredContent,
 		getProgressStats
 	} from '$lib/stores/appState.svelte.ts';
-	import '$lib/stores/effects.svelte.ts'; // Import effects to activate them
+    import GlobalEffects from '$lib/stores/GlobalEffects.svelte';
 	import type { KnowledgeNode } from '$lib/types/index';
 	import { goto } from '$app/navigation';
 	import { ResponsiveLayout, Grid } from '$lib/components/layout';
@@ -16,10 +16,14 @@
 		Input, 
 		Badge, 
 		ProgressBar, 
-		Tooltip 
+		Tooltip,
+		ResponsiveContainer,
+		MobileNavigation
 	} from '$lib/components/ui';
 	import { SyncStatus, ErrorBoundary } from '$lib/components';
 	import { syncService } from '$lib/services/syncService';
+	import PerformanceMonitor from '$lib/components/PerformanceMonitor.svelte';
+	import { dev } from '$app/environment';
 	import '$lib/styles/design-system.css';
 
 	// Svelte 5 props
@@ -56,6 +60,25 @@
 	// Add sample data to state
 	actions.addKnowledgeNode(sample_node);
 
+	// Add Machine Learning Interactive Article to knowledge base
+	const ml_article_node: KnowledgeNode = {
+		id: 'ml-fundamentals',
+		title: 'Machine Learning Fundamentals',
+		type: 'module' as const,
+		metadata: {
+			difficulty: 3,
+			estimatedTime: 45,
+			prerequisites: ['basic-math', 'programming-basics'],
+			tags: ['machine-learning', 'ai', 'neural-networks', 'data-science', 'interactive']
+		},
+		progress: {
+			completed: false,
+			lastAccessed: new Date()
+		}
+	};
+
+	actions.addKnowledgeNode(ml_article_node);
+
 	let sidebarOpen = $state(true);
 	let searchQuery = $state('');
 
@@ -76,6 +99,7 @@
 
 <ErrorBoundary>
 <ResponsiveLayout bind:sidebarOpen>
+    <GlobalEffects />
 	{#snippet header()}
 		<div class="flex items-center justify-between p-4">
 			<div class="flex items-center gap-4">
@@ -268,7 +292,7 @@
 	{/snippet}
 
 	<!-- Main Content -->
-	<div class="p-4 md:p-6 lg:p-8">
+	<ResponsiveContainer maxWidth="full" padding="md" class="mobile:px-3">
 		<ErrorBoundary>
 			{#if appState.ui.currentView === 'dashboard'}
 			<div class="space-y-6">
@@ -276,7 +300,7 @@
 					<h2 class="text-2xl font-bold text-text-primary">Dashboard</h2>
 				</div>
 
-				<Grid cols={{ sm: 2, lg: 4 }} gap={6}>
+				<Grid cols={{ mobile: 1, sm: 2, lg: 4 }} gap={{ mobile: 3, sm: 4, lg: 6 }}>
 					<Card
 						variant="elevated"
 						padding="lg"
@@ -434,7 +458,7 @@
 			</div>
 		{/if}
 		</ErrorBoundary>
-	</div>
+	</ResponsiveContainer>
 
 	<ErrorBoundary>
 		{@render children?.()}
@@ -444,6 +468,11 @@
 
 <!-- Toast Notifications -->
 <ToastContainer position="top-right" />
+
+<!-- Performance Monitor (Development Only) -->
+{#if dev}
+	<PerformanceMonitor showDetails={true} />
+{/if}
 
 <style>
 	/* Custom color utilities for dynamic classes */

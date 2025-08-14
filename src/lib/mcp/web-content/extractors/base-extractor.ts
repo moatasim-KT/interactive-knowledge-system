@@ -1,5 +1,5 @@
 import type { WebContent, WebContentMetadata } from '../types';
-import type { createLogger } from '../../../../utils/logger';
+import type { createLogger } from '../../../utils/logger';
 
 export interface ExtractionOptions {
 	/** Whether to extract the main content only */

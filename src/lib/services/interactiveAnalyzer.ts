@@ -18,7 +18,7 @@ export class InteractiveAnalyzer {
     private initialized = false;
 
     async initialize(): Promise<void> {
-        if (this.initialized) {return;}
+        if (this.initialized) { return; }
 
         await storageService.initialize();
         this.initialized = true;
@@ -153,7 +153,7 @@ export class InteractiveAnalyzer {
             transformation.transformedContent = {
                 ...content,
                 blocks: [
-                    ...(content.blocks || []),
+                    ...(content.content.blocks || []),
                     ...transformation.interactiveBlocks
                 ],
                 metadata: {
@@ -298,8 +298,89 @@ export class InteractiveAnalyzer {
         return { feasible: true, confidence: 0.8 };
     }
 
-    private generateInteractiveOpportunities(content: any): InteractiveOpportunity[] {
-        return [];
+    private generateInteractiveOpportunities(content: WebContent): InteractiveOpportunity[] {
+        const opportunities: InteractiveOpportunity[] = [];
+
+        // Analyze code blocks for interactive opportunities
+        content.content.codeBlocks.forEach((codeBlock, index) => {
+            if (this.isInteractiveCodeCandidate(codeBlock)) {
+                opportunities.push({
+                    id: `code_${index}`,
+                    type: 'interactive-code',
+                    title: `Interactive Code: ${codeBlock.language}`,
+                    description: `Make this ${codeBlock.language} code block interactive`,
+                    confidence: 0.8,
+                    reasoning: `Code block contains ${codeBlock.language} code that could be made executable`,
+                    sourceElement: `code_block_${index}`,
+                    parameters: {
+                        language: { type: 'text', value: codeBlock.language },
+                        executable: { type: 'boolean', value: true }
+                    }
+                });
+            }
+        });
+
+        // Analyze tables for interactive opportunities
+        content.content.tables.forEach((table, index) => {
+            if (table.rows.length > 5) {
+                opportunities.push({
+                    id: `table_${index}`,
+                    type: 'interactive-table',
+                    title: `Interactive Data Table`,
+                    description: `Add filtering and sorting to this data table`,
+                    confidence: 0.7,
+                    reasoning: `Table has ${table.rows.length} rows and could benefit from interactive features`,
+                    sourceElement: `table_${index}`,
+                    parameters: {
+                        sortable: { type: 'boolean', value: true },
+                        filterable: { type: 'boolean', value: true }
+                    }
+                });
+            }
+        });
+
+        // Analyze charts for interactive opportunities
+        content.content.charts.forEach((chart, index) => {
+            opportunities.push({
+                id: `chart_${index}`,
+                type: 'interactive-chart',
+                title: `Interactive ${chart.type} Chart`,
+                description: `Make this ${chart.type} chart interactive with hover and zoom`,
+                confidence: 0.9,
+                reasoning: `Chart detected and can be enhanced with interactivity`,
+                sourceElement: `chart_${index}`,
+                parameters: {
+                    chartType: { type: 'text', value: chart.type },
+                    interactive: { type: 'boolean', value: true }
+                }
+            });
+        });
+
+        // Analyze content for simulation opportunities
+        const text = content.content.text.toLowerCase();
+        if (text.includes('algorithm') || text.includes('process') || text.includes('step')) {
+            opportunities.push({
+                id: 'simulation_content',
+                type: 'simulation',
+                title: 'Process Simulation',
+                description: 'Create an interactive simulation of the described process',
+                confidence: 0.6,
+                reasoning: 'Content describes processes or algorithms that could be simulated',
+                sourceElement: 'main_content',
+                parameters: {
+                    simulationType: { type: 'text', value: 'process' },
+                    interactive: { type: 'boolean', value: true }
+                }
+            });
+        }
+
+        return opportunities;
+    }
+
+    private isInteractiveCodeCandidate(codeBlock: any): boolean {
+        const interactiveLanguages = ['javascript', 'python', 'html', 'css', 'sql'];
+        return interactiveLanguages.includes(codeBlock.language.toLowerCase()) &&
+            codeBlock.code.length > 50;
     }
 
     private autoTransform(content: any, analysis: any): any[] {

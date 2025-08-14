@@ -1,17 +1,19 @@
 <script lang="ts">
-	import { webContentState, webContentActions, getFilteredSources, getContentStats } from '$lib/stores/webContentState.svelte.js';
-	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import { WebContentImporter, WebContentAnalyzer } from '$lib/components';
-	import { Button, Input, Card, Badge, LoadingSpinner } from '$lib/components/ui';
+	import { webContentState, webContentActions, getFilteredSources, getContentStats } from '$lib/stores/webContentState.svelte.ts';
+	import { appState, actions } from '$lib/stores/appState.svelte.ts';
+	import { WebContentImporter, WebContentAnalyzer } from '$lib/components/index.ts';
+	import { Button, Input, Card, Badge, LoadingSpinner } from '$lib/components/ui/index.ts';
+	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
+	import type { WebContentSource } from '$lib/types/web-content.ts';
 
 	// Component state
 	let active_tab = $state('sources');
 	let selected_source_id = $state<string | null>(null);
 	let selected_content_id = $state<string | null>(null);
 
-	// Computed values
-	let filtered_sources = $derived(getFilteredSources());
-	let content_stats = $derived(getContentStats());
+	// Computed values (use accessors directly)
+	let filtered_sources = getFilteredSources;
+	let content_stats = getContentStats;
 
 	// Handle source selection
 	function select_source(source_id) {
@@ -19,10 +21,6 @@
 		const source = webContentState.sources.items[source_id];
 		if (source) {
 			webContentActions.setCurrentSource(source);
-			if (source.content?.processed) {
-				selected_content_id = source.content.processed.id;
-				webContentActions.setCurrentContent(source.content.processed);
-			}
 		}
 	}
 
@@ -42,11 +40,14 @@
 	}
 
 	// Get status color
-	function get_status_color(status: string): string {
+	function get_status_color(
+		status: WebContentSource['status']
+	): 'success' | 'warning' | 'error' | 'secondary' {
 		switch (status) {
 			case 'active': return 'success';
-			case 'updated': return 'info';
+			case 'updated': return 'warning';
 			case 'error': return 'error';
+			case 'removed': return 'secondary';
 			default: return 'secondary';
 		}
 	}
@@ -101,43 +102,16 @@
 		const content = webContentState.content.items[content_id];
 		if (!content) return;
 
-		// Create a knowledge node from the web content
-		const knowledge_node = {
+		// Create a KnowledgeNode compliant with types
+		const knowledge_node: KnowledgeNode = {
 			id: `web-content-${content_id}`,
 			title: content.title,
-			type: 'article' as const,
-			content: {
-				blocks: [
-					{
-						id: crypto.randomUUID(),
-						type: 'text' as const,
-						content: { html: content.content.html },
-						metadata: {
-							created: new Date(),
-							modified: new Date(),
-							version: 1
-						}
-					}
-				]
-			},
+			type: 'module' as const,
 			metadata: {
-				description: content.metadata.description,
-				tags: content.metadata.tags,
-				difficulty: 3,
+				difficulty: 3 as 1 | 2 | 3 | 4 | 5,
 				estimatedTime: content.metadata.readingTime,
 				prerequisites: [],
-				learningObjectives: [],
-				created: new Date(content.fetchedAt),
-				modified: new Date(),
-				version: 1,
-				author: content.metadata.author || 'Web Import',
-				source: content.url
-			},
-			relationships: {
-				prerequisites: [],
-				dependents: [],
-				related: [],
-				partOf: []
+				tags: content.metadata.tags
 			}
 		};
 
@@ -156,19 +130,19 @@
 		<h1>Web Content Sourcing</h1>
 		<div class="stats-overview">
 			<div class="stat-item">
-				<span class="stat-value">{content_stats.totalSources}</span>
+				<span class="stat-value">{content_stats().totalSources}</span>
 				<span class="stat-label">Sources</span>
 			</div>
 			<div class="stat-item">
-				<span class="stat-value">{content_stats.totalContent}</span>
+				<span class="stat-value">{content_stats().totalContent}</span>
 				<span class="stat-label">Content Items</span>
 			</div>
 			<div class="stat-item">
-				<span class="stat-value">{content_stats.transformationOpportunities}</span>
+				<span class="stat-value">{content_stats().transformationOpportunities}</span>
 				<span class="stat-label">Opportunities</span>
 			</div>
 			<div class="stat-item">
-				<span class="stat-value">{content_stats.activeJobs}</span>
+				<span class="stat-value">{content_stats().activeJobs}</span>
 				<span class="stat-label">Active Jobs</span>
 			</div>
 		</div>
@@ -231,7 +205,7 @@
 				</div>
 
 				<div class="sources-grid">
-					{#each filtered_sources as source (source.id)}
+					{#each filtered_sources() as source (source.id)}
 						<Card class={`source-card ${selected_source_id === source.id ? 'selected' : ''}`}>
 							<div class="source-header">
 								<div class="source-info">
@@ -239,7 +213,7 @@
 										src={get_domain_favicon(source.domain)} 
 										alt={source.domain}
 										class="domain-favicon"
-										onerror="this.style.display='none'"
+										onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 									/>
 									<div>
 										<h3 class="source-title">{source.title}</h3>
@@ -250,16 +224,14 @@
 									<Button
 										onclick={() => refresh_source(source.id)}
 										variant="outline"
-										size="small"
-										title="Refresh source"
+										size="sm"
 									>
 										🔄
 									</Button>
 									<Button
 										onclick={() => delete_source(source.id)}
 										variant="outline"
-										size="small"
-										title="Delete source"
+										size="sm"
 									>
 										🗑️
 									</Button>
@@ -295,25 +267,16 @@
 								<Button
 									onclick={() => select_source(source.id)}
 									variant={selected_source_id === source.id ? 'primary' : 'outline'}
-									size="small"
+									size="sm"
 								>
 									{selected_source_id === source.id ? 'Selected' : 'Select'}
 								</Button>
-								{#if source.content?.processed}
-									<Button
-										onclick={() => integrate_with_knowledge(source.content.processed.id)}
-										variant="outline"
-										size="small"
-									>
-										🔗 Integrate
-									</Button>
-								{/if}
 							</div>
 						</Card>
 					{/each}
 				</div>
 
-				{#if filtered_sources.length === 0}
+				{#if filtered_sources().length === 0}
 					<div class="empty-state">
 						<span class="empty-icon">📚</span>
 						<h3>No Sources Found</h3>
@@ -325,7 +288,7 @@
 				{/if}
 			</div>
 		{:else if active_tab === 'analyze'}
-			<WebContentAnalyzer contentId={selectedContentId} autoAnalyze={true} />
+			<WebContentAnalyzer contentId={selected_content_id} autoAnalyze={true} />
 		{:else if active_tab === 'transform'}
 			<div class="transform-section">
 				<div class="transform-header">

@@ -31,6 +31,10 @@ export async function exampleWorkflow() {
 			}
 		],
 		metadata: {
+			author: 'System',
+			created: new Date(),
+			modified: new Date(),
+			version: 1,
 			tags: ['typescript', 'programming', 'beginner'],
 			difficulty: 2,
 			estimatedTime: 45,
@@ -175,6 +179,10 @@ export async function exampleBatchImport() {
 			...module_data,
 			blocks: [],
 			metadata: {
+				author: 'System',
+				created: new Date(),
+				modified: new Date(),
+				version: 1,
 				tags: module_data.tags,
 				difficulty: module_data.difficulty,
 				estimatedTime: 30,
