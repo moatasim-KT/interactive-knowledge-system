@@ -65,6 +65,56 @@ export type {
 // Unified web content knowledge integration
 export { webContentKnowledgeIntegration, WebContentKnowledgeIntegration } from './webContentKnowledgeIntegration.js';
 
+// Enhanced document processor
+export { enhancedDocumentProcessor, EnhancedDocumentProcessor } from './enhancedDocumentProcessor.js';
+export type {
+	DocumentStructure,
+	Section,
+	TableOfContents,
+	TocEntry,
+	StructureMetadata,
+	MediaAsset,
+	ProcessingConfig
+} from './enhancedDocumentProcessor.js';
+
+// Interactive content transformer
+export { InteractiveTransformer, transformationUtils } from './interactiveTransformer.js';
+export type {
+	InteractiveArticle,
+	InteractiveContentBlock,
+	InteractivityConfig,
+	InteractiveFeature,
+	ExpandableConfig,
+	ExecutableConfig,
+	ContentEnhancement,
+	InteractiveMetadata,
+	InteractiveStructure,
+	InteractiveSection,
+	NavigationConfig,
+	ProgressConfig,
+	InteractiveAsset,
+	AssetInteractivity,
+	AssetOverlay,
+	ContentRelationship,
+	UserProgress,
+	UserAnnotation,
+	TransformationConfig
+} from './interactiveTransformer.js';
+
+// Knowledge base integration services
+export { relationshipDetectionService, RelationshipDetectionService } from './relationshipDetectionService.js';
+export type {
+	SuggestedConnection,
+	RelationshipDetectionOptions
+} from './relationshipDetectionService.js';
+
+export { knowledgeBaseIntegrationService, KnowledgeBaseIntegrationService } from './knowledgeBaseIntegrationService.js';
+export type {
+	NodeCreationOptions,
+	IntegrationResult,
+	NodeCreationMetadata
+} from './knowledgeBaseIntegrationService.js';
+
 // Offline functionality
 export { offlineManager, OfflineManager } from './offlineManager.js';
 export { offlineQueue, OfflineQueue } from './offlineQueue.js';

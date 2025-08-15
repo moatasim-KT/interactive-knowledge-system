@@ -31,7 +31,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
 		updateScreenSize();
 		window.addEventListener('resize', updateScreenSize);
 		return () => window.removeEventListener('resize', updateScreenSize);

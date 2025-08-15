@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import { Toast } from './ui';
 	import { errorHandler } from '../utils/errorHandler.js';
 	import type { Toast as ToastType } from '../types/index.js';
@@ -25,11 +25,11 @@
 		}
 	}
 
-	function handleToastEvent(event: CustomEvent<ToastType>) {
-		addToast(event.detail);
+	function handleToastEvent(toast: ToastType) {
+		addToast(toast);
 	}
 
-	function handleRetryEvent(event: CustomEvent<{ error: Error; context: any }>) {
+	function handleRetryEvent(detail: { error: Error; context: any }) {
 		// Show retry toast
 		const retryToast: ToastType = {
 			id: `retry_${Date.now()}`,
@@ -42,10 +42,10 @@
 		addToast(retryToast);
 	}
 
-	onMount(() => {
+	$effect(() => {
 		// Listen for toast events from error handler
-		window.addEventListener('show-toast', handleToastEvent as EventListener);
-		window.addEventListener('error-retry', handleRetryEvent as EventListener);
+		errorHandler.on('show-toast', handleToastEvent);
+		errorHandler.on('error-retry', handleRetryEvent);
 
 		// Add any queued toasts from error handler
 		const queuedToasts = errorHandler.getToastQueue();
@@ -53,8 +53,8 @@
 		errorHandler.clearToastQueue();
 
 		return () => {
-			window.removeEventListener('show-toast', handleToastEvent as EventListener);
-			window.removeEventListener('error-retry', handleRetryEvent as EventListener);
+			errorHandler.off('show-toast', handleToastEvent);
+			errorHandler.off('error-retry', handleRetryEvent);
 		};
 	});
 </script>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import type { ProgressStats, Achievement, LearningStreak } from '../types/user.js';
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState } from '../stores/appState.svelte.js';
@@ -71,7 +71,7 @@
 		}
 	};
 
-	onMount(() => {
+	$effect(() => {
 		load_progress_data();
 	});
 </script>

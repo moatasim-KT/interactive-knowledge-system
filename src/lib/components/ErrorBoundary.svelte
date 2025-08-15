@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Button, Card } from './ui';
 	import { errorHandler } from '../utils/errorHandler.js';
 	import type { ErrorContext } from '../utils/errorHandler.js';
@@ -159,7 +158,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
 		window.addEventListener('error', handleError);
 		window.addEventListener('unhandledrejection', handleUnhandledRejection);
 

@@ -148,7 +148,7 @@ export class WorkflowValidator {
                     title: 'Python Programming Basics',
                     type: 'module',
                     metadata: {
-                        difficulty: 1,
+                        difficulty: 'beginner',
                         estimatedTime: 30,
                         prerequisites: [],
                         tags: ['python', 'programming', 'basics']
@@ -163,7 +163,7 @@ export class WorkflowValidator {
                     title: 'Data Structures and Algorithms',
                     type: 'module',
                     metadata: {
-                        difficulty: 2,
+                        difficulty: 'intermediate',
                         estimatedTime: 45,
                         prerequisites: ['python-basics'],
                         tags: ['python', 'data-structures', 'algorithms']
@@ -178,7 +178,7 @@ export class WorkflowValidator {
                     title: 'Machine Learning Fundamentals',
                     type: 'module',
                     metadata: {
-                        difficulty: 3,
+                        difficulty: 'advanced',
                         estimatedTime: 60,
                         prerequisites: ['python-basics', 'data-structures'],
                         tags: ['machine-learning', 'ai', 'python']
@@ -321,7 +321,7 @@ export class WorkflowValidator {
                 title: interactiveArticle.title,
                 type: 'module',
                 metadata: {
-                    difficulty: interactiveArticle.metadata.difficulty as 1 | 2 | 3 | 4 | 5,
+                    difficulty: this.mapNumericDifficultyToString(interactiveArticle.metadata.difficulty as number),
                     estimatedTime: interactiveArticle.metadata.estimatedTime,
                     prerequisites: ['python-basics', 'linear-algebra'],
                     tags: interactiveArticle.metadata.tags
@@ -546,6 +546,15 @@ export class WorkflowValidator {
 
     getResults() {
         return this.results;
+    }
+
+    /**
+     * Map numeric difficulty to string literals
+     */
+    private mapNumericDifficultyToString(difficulty: number): 'beginner' | 'intermediate' | 'advanced' {
+        if (difficulty <= 2) {return 'beginner';}
+        if (difficulty <= 3) {return 'intermediate';}
+        return 'advanced';
     }
 }
 

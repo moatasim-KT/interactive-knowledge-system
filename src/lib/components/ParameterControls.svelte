@@ -1,8 +1,5 @@
 <script lang="ts">
 	import type { Parameter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		parameters: Parameter[];
@@ -10,7 +7,7 @@
 		onParametersReset?: (payload: { values: Record<string, any> }) => void;
 	}
 
-	let { parameters, onParameterChange, onParametersReset }: Props = $props();
+	let { parameters, onParameterChange = () => {}, onParametersReset = () => {} }: Props = $props();
 
 	// Track current values for all parameters
 	let parameter_values = $state<Record<string, any>>({});
@@ -27,13 +24,7 @@
 	function handle_parameter_change(parameter_name: string, value: any) {
 		parameter_values[parameter_name] = value;
 
-		dispatch('parameterchange', {
-			parameter: parameter_name,
-			value,
-			allValues: { ...parameter_values }
-		});
-
-		onParameterChange?.({ parameter: parameter_name, value, allValues: { ...parameter_values } });
+		onParameterChange({ parameter: parameter_name, value, allValues: { ...parameter_values } });
 	}
 
 	function reset_to_defaults() {
@@ -41,8 +32,7 @@
 			parameter_values[param.name] = param.default;
 		});
 
-		dispatch('parametersreset', { values: { ...parameter_values } });
-		onParametersReset?.({ values: { ...parameter_values } });
+		onParametersReset({ values: { ...parameter_values } });
 	}
 
 	function get_constraint_value(param: Parameter, key: string, default_value: any) {

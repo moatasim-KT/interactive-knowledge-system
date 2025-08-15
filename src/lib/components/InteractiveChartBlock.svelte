@@ -2,22 +2,53 @@
 	import type { InteractiveChartBlock } from '$lib/types/web-content.js';
 	import InteractiveChart from './InteractiveChart.svelte';
 	import DataManipulator from './DataManipulator.svelte';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
-
 	interface Props {
 		block: InteractiveChartBlock;
 		editable?: boolean;
+		ondatachange?: (event: { data: any; filters: DataFilter[] }) => void;
+		onchartinteraction?: (event: { 
+			type: string; 
+			point?: any; 
+			coordinates?: { x: number; y: number }; 
+			zoomLevel?: number 
+		}) => void;
+		oninteractionexecuted?: (event: { interaction: string; point?: any }) => void;
 	}
 
-	let { block, editable = false }: Props = $props();
+	let { 
+		block, 
+		editable = false,
+		ondatachange,
+		onchartinteraction,
+		oninteractionexecuted
+	}: Props = $props();
 
-	let current_data = $state(block.content.data);
-	let active_filters = $state(block.content.filters || []);
+	let current_data = $state<any>(block.content.data);
+	let active_filters = $state<DataFilter[]>(block.content.filters || []);
 	
 	// Create proper chart config with all required properties
-	const chart_config = $derived(() => ({
+	const chart_config = $derived<{
+		title: string;
+		description: string;
+		parameters: any[];
+		layout: {
+			width: number;
+			height: number;
+			margin: { top: number; right: number; bottom: number; left: number };
+			responsive: boolean;
+		};
+		styling: {
+			theme: 'light';
+			colors: string[];
+			fonts: { family: string; size: number };
+		};
+		animations: {
+			enabled: boolean;
+			duration: number;
+			easing: string;
+			transitions: string[];
+		};
+	}>(() => ({
 		title: block.content.title || 'Untitled Chart',
 		description: block.content.description || '',
 		parameters: [], // Added parameters property for compatibility
@@ -41,12 +72,12 @@
 	}));
 
 	// Handle data manipulation changes
-	function handle_data_change(event: CustomEvent) {
-		const { data, filters } = event.detail;
+	function handle_data_change(event: { data: any; filters: DataFilter[] }) {
+		const { data, filters } = event;
 		current_data = data;
 		active_filters = filters;
 
-		dispatch('dataChange', {
+		ondatachange?.({
 			data,
 			filters
 		});
@@ -62,14 +93,14 @@
 				try {
 					// In a real implementation, this would safely execute the interaction effect
 					// For now, we'll just dispatch the interaction
-					dispatch('interactionExecuted', { interaction: interaction.parameter, point });
+					oninteractionexecuted?.({ interaction: interaction.parameter, point });
 				} catch (error) {
 					console.error('Interaction error:', error);
 				}
 			}
 		});
 
-		dispatch('chartInteraction', {
+		onchartinteraction?.({
 			type,
 			point,
 			coordinates,
@@ -111,7 +142,7 @@
 			<DataManipulator
 				data={block.content.data}
 				filters={active_filters}
-				onDataChange={(p) => handle_data_change(new CustomEvent('datachange', { detail: p }))}
+				onDataChange={handle_data_change}
 			/>
 		</div>
 

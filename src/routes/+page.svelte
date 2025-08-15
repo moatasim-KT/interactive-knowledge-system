@@ -1,7 +1,32 @@
 <script lang="ts">
-	import { appState, actions } from '$lib/stores/appState.svelte';
-	import { ContentEditor } from '$lib/components';
+    import { appState, actions } from '$lib/stores/appState.svelte';
+    import { ContentEditor, WebContentDashboard } from '$lib/components';
 	import type { ContentBlock } from '$lib/types/content';
+
+	$effect(() => {
+		// Add the 'Bagging and Random Forests' article to the knowledge base if it doesn't exist
+		if (!appState.content.nodes.has('bagging-random-forests-article')) {
+			actions.addKnowledgeNode({
+				id: 'bagging-random-forests-article',
+				title: 'Bagging and Random Forests: Interactive Article',
+				type: 'module',
+				metadata: {
+					difficulty: 'advanced',
+					estimatedTime: 30,
+					prerequisites: [],
+					tags: ['machine-learning', 'random-forests', 'bagging', 'ensemble-learning', 'visualization']
+				},
+				progress: {
+					completed: false,
+					lastAccessed: new Date()
+				}
+			});
+			actions.addNotification({
+				type: 'success',
+				message: 'Added Bagging and Random Forests article to dashboard!'
+			});
+		}
+	});
 
 	// Current view state
 	let current_view = $state<'demo' | 'editor'>('demo');
@@ -104,7 +129,7 @@
 	<!-- Main Content -->
 	<main class="main-content">
 		{#if current_view === 'demo'}
-			<div class="welcome">
+            <div class="welcome">
 				<h2>Welcome to the Interactive Knowledge System</h2>
 				<p>
 					This demonstrates the core foundation with Svelte 5 runes-based reactive state management
@@ -122,7 +147,7 @@
 					</button>
 				</div>
 
-				<div class="features">
+                <div class="features">
 					<h3>Implemented Features</h3>
 					<ul>
 						<li>✅ TypeScript interfaces for all core data models</li>
@@ -137,7 +162,12 @@
 						<li>✅ Drag-and-drop functionality for reordering blocks</li>
 						<li>✅ Keyboard shortcuts (Ctrl+S to save, Ctrl+Z to undo)</li>
 					</ul>
-				</div>
+                </div>
+
+                <div class="dashboard-embed">
+                    <h3>Web Content Sourcing</h3>
+                    <WebContentDashboard />
+                </div>
 
 				<div class="state-debug">
 					<h3>Current State (Debug)</h3>

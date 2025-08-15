@@ -113,16 +113,25 @@ export function announceToScreenReader(message: string, priority: 'polite' | 'as
 
 // Check if user prefers reduced motion
 export function prefersReducedMotion(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return false;
+    }
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 // Check if user prefers high contrast
 export function prefersHighContrast(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return false;
+    }
     return window.matchMedia('(prefers-contrast: high)').matches;
 }
 
 // Get user's preferred color scheme
 export function getPreferredColorScheme(): 'light' | 'dark' {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return 'light';
+    }
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -318,6 +327,9 @@ export class AccessibilityPreferences {
     }
 
     private loadPreferences(): void {
+        if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+            return;
+        }
         try {
             const stored = localStorage.getItem('accessibility-preferences');
             if (stored) {
@@ -332,6 +344,9 @@ export class AccessibilityPreferences {
     }
 
     private savePreferences(): void {
+        if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+            return;
+        }
         try {
             const obj = Object.fromEntries(this.preferences);
             localStorage.setItem('accessibility-preferences', JSON.stringify(obj));
@@ -341,20 +356,30 @@ export class AccessibilityPreferences {
     }
 
     private setupMediaQueryListeners(): void {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return;
+        }
         // Listen for system preference changes
         const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
         const highContrastQuery = window.matchMedia('(prefers-contrast: high)');
         const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-        reducedMotionQuery.addEventListener('change', (e) => {
+        // Use addEventListener if available, fall back to addListener for older browsers
+        const addChangeListener = (mql: MediaQueryList, handler: (e: MediaQueryListEvent) => void) => {
+            if (typeof mql.addEventListener === 'function') {
+                mql.addEventListener('change', handler);
+            } else if (typeof (mql as any).addListener === 'function') {
+                (mql as any).addListener(handler);
+            }
+        };
+
+        addChangeListener(reducedMotionQuery, (e) => {
             this.set('reducedMotion', e.matches);
         });
-
-        highContrastQuery.addEventListener('change', (e) => {
+        addChangeListener(highContrastQuery, (e) => {
             this.set('highContrast', e.matches);
         });
-
-        darkModeQuery.addEventListener('change', (e) => {
+        addChangeListener(darkModeQuery, (e) => {
             this.set('darkMode', e.matches);
         });
 

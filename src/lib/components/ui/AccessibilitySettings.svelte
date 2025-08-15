@@ -106,7 +106,7 @@
 		onclose?.();
 	}
 
-	onMount(() => {
+	$effect(() => {
 		// Load saved preferences
 		const unsubscribers = [
 			accessibilityPreferences.subscribe('highContrast', (value) => {

@@ -45,7 +45,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
 		return () => {
 			if (timeoutId) clearTimeout(timeoutId);
 		};

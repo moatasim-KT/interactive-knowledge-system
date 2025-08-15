@@ -3,7 +3,7 @@
  */
 
 import type { ContentBlock, ContentModule } from './content.js';
-import type { KnowledgeNode } from './knowledge.js';
+import type { KnowledgeNode } from './unified.js';
 import type { MediaFile } from './media.js';
 import type {
     WebContent,

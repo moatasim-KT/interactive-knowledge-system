@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { webContentState, webContentActions, getFilteredSources, getContentStats } from '$lib/stores/webContentState.svelte.ts';
 	import { appState, actions } from '$lib/stores/appState.svelte.ts';
-	import { WebContentImporter, WebContentAnalyzer } from '$lib/components/index.ts';
+    import { WebContentImporter, WebContentAnalyzer, WebContentTransformer } from '$lib/components/index.ts';
+    import { ErrorBoundary } from '$lib/components/index.ts';
 	import { Button, Input, Card, Badge, LoadingSpinner } from '$lib/components/ui/index.ts';
 	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
 	import type { WebContentSource } from '$lib/types/web-content.ts';
 
 	// Component state
-	let active_tab = $state('sources');
+	let active_tab = $state<'import' | 'sources' | 'analyze' | 'transform'>('sources');
 	let selected_source_id = $state<string | null>(null);
 	let selected_content_id = $state<string | null>(null);
 
@@ -16,7 +17,7 @@
 	let content_stats = getContentStats;
 
 	// Handle source selection
-	function select_source(source_id) {
+	function select_source(source_id: string): void {
 		selected_source_id = source_id;
 		const source = webContentState.sources.items[source_id];
 		if (source) {
@@ -25,7 +26,7 @@
 	}
 
 	// Handle content selection
-	function select_content(content_id) {
+	function select_content(content_id: string): void {
 		selected_content_id = content_id;
 		const content = webContentState.content.items[content_id];
 		if (content) {
@@ -58,7 +59,7 @@
 	}
 
 	// Delete source
-	function delete_source(source_id) {
+	function delete_source(source_id: string): void {
 		if (confirm('Are you sure you want to delete this source?')) {
 			webContentActions.removeSource(source_id);
 			if (selected_source_id === source_id) {
@@ -69,7 +70,7 @@
 	}
 
 	// Refresh source
-	async function refresh_source(source_id) {
+	async function refresh_source(source_id: string): Promise<void> {
 		const source = webContentState.sources.items[source_id];
 		if (!source) return;
 
@@ -98,7 +99,7 @@
 	}
 
 	// Integration with existing knowledge system
-	function integrate_with_knowledge(content_id) {
+	function integrate_with_knowledge(content_id: string): void {
 		const content = webContentState.content.items[content_id];
 		if (!content) return;
 
@@ -179,10 +180,11 @@
 		</button>
 	</div>
 
-	<div class="dashboard-content">
-		{#if active_tab === 'import'}
-			<WebContentImporter />
-		{:else if active_tab === 'sources'}
+    <div class="dashboard-content">
+        <ErrorBoundary context={{ component: 'WebContentDashboard', operation: 'render' }}>
+        {#if active_tab === 'import'}
+            <WebContentImporter />
+        {:else if active_tab === 'sources'}
 			<div class="sources-section">
 				<div class="sources-header">
 					<h2>Content Sources</h2>
@@ -287,14 +289,19 @@
 					</div>
 				{/if}
 			</div>
-		{:else if active_tab === 'analyze'}
+        {:else if active_tab === 'analyze'}
 			<WebContentAnalyzer contentId={selected_content_id} autoAnalyze={true} />
-		{:else if active_tab === 'transform'}
+        {:else if active_tab === 'transform'}
 			<div class="transform-section">
 				<div class="transform-header">
 					<h2>Content Transformation</h2>
 					<p>Transform static content into interactive learning experiences</p>
 				</div>
+
+                <div class="transformer-panel">
+                    <!-- Optional transformer UI -->
+                    <WebContentTransformer contentId={selected_content_id} />
+                </div>
 
 				{#if webContentState.transformation.transformationHistory.length > 0}
 					<div class="transformation-history">
@@ -320,10 +327,11 @@
 						<Button onclick={() => active_tab = 'analyze'} variant="primary">
 							Analyze Content
 						</Button>
-					</div>
-				{/if}
-			</div>
-		{/if}
+                </div>
+        {/if}
+            </div>
+        {/if}
+        </ErrorBoundary>
 	</div>
 </div>
 
@@ -559,6 +567,8 @@
 		flex-direction: column;
 		gap: 2rem;
 	}
+
+.transformer-panel { margin-bottom: 1rem; }
 
 	.transform-header {
 		text-align: center;

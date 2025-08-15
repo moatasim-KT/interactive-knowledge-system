@@ -1,8 +1,4 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
-
 	interface Props {
 		type?: 'success' | 'error' | 'warning' | 'info';
 		title?: string;
@@ -20,7 +16,8 @@
 		message,
 		duration = 5000,
 		dismissible = true,
-		class: className = ''
+		class: className = '',
+		onclose = () => {}
 	}: Props = $props();
 
 	let visible = $state(true);
@@ -50,11 +47,11 @@
 	function dismiss() {
 		visible = false;
 		setTimeout(() => {
-			dispatch('close');
+			onclose();
 		}, 200); // Wait for exit animation
 	}
 
-	onMount(() => {
+	$effect(() => {
 		if (duration > 0) {
 			timeout_id = setTimeout(dismiss, duration);
 		}

@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { Button, Card } from '../ui';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		error?: Error | null;
+		onRetry?: () => void;
 	}
 
-	const { error = null }: Props = $props();
+	const { error = null, onRetry = () => {} }: Props = $props();
 
 	function handleRetry() {
-		dispatch('retry');
+		onRetry();
 	}
 </script>
 

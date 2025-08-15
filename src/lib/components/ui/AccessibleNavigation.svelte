@@ -120,7 +120,7 @@
 		return expanded_items.has(item_id);
 	}
 
-	onMount(() => {
+	$effect(() => {
 		if (nav_element) {
 			const items = nav_element.querySelectorAll('[role="menuitem"], a[href]') as NodeListOf<HTMLElement>;
 			nav_items = Array.from(items);

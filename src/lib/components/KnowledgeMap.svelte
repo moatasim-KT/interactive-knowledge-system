@@ -1,15 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import type {
-		KnowledgeMap,
-		KnowledgeMapNode,
-		KnowledgeMapConnection,
-		ContentGraph
-	} from '../types/relationships.js';
-	import type { ContentModule } from '../types/content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher();
+	import type { KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentGraph, ContentModule } from '../types/unified.js';
 
 	interface Props {
 		modules: ContentModule[];
@@ -17,9 +8,11 @@
 		currentContent?: string | null;
 		width?: number;
 		height?: number;
+		onNodeClick?: (nodeId: string) => void;
+		onNodeHover?: (nodeId: string | null) => void;
 	}
 
-	let { modules, completedContent, currentContent = null, width = 800, height = 600 }: Props = $props();
+	let { modules, completedContent, currentContent = null, width = 800, height = 600, onNodeClick = () => {}, onNodeHover = () => {} }: Props = $props();
 
 	let svg_element: SVGSVGElement; // Explicitly type svg_element
 	let nodes: KnowledgeMapNode[] = $state([]);
@@ -37,7 +30,7 @@
 		locked: '#6b7280'
 	};
 
-	onMount(() => {
+	$effect(() => {
 		initialize_map();
 	});
 
@@ -212,7 +205,7 @@
 	 */
 	function handle_node_click(node_id: string) {
 		selected_node = node_id;
-		dispatch('nodeclick', node_id);
+		onNodeClick(node_id);
 	}
 
 	/**
@@ -220,7 +213,7 @@
 	 */
 	function handle_node_hover(node_id: string | null) {
 		hovered_node = node_id;
-		dispatch('nodehover', node_id);
+		onNodeHover(node_id);
 	}
 
 	/**
@@ -304,6 +297,7 @@
 		return `${module.description}\nStatus: ${status_text}\nDifficulty: ${module.metadata.difficulty}/5\nTags: ${module.metadata.tags.join(', ')}`;
 	}
 </script>
+
 
 <div class="knowledge-map" style="width: {width}px; height: {height}px;">
 	<svg bind:this={svg_element} {width} {height} class="map-svg">

@@ -48,7 +48,7 @@ export class WebContentKnowledgeIntegration {
             children: [], // Initialize with empty children array
             parent: undefined, // Will be set when adding to parent
             metadata: {
-                difficulty: Math.min(5, Math.max(1, difficulty)) as 1 | 2 | 3 | 4 | 5,
+                difficulty: this.mapNumericDifficultyToString(Math.min(5, Math.max(1, difficulty))),
                 estimatedTime: webContent.metadata?.readingTime || this.estimateReadingTime(webContent),
                 prerequisites: [],
                 tags: tags
@@ -313,11 +313,11 @@ export class WebContentKnowledgeIntegration {
     private estimateReadingTime(webContent: WebContent): number {
         // Average reading speed: 200 words per minute
         const wordsPerMinute = 200;
-        
+
         // Get word count from metadata or calculate from text
-        const wordCount = webContent.metadata?.wordCount || 
+        const wordCount = webContent.metadata?.wordCount ||
             (webContent.content?.text || '').split(/\s+/).length;
-            
+
         // Return estimated minutes, at least 1 minute
         return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
     }
@@ -349,7 +349,14 @@ export class WebContentKnowledgeIntegration {
         return 'module'; // Changed from 'article' to 'module' to match KnowledgeNode type
     }
 
-// ... (rest of the code remains the same)
+    /**
+     * Map numeric difficulty to string literals
+     */
+    private mapNumericDifficultyToString(difficulty: number): 'beginner' | 'intermediate' | 'advanced' {
+        if (difficulty <= 2) {return 'beginner';}
+        if (difficulty <= 3) {return 'intermediate';}
+        return 'advanced';
+    }
 
     /**
      * Find related knowledge nodes based on content similarity
@@ -359,7 +366,7 @@ export class WebContentKnowledgeIntegration {
         // Simple implementation - find nodes with matching tags
         if (webContent.metadata?.keywords?.length) {
             for (const [nodeId, node] of appState.content.nodes.entries()) {
-                const commonTags = node.metadata.tags.filter(tag => 
+                const commonTags = node.metadata.tags.filter(tag =>
                     webContent.metadata.keywords.includes(tag)
                 );
                 if (commonTags.length > 0) {

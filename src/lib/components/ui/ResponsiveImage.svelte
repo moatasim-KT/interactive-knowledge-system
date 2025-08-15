@@ -34,7 +34,7 @@
 	let currentSrc = $state(placeholder);
 	let optimizer: MobilePerformanceOptimizer;
 
-	onMount(() => {
+	$effect(() => {
 		const deviceInfo = getDeviceInfo();
 		const optimizedSrc = getOptimizedImageSrc(src, deviceInfo, sizes);
 

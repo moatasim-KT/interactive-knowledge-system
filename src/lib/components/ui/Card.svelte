@@ -1,12 +1,12 @@
 <script lang="ts">
-	interface Props {
+	type Props = {
 		variant?: 'default' | 'elevated' | 'outlined' | 'filled';
 		padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
 		interactive?: boolean;
 		class?: string;
 		onclick?: (event: MouseEvent) => void;
 		children?: any;
-	}
+	};
 
 	let {
 		variant = 'default',

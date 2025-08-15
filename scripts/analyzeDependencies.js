@@ -40,7 +40,7 @@ class DependencyAnalyzer {
     }
 
     async scanDirectory(dirPath) {
-        if (!fs.existsSync(dirPath)) return;
+        if (!fs.existsSync(dirPath)) {return;}
 
         const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 

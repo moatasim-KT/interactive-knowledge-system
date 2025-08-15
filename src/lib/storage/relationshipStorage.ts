@@ -1,22 +1,47 @@
 /**
- * Storage operations for content relationships and links
+ * Enhanced storage operations for content relationships and links
+ * Provides comprehensive bidirectional linking, dependency management, and graph operations
  */
 import { storage } from './indexeddb.js';
-import type {
-	ContentLink,
-	ContentGraph,
-	ContentGraphNode,
-	DependencyChain,
-	RelationshipType
-} from '../types/relationships.js';
-import type { ContentModule } from '../types/content.js';
+import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, SimilarityScore, ContentModule } from '../types/unified.js';
+
+export interface LinkFilter {
+	sourceIds?: string[];
+	targetIds?: string[];
+	types?: RelationshipType[];
+	strengthRange?: [number, number];
+	automatic?: boolean;
+	createdAfter?: Date;
+	createdBefore?: Date;
+}
+
+export interface BatchLinkOperation {
+	operation: 'create' | 'update' | 'delete';
+	links: Partial<ContentLink>[];
+}
+
+export interface LinkAnalytics {
+	totalLinks: number;
+	linksByType: Record<RelationshipType, number>;
+	averageStrength: number;
+	automaticVsManual: { automatic: number; manual: number };
+	mostConnectedNodes: Array<{ id: string; connectionCount: number }>;
+	weakestLinks: ContentLink[];
+	strongestLinks: ContentLink[];
+}
 
 /**
- * Relationship storage operations
+ * Enhanced relationship storage operations with advanced features
  */
 export class RelationshipStorage {
+	private graphCache = new Map<string, ContentGraph>();
+	private dependencyCache = new Map<string, DependencyChain>();
+	private analyticsCache: LinkAnalytics | null = null;
+	private lastCacheUpdate = new Date(0);
+	private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
+
 	/**
-	 * Create a bidirectional link between two content pieces
+	 * Create a bidirectional link with automatic reverse relationship handling
 	 */
 	async createLink(
 		sourceId: string,
@@ -24,10 +49,16 @@ export class RelationshipStorage {
 		type: RelationshipType,
 		strength: number = 1.0,
 		description?: string,
-		automatic: boolean = false
+		automatic: boolean = false,
+		skipValidation: boolean = false
 	): Promise<ContentLink> {
+		// Validate inputs
+		if (!skipValidation) {
+			await this.validateLinkCreation(sourceId, targetId, type);
+		}
+
 		const link: ContentLink = {
-			id: `${sourceId}-${targetId}-${type}`,
+			id: `${sourceId}-${targetId}-${type}-${Date.now()}`,
 			sourceId,
 			targetId,
 			type,
@@ -40,267 +71,767 @@ export class RelationshipStorage {
 			}
 		};
 
+		// Store the primary link
 		await storage.add('links', link, `Created ${type} link`);
 
-		// Create reverse link for bidirectional relationship
-		if (type === 'related' || type === 'similar') {
-			const reverse_link = {
-				...link,
-				id: `${targetId}-${sourceId}-${type}`,
-				sourceId: targetId,
-				targetId: sourceId
-			};
-			await storage.add('links', reverse_link, `Created reverse ${type} link`);
+		// Create reverse link for bidirectional relationships
+		if (this.isBidirectionalType(type)) {
+			const reverseLink = await this.createReverseLink(link);
+			await storage.add('links', reverseLink, `Created reverse ${type} link`);
 		}
+
+		// Update dependency chains for prerequisite relationships
+		if (type === 'prerequisite' || type === 'dependent') {
+			await this.updateDependencyChains(sourceId, targetId, type);
+		}
+
+		// Clear relevant caches
+		this.invalidateCache();
 
 		return link;
 	}
 
 	/**
+	 * Create multiple links in a batch operation for efficiency
+	 */
+	async createLinksBatch(operations: BatchLinkOperation[]): Promise<ContentLink[]> {
+		const createdLinks: ContentLink[] = [];
+
+		for (const operation of operations) {
+			if (operation.operation === 'create') {
+				for (const linkData of operation.links) {
+					if (linkData.sourceId && linkData.targetId && linkData.type) {
+						try {
+							const link = await this.createLink(
+								linkData.sourceId,
+								linkData.targetId,
+								linkData.type,
+								linkData.strength,
+								linkData.metadata?.description,
+								linkData.metadata?.automatic || false,
+								true // Skip individual validation for batch
+							);
+							createdLinks.push(link);
+						} catch (error) {
+							console.warn(`Failed to create link in batch: ${error}`);
+						}
+					}
+				}
+			}
+		}
+
+		// Batch validate all created links for circular dependencies
+		await this.validateBatchForCircularDependencies(createdLinks);
+
+		return createdLinks;
+	}
+
+	/**
+	 * Update an existing link
+	 */
+	async updateLink(
+		linkId: string,
+		updates: Partial<Pick<ContentLink, 'strength' | 'metadata'>>
+	): Promise<ContentLink | null> {
+		const existingLink = await storage.get<ContentLink>('links', linkId);
+		if (!existingLink) {return null;}
+
+		const updatedLink: ContentLink = {
+			...existingLink,
+			...updates,
+			metadata: {
+				...existingLink.metadata,
+				...updates.metadata
+			}
+		};
+
+		await storage.update('links', linkId, updatedLink, 'Updated link');
+
+		// Update reverse link if it exists
+		if (this.isBidirectionalType(existingLink.type)) {
+			const reverseId = this.getReverseId(existingLink);
+			const reverseLink = await storage.get<ContentLink>('links', reverseId);
+			if (reverseLink && updates.strength !== undefined) {
+				await storage.update('links', reverseId,
+					{ ...reverseLink, strength: updates.strength },
+					'Updated reverse link'
+				);
+			}
+		}
+
+		this.invalidateCache();
+		return updatedLink;
+	}
+
+	/**
+	 * Delete a link and its reverse if applicable
+	 */
+	async deleteLink(linkId: string): Promise<boolean> {
+		const link = await storage.get<ContentLink>('links', linkId);
+		if (!link) {return false;}
+
+		// Delete reverse link first if it exists
+		if (this.isBidirectionalType(link.type)) {
+			const reverseId = this.getReverseId(link);
+			await storage.delete('links', reverseId, 'Deleted reverse link');
+		}
+
+		await storage.delete('links', linkId, 'Deleted link');
+
+		// Update dependency chains if this was a prerequisite relationship
+		if (link.type === 'prerequisite' || link.type === 'dependent') {
+			await this.recalculateDependencyChains();
+		}
+
+		this.invalidateCache();
+		return true;
+	}
+
+	/**
+	 * Find all links matching the given filter criteria
+	 */
+	async findLinks(filter: LinkFilter = {}): Promise<ContentLink[]> {
+		const allLinks = await storage.getAll<ContentLink>('links');
+
+		return allLinks.filter(link => {
+			if (filter.sourceIds && !filter.sourceIds.includes(link.sourceId)) {return false;}
+			if (filter.targetIds && !filter.targetIds.includes(link.targetId)) {return false;}
+			if (filter.types && !filter.types.includes(link.type)) {return false;}
+			if (filter.strengthRange) {
+				const [min, max] = filter.strengthRange;
+				if (link.strength < min || link.strength > max) {return false;}
+			}
+			if (filter.automatic !== undefined && link.metadata.automatic !== filter.automatic) {return false;}
+			if (filter.createdAfter && link.metadata.created < filter.createdAfter) {return false;}
+			if (filter.createdBefore && link.metadata.created > filter.createdBefore) {return false;}
+
+			return true;
+		});
+	}
+
+	/**
 	 * Get all links for a specific content piece
 	 */
-	async getLinksForContent(contentId: string): Promise<ContentLink[]> {
-		const all_links = await storage.getAll('links');
-		return all_links.filter((link) => link.sourceId === contentId || link.targetId === contentId);
+	async getLinksForContent(contentId: string): Promise<{
+		incoming: ContentLink[];
+		outgoing: ContentLink[];
+		all: ContentLink[]
+	}> {
+		const allLinks = await storage.getAll<ContentLink>('links');
+
+		const incoming = allLinks.filter(link => link.targetId === contentId);
+		const outgoing = allLinks.filter(link => link.sourceId === contentId);
+		const all = [...incoming, ...outgoing];
+
+		return { incoming, outgoing, all };
 	}
 
 	/**
-	 * Get links of a specific type
-	 */
-	async getLinksByType(type: RelationshipType): Promise<ContentLink[]> {
-		return await storage.searchByIndex('links', 'type', type);
-	}
-
-	/**
-	 * Get outgoing links from a content piece
-	 */
-	async getOutgoingLinks(contentId: string): Promise<ContentLink[]> {
-		return await storage.searchByIndex('links', 'sourceId', contentId);
-	}
-
-	/**
-	 * Get incoming links to a content piece
-	 */
-	async getIncomingLinks(contentId: string): Promise<ContentLink[]> {
-		return await storage.searchByIndex('links', 'targetId', contentId);
-	}
-
-	/**
-	 * Delete a link
-	 */
-	async deleteLink(linkId: string): Promise<void> {
-		await storage.delete('links', linkId);
-	}
-
-	/**
-	 * Update link strength or metadata
-	 */
-	async updateLink(link: ContentLink): Promise<void> {
-		await storage.put('links', link, 'Link updated');
-	}
-
-	/**
-	 * Build a complete content graph
+	 * Build comprehensive content graph with caching
 	 */
 	async buildContentGraph(modules: ContentModule[]): Promise<ContentGraph> {
+		const cacheKey = modules.map(m => m.id).sort().join('-');
+
+		if (this.graphCache.has(cacheKey) && !this.isCacheExpired()) {
+			return this.graphCache.get(cacheKey)!;
+		}
+
 		const nodes = new Map<string, ContentGraphNode>();
 		const edges = new Map<string, ContentLink>();
 
-		// Create nodes from modules
+		// Create nodes
 		for (const module of modules) {
-			const outgoing_links = await this.getOutgoingLinks(module.id);
-			const incoming_links = await this.getIncomingLinks(module.id);
+			const links = await this.getLinksForContent(module.id);
 
 			nodes.set(module.id, {
 				id: module.id,
 				title: module.title,
-				type: 'module',
+				type: this.inferNodeType(module),
 				tags: module.metadata.tags,
 				difficulty: module.metadata.difficulty,
-				incomingLinks: incoming_links.map((link) => link.id),
-				outgoingLinks: outgoing_links.map((link) => link.id)
+				incomingLinks: links.incoming.map(l => l.id),
+				outgoingLinks: links.outgoing.map(l => l.id)
 			});
 		}
 
-		// Add all links as edges
-		const all_links = await storage.getAll('links');
-		for (const link of all_links) {
+		// Add edges (links between existing nodes only)
+		const allLinks = await this.findLinks({
+			sourceIds: modules.map(m => m.id),
+			targetIds: modules.map(m => m.id)
+		});
+
+		for (const link of allLinks) {
 			edges.set(link.id, link);
 		}
 
-		return { nodes, edges };
+		const graph: ContentGraph = { nodes, edges };
+
+		// Cache the result
+		this.graphCache.set(cacheKey, graph);
+		this.lastCacheUpdate = new Date();
+
+		return graph;
 	}
 
 	/**
 	 * Analyze dependency chains for a content piece
 	 */
-	async analyzeDependencyChain(
-		contentId: string,
-		completed_content = new Set()
-	): Promise<DependencyChain> {
-		const prerequisites = await this.getPrerequisiteChain(contentId);
-		const dependents = await this.getDependentChain(contentId);
-
-		const can_access = prerequisites.every((prereq_id) => completed_content.has(prereq_id));
-		const depth = await this.calculateDependencyDepth(contentId);
-
-		return {
-			nodeId: contentId,
-			prerequisites,
-			dependents,
-			depth,
-			canAccess: can_access
-		};
-	}
-
-	/**
-	 * Get all prerequisites for a content piece (recursive)
-	 */
-	private async getPrerequisiteChain(
-		contentId: string,
-		visited: Set<string> = new Set()
-	): Promise<string[]> {
-		if (visited.has(contentId)) {
-			return []; // Avoid circular dependencies
-		}
-		visited.add(contentId);
-
-		const prerequisite_links = await this.getIncomingLinks(contentId);
-		const direct_prerequisites = prerequisite_links
-			.filter((link) => link.type === 'prerequisite')
-			.map((link) => link.sourceId);
-
-		const all_prerequisites = [...direct_prerequisites];
-
-		// Recursively get prerequisites of prerequisites
-		for (const prereq_id of direct_prerequisites) {
-			const nested_prereqs = await this.getPrerequisiteChain(prereq_id, visited);
-			all_prerequisites.push(...nested_prereqs);
+	async analyzeDependencyChain(contentId: string): Promise<DependencyChain> {
+		if (this.dependencyCache.has(contentId) && !this.isCacheExpired()) {
+			return this.dependencyCache.get(contentId)!;
 		}
 
-		return [...new Set(all_prerequisites)]; // Remove duplicates
-	}
-
-	/**
-	 * Get all dependents for a content piece (recursive)
-	 */
-	private async getDependentChain(
-		contentId: string,
-		visited: Set<string> = new Set()
-	): Promise<string[]> {
-		if (visited.has(contentId)) {
-			return []; // Avoid circular dependencies
-		}
-		visited.add(contentId);
-
-		const dependent_links = await this.getOutgoingLinks(contentId);
-		const direct_dependents = dependent_links
-			.filter((link) => link.type === 'prerequisite')
-			.map((link) => link.targetId);
-
-		const all_dependents = [...direct_dependents];
-
-		// Recursively get dependents of dependents
-		for (const dep_id of direct_dependents) {
-			const nested_deps = await this.getDependentChain(dep_id, visited);
-			all_dependents.push(...nested_deps);
-		}
-
-		return [...new Set(all_dependents)]; // Remove duplicates
-	}
-
-	/**
-	 * Calculate how deep a content piece is in the dependency tree
-	 */
-	private async calculateDependencyDepth(contentId: string): Promise<number> {
-		const prerequisites = await this.getPrerequisiteChain(contentId);
-		if (prerequisites.length === 0) {
-			return 0; // Root level
-		}
-
-		// Find the maximum depth among prerequisites
-		let max_depth = 0;
-		for (const prereq_id of prerequisites) {
-			const prereq_depth = await this.calculateDependencyDepth(prereq_id);
-			max_depth = Math.max(max_depth, prereq_depth);
-		}
-
-		return max_depth + 1;
-	}
-
-	/**
-	 * Find strongly connected components (detect circular dependencies)
-	 */
-	async findCircularDependencies(): Promise<string[][]> {
-		const graph = await this.buildContentGraph(await storage.getAll('modules'));
 		const visited = new Set<string>();
-		const stack: string[] = [];
-		const components: string[][] = [];
+		const prerequisites = await this.getPrerequisiteChain(contentId, visited);
 
-		// Tarjan's algorithm for finding strongly connected components
-		const tarjan = (
-			node_id: string,
-			index: number,
-			indices: Map<string, number>,
-			lowlinks: Map<string, number>,
-			on_stack: Set<string>
-		): number => {
-			indices.set(node_id, index);
-			lowlinks.set(node_id, index);
-			on_stack.add(node_id);
-			stack.push(node_id);
+		visited.clear();
+		const dependents = await this.getDependentChain(contentId, visited);
 
-			const node = graph.nodes.get(node_id);
-			if (!node) {return index + 1;}
+		const depth = await this.calculateDepth(contentId);
+		const canAccess = await this.checkAccessibility(contentId);
 
-			Array.from(node.outgoingLinks).forEach((link_id) => {
-				const link = graph.edges.get(link_id);
-				if (!link || link.type !== 'prerequisite') {return;}
-
-				const target_id = link.targetId;
-				if (!indices.has(target_id)) {
-					index = tarjan(target_id, index + 1, indices, lowlinks, on_stack);
-					lowlinks.set(
-						node_id,
-						Math.min(lowlinks.get(node_id)!, lowlinks.get(target_id)!)
-					);
-				} else if (on_stack.has(target_id)) {
-					lowlinks.set(
-						node_id,
-						Math.min(lowlinks.get(node_id)!, indices.get(target_id)!)
-					);
-				}
-			});
-
-			if (lowlinks.get(node_id) === indices.get(node_id)) {
-				const component: string[] = [];
-				let w: string;
-				do {
-					w = stack.pop()!;
-					on_stack.delete(w);
-					component.push(w);
-				} while (w !== node_id);
-
-				if (component.length > 1) {
-					components.push(component);
-				}
-			}
-
-			return index + 1;
+		const chain: DependencyChain = {
+			nodeId: contentId,
+			prerequisites: Array.from(prerequisites),
+			dependents: Array.from(dependents),
+			depth,
+			canAccess
 		};
 
-		const indices = new Map<string, number>();
-		const lowlinks = new Map<string, number>();
-		const on_stack = new Set<string>();
-		let index = 0;
+		this.dependencyCache.set(contentId, chain);
+		return chain;
+	}
 
-		Array.from(graph.nodes.keys()).forEach((node_id) => {
-			if (!indices.has(node_id)) {
-				index = tarjan(node_id, index, indices, lowlinks, on_stack);
+	/**
+	 * Detect circular dependencies in the graph
+	 */
+	async detectCircularDependencies(): Promise<string[][]> {
+		const allLinks = await this.findLinks({ types: ['prerequisite', 'dependent'] });
+		const graph = new Map<string, string[]>();
+
+		// Build adjacency list
+		for (const link of allLinks) {
+			if (link.type === 'prerequisite') {
+				if (!graph.has(link.targetId)) {graph.set(link.targetId, []);}
+				graph.get(link.targetId)!.push(link.sourceId);
 			}
+		}
+
+		const cycles: string[][] = [];
+		const visited = new Set<string>();
+		const recStack = new Set<string>();
+
+		const findCycles = (node: string, path: string[]): void => {
+			if (recStack.has(node)) {
+				const cycleStart = path.indexOf(node);
+				if (cycleStart !== -1) {
+					cycles.push([...path.slice(cycleStart), node]);
+				}
+				return;
+			}
+
+			if (visited.has(node)) {return;}
+
+			visited.add(node);
+			recStack.add(node);
+			path.push(node);
+
+			const neighbors = graph.get(node) || [];
+			for (const neighbor of neighbors) {
+				findCycles(neighbor, [...path]);
+			}
+
+			recStack.delete(node);
+		};
+
+		for (const node of graph.keys()) {
+			if (!visited.has(node)) {
+				findCycles(node, []);
+			}
+		}
+
+		return cycles;
+	}
+
+	/**
+	 * Generate automatic link suggestions based on content similarity
+	 */
+	async generateAutomaticLinks(
+		modules: ContentModule[],
+		similarityThreshold: number = 0.7,
+		maxSuggestionsPerModule: number = 5
+	): Promise<ContentLink[]> {
+		const suggestions: ContentLink[] = [];
+
+		for (let i = 0; i < modules.length; i++) {
+			const moduleA = modules[i];
+			const moduleSuggestions: Array<{ module: ContentModule; score: number; type: RelationshipType }> = [];
+
+			for (let j = i + 1; j < modules.length; j++) {
+				const moduleB = modules[j];
+
+				// Skip if link already exists
+				const existingLinks = await this.findLinks({
+					sourceIds: [moduleA.id],
+					targetIds: [moduleB.id]
+				});
+				if (existingLinks.length > 0) {continue;}
+
+				// Calculate similarity and suggest relationship type
+				const similarity = await this.calculateModuleSimilarity(moduleA, moduleB);
+				if (similarity.score >= similarityThreshold) {
+					const suggestedType = this.suggestRelationshipType(moduleA, moduleB, similarity);
+					moduleSuggestions.push({ module: moduleB, score: similarity.score, type: suggestedType });
+				}
+			}
+
+			// Sort by score and take top suggestions
+			moduleSuggestions
+				.sort((a, b) => b.score - a.score)
+				.slice(0, maxSuggestionsPerModule)
+				.forEach(suggestion => {
+					suggestions.push({
+						id: `auto-${moduleA.id}-${suggestion.module.id}-${suggestion.type}`,
+						sourceId: moduleA.id,
+						targetId: suggestion.module.id,
+						type: suggestion.type,
+						strength: suggestion.score,
+						metadata: {
+							created: new Date(),
+							createdBy: 'system',
+							description: `Automatically suggested based on ${Math.round(suggestion.score * 100)}% similarity`,
+							automatic: true
+						}
+					});
+				});
+		}
+
+		return suggestions;
+	}
+
+	/**
+	 * Get analytics about the relationship graph
+	 */
+	async getAnalytics(): Promise<LinkAnalytics> {
+		if (this.analyticsCache && !this.isCacheExpired()) {
+			return this.analyticsCache;
+		}
+
+		const allLinks = await storage.getAll<ContentLink>('links');
+
+		const totalLinks = allLinks.length;
+		const linksByType: Record<RelationshipType, number> = {
+			prerequisite: 0, dependent: 0, related: 0, similar: 0,
+			sequence: 0, reference: 0, example: 0, practice: 0
+		};
+
+		let totalStrength = 0;
+		let automaticCount = 0;
+		let manualCount = 0;
+		const connectionCounts = new Map<string, number>();
+
+		for (const link of allLinks) {
+			linksByType[link.type]++;
+			totalStrength += link.strength;
+
+			if (link.metadata.automatic) {automaticCount++;}
+			else {manualCount++;}
+
+			// Count connections per node
+			connectionCounts.set(link.sourceId, (connectionCounts.get(link.sourceId) || 0) + 1);
+			connectionCounts.set(link.targetId, (connectionCounts.get(link.targetId) || 0) + 1);
+		}
+
+		const averageStrength = totalLinks > 0 ? totalStrength / totalLinks : 0;
+
+		const mostConnectedNodes = Array.from(connectionCounts.entries())
+			.map(([id, count]) => ({ id, connectionCount: count }))
+			.sort((a, b) => b.connectionCount - a.connectionCount)
+			.slice(0, 10);
+
+		const sortedByStrength = allLinks.sort((a, b) => a.strength - b.strength);
+		const weakestLinks = sortedByStrength.slice(0, 5);
+		const strongestLinks = sortedByStrength.slice(-5).reverse();
+
+		this.analyticsCache = {
+			totalLinks,
+			linksByType,
+			averageStrength,
+			automaticVsManual: { automatic: automaticCount, manual: manualCount },
+			mostConnectedNodes,
+			weakestLinks,
+			strongestLinks
+		};
+
+		return this.analyticsCache;
+	}
+
+	/**
+	 * Validate that creating a link won't cause issues
+	 */
+	private async validateLinkCreation(
+		sourceId: string,
+		targetId: string,
+		type: RelationshipType
+	): Promise<void> {
+		if (sourceId === targetId) {
+			throw new Error('Cannot create self-referential link');
+		}
+
+		// Check for existing link
+		const existingLinks = await this.findLinks({
+			sourceIds: [sourceId],
+			targetIds: [targetId],
+			types: [type]
 		});
 
-		return components;
+		if (existingLinks.length > 0) {
+			throw new Error('Link already exists');
+		}
+
+		// Check for circular dependencies in prerequisite chains
+		if (type === 'prerequisite') {
+			const wouldCreateCycle = await this.wouldCreateCircularDependency(sourceId, targetId);
+			if (wouldCreateCycle) {
+				throw new Error('Creating this prerequisite link would create a circular dependency');
+			}
+		}
+	}
+
+	/**
+	 * Check if creating a prerequisite link would create a circular dependency
+	 */
+	private async wouldCreateCircularDependency(sourceId: string, targetId: string): Promise<boolean> {
+		const visited = new Set<string>();
+		return await this.hasPath(targetId, sourceId, visited, ['prerequisite']);
+	}
+
+	/**
+	 * Check if there's a path from start to end through given relationship types
+	 */
+	private async hasPath(
+		startId: string,
+		endId: string,
+		visited: Set<string>,
+		relationshipTypes: RelationshipType[]
+	): Promise<boolean> {
+		if (startId === endId) {return true;}
+		if (visited.has(startId)) {return false;}
+
+		visited.add(startId);
+
+		const links = await this.findLinks({
+			sourceIds: [startId],
+			types: relationshipTypes
+		});
+
+		for (const link of links) {
+			if (await this.hasPath(link.targetId, endId, visited, relationshipTypes)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Create reverse link for bidirectional relationships
+	 */
+	private async createReverseLink(originalLink: ContentLink): Promise<ContentLink> {
+		return {
+			...originalLink,
+			id: this.getReverseId(originalLink),
+			sourceId: originalLink.targetId,
+			targetId: originalLink.sourceId,
+			type: this.getReverseType(originalLink.type)
+		};
+	}
+
+	/**
+	 * Generate reverse link ID
+	 */
+	private getReverseId(link: ContentLink): string {
+		return `${link.targetId}-${link.sourceId}-${link.type}-reverse`;
+	}
+
+	/**
+	 * Get reverse relationship type
+	 */
+	private getReverseType(type: RelationshipType): RelationshipType {
+		switch (type) {
+			case 'prerequisite': return 'dependent';
+			case 'dependent': return 'prerequisite';
+			case 'related': return 'related';
+			case 'similar': return 'similar';
+			default: return type;
+		}
+	}
+
+	/**
+	 * Check if a relationship type is bidirectional
+	 */
+	private isBidirectionalType(type: RelationshipType): boolean {
+		return ['related', 'similar', 'prerequisite'].includes(type);
+	}
+
+	/**
+	 * Infer node type from module content
+	 */
+	private inferNodeType(module: ContentModule): 'module' | 'lesson' | 'concept' {
+		const blockCount = module.blocks.length;
+		const hasQuiz = module.blocks.some(b => b.type === 'quiz');
+
+		if (blockCount > 10 || hasQuiz) {return 'module';}
+		if (blockCount > 3) {return 'lesson';}
+		return 'concept';
+	}
+
+	/**
+	 * Calculate content similarity between two modules
+	 */
+	private async calculateModuleSimilarity(
+		moduleA: ContentModule,
+		moduleB: ContentModule
+	): Promise<SimilarityScore> {
+		// Simple similarity calculation - can be enhanced
+		let score = 0;
+		let factors = 0;
+
+		// Tag similarity
+		const commonTags = moduleA.metadata.tags.filter(tag =>
+			moduleB.metadata.tags.includes(tag)
+		);
+		const tagSimilarity = commonTags.length /
+			Math.max(moduleA.metadata.tags.length, moduleB.metadata.tags.length, 1);
+		score += tagSimilarity * 0.4;
+		factors += 0.4;
+
+		// Difficulty similarity
+		const difficultyDiff = Math.abs(moduleA.metadata.difficulty - moduleB.metadata.difficulty);
+		const difficultySimilarity = Math.max(0, 1 - (difficultyDiff / 10));
+		score += difficultySimilarity * 0.3;
+		factors += 0.3;
+
+		// Content type similarity
+		const typesSimilarity = this.calculateContentTypeSimilarity(moduleA, moduleB);
+		score += typesSimilarity * 0.3;
+		factors += 0.3;
+
+		return {
+			contentId: moduleB.id,
+			score: factors > 0 ? score / factors : 0,
+			reasons: [
+				{
+					type: 'tags',
+					score: tagSimilarity,
+					details: `Common tags: ${commonTags.join(', ')}`
+				},
+				{
+					type: 'difficulty',
+					score: difficultySimilarity,
+					details: `Difficulty difference: ${difficultyDiff}`
+				},
+				{
+					type: 'content',
+					score: typesSimilarity,
+					details: 'Content type similarity'
+				}
+			]
+		};
+	}
+
+	/**
+	 * Calculate similarity in content types between modules
+	 */
+	private calculateContentTypeSimilarity(moduleA: ContentModule, moduleB: ContentModule): number {
+		const typesA = new Set(moduleA.blocks.map(b => b.type));
+		const typesB = new Set(moduleB.blocks.map(b => b.type));
+
+		const intersection = new Set([...typesA].filter(type => typesB.has(type)));
+		const union = new Set([...typesA, ...typesB]);
+
+		return union.size > 0 ? intersection.size / union.size : 0;
+	}
+
+	/**
+	 * Suggest relationship type based on module comparison
+	 */
+	private suggestRelationshipType(
+		moduleA: ContentModule,
+		moduleB: ContentModule,
+		similarity: SimilarityScore
+	): RelationshipType {
+		const difficultyDiff = moduleB.metadata.difficulty - moduleA.metadata.difficulty;
+
+		// If B is significantly harder, suggest A as prerequisite for B
+		if (difficultyDiff >= 2) {return 'prerequisite';}
+
+		// If very similar difficulty and high similarity, suggest related
+		if (Math.abs(difficultyDiff) <= 1 && similarity.score >= 0.8) {return 'related';}
+
+		// If similar content types, suggest similar
+		const contentTypeSimilarity = this.calculateContentTypeSimilarity(moduleA, moduleB);
+		if (contentTypeSimilarity >= 0.6) {return 'similar';}
+
+		// Default to related
+		return 'related';
+	}
+
+	/**
+	 * Get prerequisite chain for a content piece
+	 */
+	private async getPrerequisiteChain(contentId: string, visited: Set<string>): Promise<Set<string>> {
+		if (visited.has(contentId)) {return new Set();}
+		visited.add(contentId);
+
+		const prerequisites = new Set<string>();
+		const links = await this.findLinks({
+			targetIds: [contentId],
+			types: ['prerequisite']
+		});
+
+		for (const link of links) {
+			prerequisites.add(link.sourceId);
+			const chainPrereqs = await this.getPrerequisiteChain(link.sourceId, visited);
+			chainPrereqs.forEach(prereq => prerequisites.add(prereq));
+		}
+
+		return prerequisites;
+	}
+
+	/**
+	 * Get dependent chain for a content piece
+	 */
+	private async getDependentChain(contentId: string, visited: Set<string>): Promise<Set<string>> {
+		if (visited.has(contentId)) {return new Set();}
+		visited.add(contentId);
+
+		const dependents = new Set<string>();
+		const links = await this.findLinks({
+			sourceIds: [contentId],
+			types: ['prerequisite']
+		});
+
+		for (const link of links) {
+			dependents.add(link.targetId);
+			const chainDependents = await this.getDependentChain(link.targetId, visited);
+			chainDependents.forEach(dependent => dependents.add(dependent));
+		}
+
+		return dependents;
+	}
+
+	/**
+	 * Calculate depth in dependency tree
+	 */
+	private async calculateDepth(contentId: string): Promise<number> {
+		const links = await this.findLinks({
+			targetIds: [contentId],
+			types: ['prerequisite']
+		});
+
+		if (links.length === 0) {return 0;}
+
+		let maxDepth = 0;
+		for (const link of links) {
+			const depth = await this.calculateDepth(link.sourceId);
+			maxDepth = Math.max(maxDepth, depth);
+		}
+
+		return maxDepth + 1;
+	}
+
+	/**
+	 * Check if content is accessible based on completed prerequisites
+	 */
+	private async checkAccessibility(contentId: string): Promise<boolean> {
+		// This would need integration with user progress tracking
+		// For now, return true - implement based on your user system
+		return true;
+	}
+
+	/**
+	 * Update dependency chains when prerequisite relationships change
+	 */
+	private async updateDependencyChains(sourceId: string, targetId: string, type: RelationshipType): Promise<void> {
+		// Invalidate affected dependency caches
+		this.dependencyCache.delete(sourceId);
+		this.dependencyCache.delete(targetId);
+	}
+
+	/**
+	 * Recalculate all dependency chains
+	 */
+	private async recalculateDependencyChains(): Promise<void> {
+		this.dependencyCache.clear();
+	}
+
+	/**
+	 * Validate batch operations for circular dependencies
+	 */
+	private async validateBatchForCircularDependencies(links: ContentLink[]): Promise<void> {
+		// Create temporary graph with new links
+		const prereqLinks = links.filter(l => l.type === 'prerequisite');
+		if (prereqLinks.length === 0) {return;}
+
+		// Check for cycles in the batch
+		const graph = new Map<string, Set<string>>();
+		prereqLinks.forEach(link => {
+			if (!graph.has(link.targetId)) {graph.set(link.targetId, new Set());}
+			graph.get(link.targetId)!.add(link.sourceId);
+		});
+
+		// Simple cycle detection for batch
+		for (const [node, prereqs] of graph.entries()) {
+			if (this.hasCycleInBatch(node, prereqs, graph, new Set())) {
+				throw new Error(`Batch operation would create circular dependency involving ${node}`);
+			}
+		}
+	}
+
+	/**
+	 * Check for cycles in batch operation
+	 */
+	private hasCycleInBatch(
+		node: string,
+		prereqs: Set<string>,
+		graph: Map<string, Set<string>>,
+		visited: Set<string>
+	): boolean {
+		if (visited.has(node)) {return true;}
+		visited.add(node);
+
+		for (const prereq of prereqs) {
+			const prereqNodes = graph.get(prereq);
+			if (prereqNodes && this.hasCycleInBatch(prereq, prereqNodes, graph, new Set(visited))) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if cache has expired
+	 */
+	private isCacheExpired(): boolean {
+		return Date.now() - this.lastCacheUpdate.getTime() > this.cacheTimeout;
+	}
+
+	/**
+	 * Invalidate all caches
+	 */
+	private invalidateCache(): void {
+		this.graphCache.clear();
+		this.dependencyCache.clear();
+		this.analyticsCache = null;
+	}
+
+	/**
+	 * Clear all caches manually
+	 */
+	public clearCaches(): void {
+		this.invalidateCache();
 	}
 }
 

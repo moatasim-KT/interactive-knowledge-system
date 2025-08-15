@@ -25,7 +25,9 @@ export { default as ToastContainer } from './ToastContainer.svelte';
 
 // Responsive Components
 export { default as ResponsiveContainer } from './ResponsiveContainer.svelte';
+export { default as ResponsiveGrid } from './ResponsiveGrid.svelte';
 export { default as MobileNavigation } from './MobileNavigation.svelte';
 export { default as ResponsiveImage } from './ResponsiveImage.svelte';
+export { default as TouchOptimizedControls } from './TouchOptimizedControls.svelte';
 
 // Note: Layout components are now exported from '../layout/index.ts'

@@ -67,7 +67,7 @@
 		].join(' ')
 	);
 
-	onMount(() => {
+	$effect(() => {
 		// Make toast API globally available
 		(window as any).toast = toast_api;
 

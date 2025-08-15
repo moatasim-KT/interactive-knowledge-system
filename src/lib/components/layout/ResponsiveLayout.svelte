@@ -93,7 +93,7 @@
 		is_swiping = false;
 	}
 
-	onMount(() => {
+	$effect(() => {
 		update_screen_size();
 		window.addEventListener('resize', update_screen_size);
 

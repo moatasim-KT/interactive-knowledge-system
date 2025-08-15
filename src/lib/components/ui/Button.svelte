@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { generateId } from '$lib/utils/accessibility.js';
 
-	interface Props {
+	type Props = {
 		variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 		size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 		disabled?: boolean;
@@ -12,7 +12,6 @@
 		onkeydown?: (event: KeyboardEvent) => void;
 		class?: string;
 		children?: any;
-		// Accessibility props
 		'aria-label'?: string;
 		'aria-describedby'?: string;
 		'aria-expanded'?: boolean;
@@ -24,7 +23,7 @@
 		title?: string;
 		loadingText?: string;
 		tabindex?: number;
-	}
+	};
 
 	let {
 		variant = 'primary',
@@ -92,9 +91,9 @@
 	);
 </script>
 
-<button 
+<button
 	{id}
-	{type} 
+	{type}
 	disabled={disabled || loading}
 	class={classes}
 	onclick={onclick}
@@ -112,9 +111,9 @@
 	{...rest}
 >
 	{#if loading}
-		<svg 
-			class="animate-spin w-4 h-4" 
-			fill="none" 
+		<svg
+			class="animate-spin w-4 h-4"
+			fill="none"
 			viewBox="0 0 24 24"
 			aria-hidden="true"
 		>

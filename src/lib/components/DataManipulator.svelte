@@ -2,26 +2,31 @@
 	import type { DataFilter } from '$lib/types/web-content.js';
 
 	interface Props {
-		data: any;
+		data: any[] | Record<string, any>;
 		filters?: DataFilter[];
-		onDataChange?: (payload: { data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }) => void;
+		onDataChange?: (payload: { 
+			data: any[]; 
+			filters: DataFilter[]; 
+			sort: { field: string; direction: 'asc' | 'desc' }; 
+			search: string 
+		}) => void;
 	}
 
 	let { data, filters = [], onDataChange }: Props = $props();
 
-	let sort_field = $state('');
+	let sort_field = $state<string>('');
 	let sort_direction = $state<'asc' | 'desc'>('asc');
-	let search_query = $state('');
-	let active_filters = $state([...filters]);
-	let show_advanced_filters = $state(false);
+	let search_query = $state<string>('');
+	let active_filters = $state<DataFilter[]>([...filters]);
+	let show_advanced_filters = $state<boolean>(false);
 
 	// Processed data based on current filters and sorting
-	const processed_data = $derived(() => process_data(data, active_filters, sort_field, sort_direction, search_query));
+	const processed_data = $derived<any[]>(() => process_data(data, active_filters, sort_field, sort_direction, search_query));
 
 	// Available fields for filtering and sorting (auto-detected from data)
-	const available_fields = $derived(() => detect_fields(data));
+	const available_fields = $derived<string[]>(() => detect_fields(data));
 
-	function detect_fields(raw_data): string[] {
+	function detect_fields(raw_data: any): string[] {
 		if (!raw_data) return [];
 
 		if (Array.isArray(raw_data) && raw_data.length > 0) {
@@ -39,12 +44,12 @@
 	}
 
 	function process_data(
-		raw_data,
-		current_filters,
-		sort_by,
+		raw_data: any,
+		current_filters: DataFilter[],
+		sort_by: string,
 		direction: 'asc' | 'desc',
 		search: string
-	) {
+	): any[] {
 		if (!raw_data) return [];
 
 		let processed = Array.isArray(raw_data)

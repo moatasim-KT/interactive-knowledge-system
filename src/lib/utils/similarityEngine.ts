@@ -1,13 +1,7 @@
 /**
  * Content similarity analysis and recommendation engine
  */
-import type { ContentModule } from '../types/content.js';
-import type {
-	SimilarityScore,
-	SimilarityReason,
-	ContentRecommendation,
-	RecommendationReason
-} from '../types/relationships.js';
+import type { ContentModule, SimilarityScore, SimilarityReason, ContentRecommendation, RecommendationReason } from '../types/unified.js';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
 
 /**

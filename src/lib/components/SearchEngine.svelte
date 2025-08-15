@@ -1,20 +1,18 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import { searchEngine, type SearchFilters } from '../utils/searchEngine.js';
 	import { contentStorage } from '../storage/contentStorage.js';
 	import type { SearchResult } from '../types/interactive.js';
-
-	const dispatch = createEventDispatcher();
 
 	// Props
 	interface Props {
 		placeholder?: string;
 		showFilters?: boolean;
 		maxResults?: number;
+		onResultSelect?: (result: SearchResult) => void;
 	}
 
-	let { placeholder = 'Search knowledge base...', showFilters = true, maxResults = 20 }: Props = $props();
+	let { placeholder = 'Search knowledge base...', showFilters = true, maxResults = 20, onResultSelect = () => {} }: Props = $props();
 
 	// Component state
 	let search_input = $state('');
@@ -174,7 +172,7 @@
 		show_results = false;
 		show_suggestions = false;
 
-		dispatch('resultselect', result);
+		onResultSelect(result);
 
 		// Navigate to the selected content
 		const node = appState.content.nodes.get(result.id);
@@ -237,7 +235,7 @@
 	}
 
 	// Initialize on mount
-	onMount(() => {
+	$effect(() => {
 		initialize_search_engine();
 		document.addEventListener('click', handle_click_outside);
 

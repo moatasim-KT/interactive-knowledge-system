@@ -3,7 +3,6 @@
   Displays real-time performance metrics and bundle analysis
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { performanceMonitor, type PerformanceMetrics } from '$lib/utils/performanceMonitor.js';
 	import { bundleAnalyzer, type BundleAnalysis } from '$lib/utils/bundleAnalyzer.js';
 
@@ -55,7 +54,7 @@
 		return 'text-red-600';
 	}
 
-	onMount(() => {
+	$effect(() => {
 		updateData();
 		
 		if (autoUpdate) {
@@ -64,12 +63,12 @@
 
 		// Record initial performance entry
 		performanceMonitor.recordEntry(window.location.pathname);
-	});
 
-	onDestroy(() => {
-		if (updateTimer) {
-			clearInterval(updateTimer);
-		}
+		return () => {
+			if (updateTimer) {
+				clearInterval(updateTimer);
+			}
+		};
 	});
 </script>
 

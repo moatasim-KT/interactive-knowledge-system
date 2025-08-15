@@ -1,10 +1,26 @@
 <script lang="ts">
 	import type { DataFilter } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher();
-
-	interface Props {
+	let {
+		data = [],
+		filters = [],
+		groupBy = '',
+		sortBy = '',
+		sortDirection = 'asc',
+		title,
+		description,
+		onExport = (detail: { format: string; data: any[] }) => {},
+		onDataChange = (detail: {
+			data: any[];
+			filters: DataFilter[];
+			groupBy: string;
+			sortBy: string;
+			sortDirection: 'asc' | 'desc';
+			search: string;
+			page: number;
+			pageSize: number;
+		}) => {}
+	}: {
 		data?: any[];
 		filters?: DataFilter[];
 		groupBy?: string;
@@ -12,9 +28,18 @@
 		sortDirection?: 'asc' | 'desc';
 		title?: string;
 		description?: string;
-	}
-
-	let { data = [], filters = [], groupBy = '', sortBy = '', sortDirection = 'asc', title, description }: Props = $props();
+		onExport?: (detail: { format: string; data: any[] }) => void;
+		onDataChange?: (detail: {
+			data: any[];
+			filters: DataFilter[];
+			groupBy: string;
+			sortBy: string;
+			sortDirection: 'asc' | 'desc';
+			search: string;
+			page: number;
+			pageSize: number;
+		}) => void;
+	} = $props();
 
 	// Data exploration state
 	let search_query = $state('');
@@ -302,7 +327,7 @@
 		const types = field_types();
 		const new_filter: DataFilter = {
 			field: fields[0] || 'value',
-							type: (types[fields[0]] || 'text') as DataFilter['type'],
+						type: (types[fields[0]] || 'text') as DataFilter['type'],
 			operator: 'contains',
 			value: '',
 			active: true
@@ -347,7 +372,7 @@
 		emit_data_change();
 	}
 
-	function export_data() {
+	export function export_data() {
 		const data_to_export = processed_data();
 		const csv_content = convert_to_csv(data_to_export);
 		const blob = new Blob([csv_content], { type: 'text/csv' });
@@ -358,7 +383,7 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		dispatch('export', { format: 'csv', data: data_to_export });
+		onExport({ format: 'csv', data: data_to_export });
 	}
 
 	function convert_to_csv(data: any[]): string {
@@ -379,7 +404,7 @@
 	}
 
 	function emit_data_change() {
-		dispatch('datachange', {
+		onDataChange({
 			data: processed_data(),
 			filters: active_filters,
 			groupBy: group_by_field,
@@ -398,6 +423,7 @@
 		}
 	});
 </script>
+
 
 <div class="data-explorer">
 	<!-- Header Controls -->

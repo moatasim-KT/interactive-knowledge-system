@@ -46,7 +46,7 @@
 		title: 'Introduction to TypeScript',
 		type: 'module' as const,
 		metadata: {
-			difficulty: 2,
+			difficulty: 'intermediate',
 			estimatedTime: 30,
 			prerequisites: [],
 			tags: ['typescript', 'programming', 'basics']
@@ -66,7 +66,7 @@
 		title: 'Machine Learning Fundamentals',
 		type: 'module' as const,
 		metadata: {
-			difficulty: 3,
+			difficulty: 'advanced',
 			estimatedTime: 45,
 			prerequisites: ['basic-math', 'programming-basics'],
 			tags: ['machine-learning', 'ai', 'neural-networks', 'data-science', 'interactive']

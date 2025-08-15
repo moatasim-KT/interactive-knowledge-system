@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import type { UserProgress } from '../types/user.js';
 	import { progressStorage } from '../storage/userStorage.js';
 
@@ -22,11 +22,11 @@
 		onScoreUpdate
 	}: Props = $props();
 
-	let current_score = $state(0);
-	let attempts = $state(0);
-	let best_score = $state(0);
+	let current_score = $state<number>(0);
+	let attempts = $state<number>(0);
+	let best_score = $state<number>(0);
 	let progress = $state<UserProgress | null>(null);
-	let is_loading = $state(true);
+	let is_loading = $state<boolean>(true);
 
 	// Calculate grade based on score
 	const get_grade = (score: number): { letter: string; color: string } => {
@@ -38,7 +38,7 @@
 	};
 
 	// Check if score is passing
-	const is_passing = $derived(() => current_score >= passingScore);
+	const is_passing = $derived<boolean>(() => current_score >= passingScore);
 
 	// Get score color based on performance
 	const get_score_color = (score: number): string => {
@@ -134,8 +134,11 @@
 		return Math.round((score / maxScore) * 100);
 	};
 
-	onMount(() => {
-		load_progress();
+	$effect(() => {
+		// Load progress when moduleId or userId changes
+		if (moduleId && userId) {
+			load_progress();
+		}
 	});
 
 	// Expose methods for parent components

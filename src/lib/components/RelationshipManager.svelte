@@ -1,607 +1,504 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import type { ContentLink, RelationshipType, ContentRecommendation } from '../types/relationships';
-	import type { ContentModule } from '../types/content.js';
-	import { relationshipStorage } from '../storage/relationshipStorage.js';
-	import { similarityEngine } from '../utils/similarityEngine';
-	import { createEventDispatcher } from 'svelte';
+  import type { 
+    KnowledgeNode, 
+    ContentRelationship, 
+    RelationshipStrength 
+  } from '../types/index.js';
+  import type { SuggestedConnection } from '../services/relationshipDetectionService.js';
+  import { Button } from './ui/Button.svelte';
+  import { Card } from './ui/Card.svelte';
+  import { Badge } from './ui/Badge.svelte';
+  import { Modal } from './ui/Modal.svelte';
+  import { Input } from './ui/Input.svelte';
+  import { LoadingSpinner } from './ui/LoadingSpinner.svelte';
+  import { logger } from '../utils/logger.js';
 
-	const dispatch = createEventDispatcher();
+  // Props
+  let { 
+    nodeId,
+    currentRelationships = [],
+    suggestedConnections = [],
+    availableNodes = [],
+    onRelationshipCreate,
+    onRelationshipUpdate,
+    onRelationshipDelete
+  }: {
+		nodeId: string;
+		currentRelationships?: ContentRelationship[];
+		suggestedConnections?: SuggestedConnection[];
+		availableNodes?: KnowledgeNode[];
+		onRelationshipCreate: (relationship: Partial<ContentRelationship>) => Promise<void>;
+		onRelationshipUpdate: (relationshipId: string, updates: Partial<ContentRelationship>) => Promise<void>;
+		onRelationshipDelete: (relationshipId: string) => Promise<void>;
+	} = $props();
 
-	interface Props {
-		currentModule: ContentModule;
-		allModules: ContentModule[];
-		completedContent: Set<string>;
-	}
+  // State
+  let isLoading = $state(false);
+  let showCreateModal = $state(false);
+  let showEditModal = $state(false);
+  let selectedRelationship = $state<ContentRelationship | null>(null);
+  let searchQuery = $state('');
+  let newRelationship = $state<Partial<ContentRelationship>>({
+    type: 'related',
+    strength: 'medium'
+  });
 
-	let { currentModule, allModules, completedContent }: Props = $props();
+  // Reactive statements
+  let filteredNodes = $derived(availableNodes.filter(node => 
+    node.id !== nodeId && 
+    node.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    !currentRelationships.some(rel => rel.targetId === node.id)
+  ));
 
-	let existing_links = $state<ContentLink[]>([]); // Explicitly type existing_links
-	let recommendations: ContentRecommendation[] = $state([]);
-	let show_add_relationship = $state(false);
-	let selected_module = $state('');
-	let selected_relation_type = $state<RelationshipType>('related'); // Explicitly type selected_relation_type
-	let relationship_strength = $state(1.0);
-	let loading = $state(false);
+  let relationshipsByStrength = $derived(groupRelationshipsByStrength(currentRelationships));
 
-	const relationship_types = [
-		{
-			value: 'prerequisite',
-			label: 'Prerequisite',
-			description: 'This content must be completed first'
-		},
-		{
-			value: 'dependent',
-			label: 'Dependent',
-			description: 'This content depends on the current module'
-		},
-		{ value: 'related', label: 'Related', description: 'Topically related content' },
-		{ value: 'similar', label: 'Similar', description: 'Similar difficulty or content type' },
-		{ value: 'sequence', label: 'Sequence', description: 'Next in a learning sequence' },
-		{ value: 'reference', label: 'Reference', description: 'Referenced by this content' },
-		{ value: 'example', label: 'Example', description: 'Provides examples for this content' },
-		{ value: 'practice', label: 'Practice', description: 'Provides practice exercises' }
-	];
+  $effect(() => {
+    logger.info('RelationshipManager mounted', { nodeId, relationshipCount: currentRelationships.length });
+  });
 
-	onMount(async () => {
-		await load_existing_links();
-		await load_recommendations();
-	});
+  function groupRelationshipsByStrength(relationships: ContentRelationship[]) {
+    const groups: Record<RelationshipStrength, ContentRelationship[]> = {
+      'strong': [],
+      'medium': [],
+      'weak': [],
+      'very-weak': []
+    };
 
-	/**
-	 * Load existing relationships for the current module
-	 */
-	async function load_existing_links() {
-		loading = true;
-		try {
-			existing_links = await relationshipStorage.getLinksForContent(currentModule.id);
-		} catch (error) {
-			console.error('Failed to load existing links:', error);
-		} finally {
-			loading = false;
-		}
-	}
+    relationships.forEach(rel => {
+      if (groups[rel.strength]) {
+        groups[rel.strength].push(rel);
+      }
+    });
 
-	/**
-	 * Load content recommendations
-	 */
-	async function load_recommendations() {
-		try {
-			recommendations = await similarityEngine.generateRecommendations(
-				'current-user', // TODO: Get from user context
-				completedContent,
-				currentModule.id,
-				allModules,
-				5
-			);
-		} catch (error) {
-			console.error('Failed to load recommendations:', error);
-		}
-	}
+    return groups;
+  }
 
-	/**
-	 * Add a new relationship
-	 */
-	async function add_relationship() {
-		if (!selected_module) return;
+  function getStrengthColor(strength: RelationshipStrength): string {
+    switch (strength) {
+      case 'strong': return 'bg-green-100 text-green-800 border-green-200';
+      case 'medium': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'weak': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'very-weak': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  }
 
-		loading = true;
-		try {
-			await relationshipStorage.createLink(
-				currentModule.id,
-				selected_module,
-				selected_relation_type,
-				relationship_strength,
-				`${selected_relation_type} relationship`,
-				false
-			);
+  function getConfidenceColor(confidence: number): string {
+    if (confidence >= 0.8) return 'text-green-600';
+    if (confidence >= 0.6) return 'text-blue-600';
+    if (confidence >= 0.4) return 'text-yellow-600';
+    return 'text-red-600';
+  }
 
-			// Reload links and notify parent
-			await load_existing_links();
-			dispatch('relationshipchange');
+  async function handleCreateRelationship() {
+    if (!newRelationship.targetId || !newRelationship.type) {
+      return;
+    }
 
-			// Reset form
-			selected_module = '';
-			selected_relation_type = 'related';
-			relationship_strength = 1.0;
-			show_add_relationship = false;
-		} catch (error) {
-			console.error('Failed to add relationship:', error);
-		} finally {
-			loading = false;
-		}
-	}
+    isLoading = true;
+    try {
+      const relationship: Partial<ContentRelationship> = {
+        ...newRelationship,
+        sourceId: nodeId,
+        confidence: 1.0, // Manual relationships have full confidence
+        metadata: {
+          created: new Date(),
+          detectionMethod: 'manual'
+        }
+      };
 
-	/**
-	 * Remove a relationship
-	 */
-	async function remove_relationship(link_id: string) {
-		loading = true;
-		try {
-			await relationshipStorage.deleteLink(link_id);
-			await load_existing_links();
-			dispatch('relationshipchange');
-		} catch (error) {
-			console.error('Failed to remove relationship:', error);
-		} finally {
-			loading = false;
-		}
-	}
+      await onRelationshipCreate(relationship);
+      showCreateModal = false;
+      resetNewRelationship();
+      logger.info('Relationship created successfully', { sourceId: nodeId, targetId: newRelationship.targetId });
+    } catch (error) {
+      logger.error('Failed to create relationship', { error });
+    } finally {
+      isLoading = false;
+    }
+  }
 
-	/**
-	 * Update relationship strength
-	 */
-	async function update_relationship_strength(link: ContentLink, new_strength: number) {
-		loading = true;
-		try {
-			const updated_link = {
-				...link,
-				strength: Math.max(0, Math.min(1, new_strength))
-			};
-			await relationshipStorage.updateLink(updated_link);
-			await load_existing_links();
-			dispatch('relationshipchange');
-		} catch (error) {
-			console.error('Failed to update relationship:', error);
-		} finally {
-			loading = false;
-		}
-	}
+  async function handleAcceptSuggestion(suggestion: SuggestedConnection) {
+    isLoading = true;
+    try {
+      const relationship: Partial<ContentRelationship> = {
+        sourceId: nodeId,
+        targetId: suggestion.targetNodeId,
+        type: suggestion.relationshipType,
+        strength: suggestion.strength,
+        confidence: suggestion.confidence,
+        metadata: {
+          created: new Date(),
+          detectionMethod: 'suggested',
+          suggestionReason: suggestion.reason
+        }
+      };
 
-	/**
-	 * Get module title by ID
-	 */
-	function get_module_title(module_id: string): string {
-		const module = allModules.find((m) => m.id === module_id);
-		return module ? module.title : 'Unknown Module';
-	}
+      await onRelationshipCreate(relationship);
+      logger.info('Suggestion accepted', { targetId: suggestion.targetNodeId });
+    } catch (error) {
+      logger.error('Failed to accept suggestion', { error });
+    } finally {
+      isLoading = false;
+    }
+  }
 
-	/**
-	 * Get relationship type label
-	 */
-	function get_relationship_type_label(type: RelationshipType): string {
-		const type_info = relationship_types.find((t) => t.value === type);
-		return type_info ? type_info.label : type;
-	}
+  async function handleEditRelationship() {
+    if (!selectedRelationship) return;
 
-	/**
-	 * Get available modules for relationship (exclude current and already linked)
-	 */
-	function get_available_modules(): ContentModule[] {
-		const linked_module_ids = new Set(
-			existing_links.flatMap((link) => [link.sourceId, link.targetId])
-		);
-		return allModules.filter(
-			(module) => module.id !== currentModule.id && !linked_module_ids.has(module.id)
-		);
-	}
+    isLoading = true;
+    try {
+      await onRelationshipUpdate(selectedRelationship.id, {
+        type: selectedRelationship.type,
+        strength: selectedRelationship.strength
+      });
+      showEditModal = false;
+      selectedRelationship = null;
+      logger.info('Relationship updated successfully', { relationshipId: selectedRelationship.id });
+    } catch (error) {
+      logger.error('Failed to update relationship', { error });
+    } finally {
+      isLoading = false;
+    }
+  }
 
-	/**
-	 * Accept a recommendation and create the relationship
-	 */
-	async function accept_recommendation(recommendation: ContentRecommendation) {
-		loading = true;
-		try {
-			const relationship_type = get_recommendation_relation_type(recommendation.type);
-			await relationshipStorage.createLink(
-				currentModule.id,
-				recommendation.contentId,
-				relationship_type,
-				recommendation.score,
-				`Auto-generated from recommendation`,
-				true
-			);
+  async function handleDeleteRelationship(relationshipId: string) {
+    if (!confirm('Are you sure you want to delete this relationship?')) {
+      return;
+    }
 
-			await load_existing_links();
-			await load_recommendations();
-			dispatch('relationshipchange');
-		} catch (error) {
-			console.error('Failed to accept recommendation:', error);
-		} finally {
-			loading = false;
-		}
-	}
+    isLoading = true;
+    try {
+      await onRelationshipDelete(relationshipId);
+      logger.info('Relationship deleted successfully', { relationshipId });
+    } catch (error) {
+      logger.error('Failed to delete relationship', { error });
+    } finally {
+      isLoading = false;
+    }
+  }
 
-	/**
-	 * Map recommendation type to relationship type
-	 */
-	function get_recommendation_relation_type(rec_type: string): RelationshipType {
-		switch (rec_type) {
-			case 'next-in-sequence':
-				return 'sequence';
-			case 'related-topic':
-				return 'related';
-			case 'practice':
-				return 'practice';
-			case 'similar-difficulty':
-				return 'similar';
-			case 'review':
-				return 'related';
-			default:
-				return 'related';
-		}
-	}
+  function openEditModal(relationship: ContentRelationship) {
+    selectedRelationship = { ...relationship };
+    showEditModal = true;
+  }
+
+  function resetNewRelationship() {
+    newRelationship = {
+      type: 'related',
+      strength: 'medium'
+    };
+    searchQuery = '';
+  }
+
+  function getNodeTitle(nodeId: string): string {
+    const node = availableNodes.find(n => n.id === nodeId);
+    return node?.title || 'Unknown Node';
+  }
 </script>
 
-<div class="relationship-manager">
-	<div class="header">
-		<h3>Content Relationships</h3>
-		<button
-			class="btn btn-primary"
-			onclick={() => (show_add_relationship = !show_add_relationship)}
-			disabled={loading}
-		>
-			{show_add_relationship ? 'Cancel' : 'Add Relationship'}
-		</button>
-	</div>
+<div class="relationship-manager p-6 bg-white rounded-lg shadow-sm border">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-semibold text-gray-900">Relationship Management</h2>
+    <Button 
+      variant="primary" 
+      onclick={() => showCreateModal = true}
+      disabled={isLoading}
+    >
+      Add Relationship
+    </Button>
+  </div>
 
-	{#if loading}
-		<div class="loading">Loading relationships...</div>
-	{/if}
+  <!-- Current Relationships -->
+  <div class="mb-8">
+    <h3 class="text-lg font-medium text-gray-800 mb-4">Current Relationships</h3>
+    
+    {#if currentRelationships.length === 0}
+      <div class="text-center py-8 text-gray-500">
+        <p>No relationships found. Create some connections to see them here.</p>
+      </div>
+    {:else}
+      {#each Object.entries(relationshipsByStrength) as [strength, relationships]}
+        {#if relationships.length > 0}
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-600 mb-3 uppercase tracking-wide">
+              {strength} Connections ({relationships.length})
+            </h4>
+            <div class="grid gap-3">
+              {#each relationships as relationship}
+                <Card class="p-4">
+                  <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-3 mb-2">
+                        <h5 class="font-medium text-gray-900">
+                          {getNodeTitle(relationship.targetId)}
+                        </h5>
+                        <Badge class={getStrengthColor(relationship.strength)}>
+                          {relationship.strength}
+                        </Badge>
+                        <Badge variant="outline" class="text-xs">
+                          {relationship.type}
+                        </Badge>
+                      </div>
+                      <div class="flex items-center gap-4 text-sm text-gray-600">
+                        <span class={getConfidenceColor(relationship.confidence)}>
+                          Confidence: {Math.round(relationship.confidence * 100)}%
+                        </span>
+                        <span>
+                          Created: {relationship.metadata?.created?.toLocaleDateString() || 'Unknown'}
+                        </span>
+                        <span>
+                          Method: {relationship.metadata?.detectionMethod || 'Unknown'}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onclick={() => openEditModal(relationship)}
+                        disabled={isLoading}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        class="text-red-600 hover:text-red-700"
+                        onclick={() => handleDeleteRelationship(relationship.id)}
+                        disabled={isLoading}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      {/each}
+    {/if}
+  </div>
 
-	<!-- Add Relationship Form -->
-	{#if show_add_relationship}
-		<div class="add-relationship-form">
-			<h4>Add New Relationship</h4>
+  <!-- Suggested Connections -->
+  {#if suggestedConnections.length > 0}
+    <div class="mb-8">
+      <h3 class="text-lg font-medium text-gray-800 mb-4">Suggested Connections</h3>
+      <div class="grid gap-3">
+        {#each suggestedConnections as suggestion}
+          <Card class="p-4 border-dashed border-blue-200 bg-blue-50">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                  <h5 class="font-medium text-gray-900">
+                    {getNodeTitle(suggestion.targetNodeId)}
+                  </h5>
+                  <Badge class={getStrengthColor(suggestion.strength)}>
+                    {suggestion.strength}
+                  </Badge>
+                  <Badge variant="outline" class="text-xs">
+                    {suggestion.relationshipType}
+                  </Badge>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-gray-600">
+                  <span class={getConfidenceColor(suggestion.confidence)}>
+                    Confidence: {Math.round(suggestion.confidence * 100)}%
+                  </span>
+                  <span>Reason: {suggestion.reason}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onclick={() => handleAcceptSuggestion(suggestion)}
+                  disabled={isLoading}
+                >
+                  Accept
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  class="text-gray-500"
+                  disabled={isLoading}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </Card>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
-			<div class="form-group">
-				<label for="module-select">Related Module:</label>
-				<select id="module-select" bind:value={selected_module}>
-					<option value="">Select a module...</option>
-					{#each get_available_modules() as module}
-						<option value={module.id}>{module.title}</option>
-					{/each}
-				</select>
-			</div>
-
-			<div class="form-group">
-				<label for="relationship-type">Relationship Type:</label>
-				<select id="relationship-type" bind:value={selected_relation_type}>
-					{#each relationship_types as type}
-						<option value={type.value}>{type.label}</option>
-					{/each}
-				</select>
-				<small class="help-text">
-					{relationship_types.find((t) => t.value === selected_relation_type)?.description}
-				</small>
-			</div>
-
-			<div class="form-group">
-				<label for="strength">Relationship Strength:</label>
-				<input
-					id="strength"
-					type="range"
-					min="0.1"
-					max="1.0"
-					step="0.1"
-					bind:value={relationship_strength}
-				/>
-				<span class="strength-value">{relationship_strength.toFixed(1)}</span>
-			</div>
-
-			<div class="form-actions">
-				<button
-					class="btn btn-primary"
-					onclick={add_relationship}
-					disabled={!selected_module || loading}
-				>
-					Add Relationship
-				</button>
-				<button class="btn btn-secondary" onclick={() => (show_add_relationship = false)}>
-					Cancel
-				</button>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Existing Relationships -->
-	<div class="existing-relationships">
-		<h4>Current Relationships ({existing_links.length})</h4>
-
-		{#if existing_links.length === 0}
-			<p class="no-relationships">No relationships defined yet.</p>
-		{:else}
-			<div class="relationships-list">
-				{#each existing_links as link (link.id)}
-					<div class="relationship-item">
-						<div class="relationship-info">
-							<div class="relationship-title">
-								<strong>{get_relationship_type_label(link.type)}</strong>
-								{#if link.sourceId === currentModule.id}
-									→ {get_module_title(link.targetId)}
-								{:else}
-									← {get_module_title(link.sourceId)}
-								{/if}
-							</div>
-							<div class="relationship-meta">
-								Strength: {link.strength.toFixed(1)} •
-								{link.metadata.automatic ? 'Auto-generated' : 'Manual'} • Created: {link.metadata.created.toLocaleDateString()}
-							</div>
-							{#if link.metadata.description}
-								<div class="relationship-description">{link.metadata.description}</div>
-							{/if}
-						</div>
-
-						<div class="relationship-actions">
-							<input
-								type="range"
-								min="0.1"
-								max="1.0"
-								step="0.1"
-								value={link.strength}
-								onchange={(e) => update_relationship_strength(link, parseFloat((e.target as HTMLInputElement).value))}
-								disabled={loading}
-								class="strength-slider"
-							/>
-							<button
-								class="btn btn-danger btn-small"
-								onclick={() => remove_relationship(link.id)}
-								disabled={loading}
-							>
-								Remove
-							</button>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
-
-	<!-- Recommendations -->
-	{#if recommendations.length > 0}
-		<div class="recommendations">
-			<h4>Suggested Relationships</h4>
-			<div class="recommendations-list">
-				{#each recommendations as recommendation (recommendation.contentId)}
-					<div class="recommendation-item">
-						<div class="recommendation-info">
-							<div class="recommendation-title">
-								<strong>{get_module_title(recommendation.contentId)}</strong>
-								<span class="recommendation-type">{recommendation.type}</span>
-							</div>
-							<div class="recommendation-score">
-								Confidence: {Math.round(recommendation.score * 100)}%
-							</div>
-							<div class="recommendation-reasons">
-								{#each recommendation.reasons as reason}
-									<span class="reason-tag">{reason.description}</span>
-								{/each}
-							</div>
-						</div>
-						<button
-							class="btn btn-primary btn-small"
-							onclick={() => accept_recommendation(recommendation)}
-							disabled={loading}
-						>
-							Accept
-						</button>
-					</div>
-				{/each}
-			</div>
-		</div>
-	{/if}
+  <!-- Loading Overlay -->
+  {#if isLoading}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg flex items-center gap-3">
+        <LoadingSpinner size="sm" />
+        <span>Processing relationship...</span>
+      </div>
+    </div>
+  {/if}
 </div>
 
+<!-- Create Relationship Modal -->
+<Modal bind:show={showCreateModal} title="Create New Relationship">
+  <div class="space-y-4">
+    <div>
+      <label for="search" class="block text-sm font-medium text-gray-700 mb-2">
+        Search for nodes to connect
+      </label>
+      <Input
+        id="search"
+        type="text"
+        placeholder="Type to search nodes..."
+        bind:value={searchQuery}
+      />
+    </div>
+
+    {#if searchQuery && filteredNodes.length > 0}
+      <div class="max-h-48 overflow-y-auto border rounded-md">
+        {#each filteredNodes as node}
+          <button
+            class="w-full text-left p-3 hover:bg-gray-50 border-b last:border-b-0 transition-colors"
+            class:bg-blue-50={newRelationship.targetId === node.id}
+            onclick={() => newRelationship.targetId = node.id}
+          >
+            <div class="font-medium text-gray-900">{node.title}</div>
+            <div class="text-sm text-gray-600">{node.type}</div>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    {#if newRelationship.targetId}
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="type" class="block text-sm font-medium text-gray-700 mb-2">
+            Relationship Type
+          </label>
+          <select
+            id="type"
+            bind:value={newRelationship.type}
+            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="related">Related</option>
+            <option value="similar">Similar</option>
+            <option value="prerequisite">Prerequisite</option>
+            <option value="follows">Follows</option>
+            <option value="references">References</option>
+            <option value="contradicts">Contradicts</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="strength" class="block text-sm font-medium text-gray-700 mb-2">
+            Connection Strength
+          </label>
+          <select
+            id="strength"
+            bind:value={newRelationship.strength}
+            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="strong">Strong</option>
+            <option value="medium">Medium</option>
+            <option value="weak">Weak</option>
+          </select>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <div slot="footer" class="flex justify-end gap-3">
+    <Button variant="ghost" onclick={() => { showCreateModal = false; resetNewRelationship(); }}>
+      Cancel
+    </Button>
+    <Button 
+      variant="primary" 
+      onclick={handleCreateRelationship}
+      disabled={!newRelationship.targetId || !newRelationship.type || isLoading}
+    >
+      Create Relationship
+    </Button>
+  </div>
+</Modal>
+
+<!-- Edit Relationship Modal -->
+<Modal bind:show={showEditModal} title="Edit Relationship">
+  {#if selectedRelationship}
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Connected to: {getNodeTitle(selectedRelationship.targetId)}
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="edit-type" class="block text-sm font-medium text-gray-700 mb-2">
+            Relationship Type
+          </label>
+          <select
+            id="edit-type"
+            bind:value={selectedRelationship.type}
+            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="related">Related</option>
+            <option value="similar">Similar</option>
+            <option value="prerequisite">Prerequisite</option>
+            <option value="follows">Follows</option>
+            <option value="references">References</option>
+            <option value="contradicts">Contradicts</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="edit-strength" class="block text-sm font-medium text-gray-700 mb-2">
+            Connection Strength
+          </label>
+          <select
+            id="edit-strength"
+            bind:value={selectedRelationship.strength}
+            class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="strong">Strong</option>
+            <option value="medium">Medium</option>
+            <option value="weak">Weak</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div slot="footer" class="flex justify-end gap-3">
+      <Button variant="ghost" onclick={() => { showEditModal = false; selectedRelationship = null; }}>
+        Cancel
+      </Button>
+      <Button 
+        variant="primary" 
+        onclick={handleEditRelationship}
+        disabled={isLoading}
+      >
+        Save Changes
+      </Button>
+    </div>
+  {/if}
+</Modal>
+
 <style>
-	.relationship-manager {
-		background: white;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-		padding: 20px;
-		margin: 20px 0;
-	}
+  .relationship-manager {
+    max-width: 100%;
+  }
 
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20px;
-	}
-
-	.header h3 {
-		margin: 0;
-		color: #1f2937;
-	}
-
-	.loading {
-		text-align: center;
-		padding: 20px;
-		color: #6b7280;
-	}
-
-	.add-relationship-form {
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
-		padding: 16px;
-		margin-bottom: 20px;
-	}
-
-	.add-relationship-form h4 {
-		margin: 0 0 16px 0;
-		color: #1f2937;
-	}
-
-	.form-group {
-		margin-bottom: 16px;
-	}
-
-	.form-group label {
-		display: block;
-		margin-bottom: 4px;
-		font-weight: 500;
-		color: #374151;
-	}
-
-	.form-group select,
-	.form-group input[type='range'] {
-		width: 100%;
-		padding: 8px;
-		border: 1px solid #d1d5db;
-		border-radius: 4px;
-		font-size: 14px;
-	}
-
-	.help-text {
-		display: block;
-		margin-top: 4px;
-		font-size: 12px;
-		color: #6b7280;
-	}
-
-	.strength-value {
-		margin-left: 8px;
-		font-weight: 500;
-		color: #374151;
-	}
-
-	.form-actions {
-		display: flex;
-		gap: 8px;
-		margin-top: 16px;
-	}
-
-	.existing-relationships h4,
-	.recommendations h4 {
-		margin: 0 0 16px 0;
-		color: #1f2937;
-	}
-
-	.no-relationships {
-		color: #6b7280;
-		font-style: italic;
-		text-align: center;
-		padding: 20px;
-	}
-
-	.relationships-list,
-	.recommendations-list {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.relationship-item,
-	.recommendation-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 12px;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
-		background: #f9fafb;
-	}
-
-	.relationship-info,
-	.recommendation-info {
-		flex: 1;
-	}
-
-	.relationship-title,
-	.recommendation-title {
-		font-weight: 500;
-		color: #1f2937;
-		margin-bottom: 4px;
-	}
-
-	.relationship-meta,
-	.recommendation-score {
-		font-size: 12px;
-		color: #6b7280;
-		margin-bottom: 4px;
-	}
-
-	.relationship-description {
-		font-size: 12px;
-		color: #4b5563;
-		font-style: italic;
-	}
-
-	.recommendation-type {
-		background: #dbeafe;
-		color: #1e40af;
-		padding: 2px 6px;
-		border-radius: 4px;
-		font-size: 11px;
-		font-weight: normal;
-		margin-left: 8px;
-	}
-
-	.recommendation-reasons {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-		margin-top: 4px;
-	}
-
-	.reason-tag {
-		background: #f3f4f6;
-		color: #374151;
-		padding: 2px 6px;
-		border-radius: 4px;
-		font-size: 11px;
-	}
-
-	.relationship-actions {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.strength-slider {
-		width: 80px;
-	}
-
-	.recommendations {
-		margin-top: 24px;
-		padding-top: 20px;
-		border-top: 1px solid #e5e7eb;
-	}
-
-	.btn {
-		padding: 8px 16px;
-		border: none;
-		border-radius: 4px;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary {
-		background: #3b82f6;
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #2563eb;
-	}
-
-	.btn-secondary {
-		background: #6b7280;
-		color: white;
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: #4b5563;
-	}
-
-	.btn-danger {
-		background: #ef4444;
-		color: white;
-	}
-
-	.btn-danger:hover:not(:disabled) {
-		background: #dc2626;
-	}
-
-	.btn-small {
-		padding: 4px 8px;
-		font-size: 12px;
-	}
+  @media (max-width: 768px) {
+    .relationship-manager {
+      padding: 1rem;
+    }
+    
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>

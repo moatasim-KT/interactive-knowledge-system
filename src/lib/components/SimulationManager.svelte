@@ -12,37 +12,35 @@
 		type SimulationTemplate,
 		type DiagramTemplate
 	} from '$lib/utils/simulationTemplates.js';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher<{
-			simulationCreated: SimulationBlock;
-			diagramCreated: SystemDiagramBlock;
-			simulationEvent: any; // General event for simulation interactions
-			parameterChange: { parameter: string; value: any };
-			simulationStart: any;
-			elementClick: any;
-		}>();
 
 	interface Props {
 		mode?: 'simulation' | 'diagram' | 'both';
 		domain?: 'physics' | 'chemistry' | 'engineering' | 'all';
 		editable?: boolean;
-		onparameterchange?: (event: any) => void;
-		onsimulationstart?: (event: any) => void;
-		onsimulationpause?: (event: any) => void;
-		onsimulationstep?: (event: any) => void;
-		onsimulationreset?: (event: any) => void;
+		onSimulationCreated?: (simulation: SimulationBlock) => void;
+		onDiagramCreated?: (diagram: SystemDiagramBlock) => void;
+		onSimulationEvent?: (event: any) => void; // General event for simulation interactions
+		onParameterChange?: (event: { parameter: string; value: any }) => void;
+		onSimulationStart?: (event: any) => void;
+		onSimulationPause?: (event: any) => void;
+		onSimulationStep?: (event: any) => void;
+		onSimulationReset?: (event: any) => void;
+		onElementClick?: (event: any) => void;
 	}
 
 	let { 
 		mode = 'both', 
 		domain = 'all', 
 		editable = true,
-		onparameterchange,
-		onsimulationstart,
-		onsimulationpause,
-		onsimulationstep,
-		onsimulationreset
+		onSimulationCreated = () => {},
+		onDiagramCreated = () => {},
+		onSimulationEvent = () => {},
+		onParameterChange = () => {},
+		onSimulationStart = () => {},
+		onSimulationPause = () => {},
+		onSimulationStep = () => {},
+		onSimulationReset = () => {},
+		onElementClick = () => {}
 	}: Props = $props();
 
 	let selected_template = $state<SimulationTemplate | DiagramTemplate | null>(null);
@@ -76,7 +74,7 @@
 		const block_id = `sim-${Date.now()}`;
 		current_simulation = createSimulationFromTemplate(template.id, block_id);
 		view_mode = 'simulation';
-		dispatch('simulationCreated', current_simulation);
+		onSimulationCreated(current_simulation);
 	}
 
 	// Create diagram from template
@@ -84,14 +82,13 @@
 		const block_id = `diagram-${Date.now()}`;
 		current_diagram = createDiagramFromTemplate(template.id, block_id);
 		view_mode = 'diagram';
-		dispatch('diagramCreated', current_diagram);
+		onDiagramCreated(current_diagram);
 	}
 
 	// Handle template selection
 	function select_template(
 		template: SimulationTemplate | DiagramTemplate,
-		type: 'simulation' | 'diagram'
-	) {
+		type: 'simulation' | 'diagram') {
 		selected_template = template;
 		if (type === 'simulation') {
 			create_simulation(template as SimulationTemplate);
@@ -109,12 +106,12 @@
 
 	// Handle simulation events
 	function handle_simulation_event(event: any) {
-		dispatch('simulationEvent', event.detail);
+		onSimulationEvent(event);
 	}
 
 	// Handle diagram events
 	function handle_diagram_event(event: any) {
-		dispatch('simulationEvent', event.detail);
+		onSimulationEvent(event);
 	}
 </script>
 

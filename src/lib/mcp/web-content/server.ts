@@ -38,7 +38,7 @@ export class WebContentMcpEntrypoint {
     private registerToolsFromApp(): void {
         const tools = this.app.getAvailableTools();
         tools.forEach((t) => {
-            // Build a permissive Zod shape from the tool's declared input schema (if any)
+            // Build a permissive Zod object schema from the tool's declared input schema (if any)
             const shape: ZodRawShape = {};
             const props = t?.inputSchema?.properties as Record<string, unknown> | undefined;
             if (props && typeof props === 'object') {
@@ -48,9 +48,10 @@ export class WebContentMcpEntrypoint {
                 }
             }
 
-            // Prefer the explicit overload with description + raw shape
-            if (Object.keys(shape).length > 0) {
-                this.mcp.tool(t.name, t.description ?? '', shape, async (args, _extra) => {
+            const zodSchema = Object.keys(shape).length > 0 ? z.object(shape) : null;
+
+            if (zodSchema) {
+                this.mcp.tool(t.name, t.description ?? '', zodSchema, async (args, _extra) => {
                     const result = await this.app.executeTool(t.name, args as Record<string, unknown>);
                     const out: CallToolResult = {
                         content: [{ type: 'text', text: JSON.stringify(result) }]

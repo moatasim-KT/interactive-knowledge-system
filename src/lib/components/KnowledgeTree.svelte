@@ -1,11 +1,8 @@
 <script lang="ts">
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import type { KnowledgeNode } from '$lib/types/knowledge';
+	import type { KnowledgeNode } from '$lib/types/unified';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		nodes?: KnowledgeNode[];
@@ -19,10 +16,10 @@
 	let { 
 		nodes = [], 
 		showActions = true, 
-		onNodeSelect,
-		onNodeAdd,
-		onNodeDelete,
-		onNodeMove
+		onNodeSelect = () => {},
+		onNodeAdd = () => {},
+		onNodeDelete = () => {},
+		onNodeMove = () => {}
 	}: Props = $props();
 
 	// Track expanded state for each node
@@ -87,8 +84,7 @@
 		goto(url, { replaceState: true });
 
 		// Call custom handler if provided
-		dispatch('nodeselect', node);
-		onNodeSelect?.(node);
+		onNodeSelect(node);
 	}
 
 	// Handle adding new node
@@ -115,7 +111,7 @@
 		}
 
 		// Call custom handler if provided
-		dispatch('nodeadd', parent_id ?? null); // Ensure parent_id is string | null
+		onNodeAdd(parent_id ?? null); // Ensure parent_id is string | null
 	}
 
 	// Handle node deletion
@@ -139,7 +135,7 @@
 			}
 
 			// Call custom handler if provided
-			dispatch('nodedelete', node_id);
+			onNodeDelete(node_id);
 		}
 	}
 
@@ -207,7 +203,7 @@
 		}
 
 		// Call custom handler if provided
-		dispatch('nodemove', { nodeId: dragged_node.id, newParentId: new_parent || null });
+		onNodeMove({ nodeId: dragged_node.id, newParentId: new_parent || null });
 
 		dragged_node = null;
 		drop_target = null;

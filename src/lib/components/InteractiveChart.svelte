@@ -1,15 +1,13 @@
 <script lang="ts">
 	import type { VisualizationConfig } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	interface Props {
+	type Props = {
 		data: any;
 		config: VisualizationConfig;
 		oninteraction?: (payload: any) => void;
-		onInteraction?: (payload: any) => void;
-	}
+	};
 
-	let { data, config, oninteraction }: Props = $props();
+	const { data, config, oninteraction }: Props = $props();
 
 	let chart_container = $state<HTMLElement>();
 	let is_zoomed = $state(false);
@@ -23,8 +21,8 @@
 	const margin = $derived(() => config.layout?.margin || { top: 20, right: 20, bottom: 40, left: 40 });
 
 	// Calculate inner dimensions
-	const inner_width = $derived(() => width() - margin().left - margin().right);
-	const inner_height = $derived(() => height() - margin().top - margin().bottom);
+	const inner_width = $derived(() => width - margin.left - margin.right);
+	const inner_height = $derived(() => height - margin.top - margin.bottom);
 
 	// Sample data processing (this would be more sophisticated in a real implementation)
 	const processed_data = $derived(() => process_chart_data(data));
@@ -64,31 +62,31 @@
 		if (is_numeric) {
 			const min = Math.min(...domain);
 			const max = Math.max(...domain);
-			return (x: number) => ((x - min) / (max - min)) * inner_width();
+			return (x: number) => ((x - min) / (max - min)) * inner_width;
 		} else {
-			return (x: any, index: number) => (index / (domain.length - 1)) * inner_width();
+			return (x: any, index: number) => (index / (domain.length - 1)) * inner_width;
 		}
 	}
 
 	function create_yscale(data: any[]) {
-		if (!data.length) return (y: any) => inner_height();
+		if (!data.length) return (y: any) => inner_height;
 
 		const values = data.map((d) => d.y).filter((y) => typeof y === 'number');
 		const min = Math.min(...values);
 		const max = Math.max(...values);
 
-		return (y: number) => inner_height() - ((y - min) / (max - min)) * inner_height();
+		return (y: number) => inner_height - ((y - min) / (max - min)) * inner_height;
 	}
 
-	const x_scale = $derived(() => create_xscale(processed_data()));
-	const y_scale = $derived(() => create_yscale(processed_data()));
+	const x_scale = $derived(() => create_xscale(processed_data));
+	const y_scale = $derived(() => create_yscale(processed_data));
 
 	// Handle mouse events
 	function handle_mouse_move(event: MouseEvent) {
 		if (!chart_container) return;
 		const rect = chart_container.getBoundingClientRect();
-		const x = event.clientX - rect.left - margin().left;
-		const y = event.clientY - rect.top - margin().top;
+		const x = event.clientX - rect.left - margin.left;
+		const y = event.clientY - rect.top - margin.top;
 
 		// Find closest data point
 		const closest = find_closest_point(x, y);
@@ -121,10 +119,10 @@
 		const is_mouse = 'clientX' in event && 'clientY' in event;
 		const x = (is_mouse
 			? (event as MouseEvent).clientX - rect.left
-			: rect.width / 2) - margin().left;
+			: rect.width / 2) - margin.left;
 		const y = (is_mouse
 			? (event as MouseEvent).clientY - rect.top
-			: rect.height / 2) - margin().top;
+			: rect.height / 2) - margin.top;
 
 		const closest = find_closest_point(x, y);
 		if (closest) {
@@ -151,15 +149,15 @@
 	}
 
 	function find_closest_point(mouse_x: number, mouse_y: number) {
-		const data = processed_data();
+		const data = processed_data;
 		if (!data.length) return null;
 
 		let closest = data[0];
 		let min_distance = Infinity;
 
 		data.forEach((point, index) => {
-			const px = x_scale()(point.x, index);
-			const py = y_scale()(point.y);
+			const px = x_scale(point.x, index);
+			const py = y_scale(point.y);
 			const distance = Math.sqrt((mouse_x - px) ** 2 + (mouse_y - py) ** 2);
 
 			if (distance < min_distance) {
@@ -212,17 +210,17 @@
 
 	<!-- SVG Chart -->
 	<svg
-		width={width()}
-		height={height()}
+		width={width}
+		height={height}
 		class="chart-svg"
 		style="transform: scale({zoom_level}); transform-origin: center;"
 	>
 		<!-- Chart background -->
 		<rect
-			x={margin().left}
-			y={margin().top}
-			width={inner_width()}
-			height={inner_height()}
+			x={margin.left}
+			y={margin.top}
+			width={inner_width}
+			height={inner_height}
 			fill="var(--chart-bg, #fafafa)"
 			stroke="var(--chart-border, #e1e5e9)"
 		/>
@@ -231,10 +229,10 @@
 		<g class="grid">
 			{#each Array(5) as _, i (i)}
 				<line
-					x1={margin().left}
-					y1={margin().top + (i * inner_height()) / 4}
-					x2={margin().left + inner_width()}
-					y2={margin().top + (i * inner_height()) / 4}
+					x1={margin.left}
+					y1={margin.top + (i * inner_height) / 4}
+					x2={margin.left + inner_width}
+					y2={margin.top + (i * inner_height) / 4}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 					opacity="0.5"
@@ -242,10 +240,10 @@
 			{/each}
 			{#each Array(5) as _, i (i)}
 				<line
-					x1={margin().left + (i * inner_width()) / 4}
-					y1={margin().top}
-					x2={margin().left + (i * inner_width()) / 4}
-					y2={margin().top + inner_height()}
+					x1={margin.left + (i * inner_width) / 4}
+					y1={margin.top}
+					x2={margin.left + (i * inner_width) / 4}
+					y2={margin.top + inner_height}
 					stroke="var(--grid-color, #e9ecef)"
 					stroke-width="1"
 					opacity="0.5"
@@ -254,14 +252,14 @@
 		</g>
 
 		<!-- Data points and lines -->
-		<g class="data-layer" transform="translate({margin().left}, {margin().top})">
+		<g class="data-layer" transform="translate({margin.left}, {margin.top})">
 			<!-- Line chart -->
-			{#if processed_data().length > 1}
+			{#if processed_data.length > 1}
 				<path
-					d={processed_data()
+					d={processed_data
 						.map((point, index) => {
-							const x = x_scale()(point.x, index);
-							const y = y_scale()(point.y);
+							const x = x_scale(point.x, index);
+							const y = y_scale(point.y);
 							return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
 						})
 						.join(' ')}
@@ -272,9 +270,9 @@
 			{/if}
 
 			<!-- Data points -->
-			{#each processed_data() as point, index (point.label || index)}
-				{@const x = x_scale()(point.x, index) as number}
-				{@const y = y_scale()(point.y) as number}
+			{#each processed_data as point, index (point.label || index)}
+				{@const x = x_scale(point.x, index) as number}
+				{@const y = y_scale(point.y) as number}
 				<circle
 					cx={x}
 					cy={y}
@@ -294,20 +292,20 @@
 		<g class="axes">
 			<!-- X-axis -->
 			<line
-				x1={margin().left}
-				y1={margin().top + inner_height()}
-				x2={margin().left + inner_width()}
-				y2={margin().top + inner_height()}
+				x1={margin.left}
+				y1={margin.top + inner_height}
+				x2={margin.left + inner_width}
+				y2={margin.top + inner_height}
 				stroke="var(--axis-color, #333333)"
 				stroke-width="2"
 			/>
 
 			<!-- Y-axis -->
 			<line
-				x1={margin().left}
-				y1={margin().top}
-				x2={margin().left}
-				y2={margin().top + inner_height()}
+				x1={margin.left}
+				y1={margin.top}
+				x2={margin.left}
+				y2={margin.top + inner_height}
 				stroke="var(--axis-color, #333333)"
 				stroke-width="2"
 			/>

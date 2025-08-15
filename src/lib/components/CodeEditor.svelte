@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import { EditorView, basicSetup } from 'codemirror';
 	import { EditorState } from '@codemirror/state';
 	import { javascript } from '@codemirror/lang-javascript';
@@ -64,7 +64,7 @@
 	};
 
 	// Initialize editor on mount
-	onMount(() => {
+	$effect(() => {
 		createEditor();
 		return () => {
 			if (editorView) {

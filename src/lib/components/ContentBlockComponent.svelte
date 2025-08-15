@@ -1,28 +1,22 @@
 <script lang="ts">
-	import type { ContentBlock } from '$lib/types/content.js';
+	import type { ContentBlock } from '$lib/types/unified.js';
 	import type { MediaFile } from '$lib/types/media';
-	import { createEventDispatcher } from 'svelte';
 	import ResponsiveImage from './ResponsiveImage.svelte';
 	import LazyMedia from './LazyMedia.svelte';
 	import MediaUpload from './MediaUpload.svelte';
 
 	// Props
-	interface Props {
+	type Props = {
 		block: ContentBlock;
 		isSelected: boolean;
-		onupdate?: (event: CustomEvent<Partial<ContentBlock>>) => void;
+		onupdate?: (detail: Partial<ContentBlock>) => void;
 	}
 
-	let { block, isSelected }: Props = $props();
-
-	// Event dispatcher for updates
-	const dispatch = createEventDispatcher<{
-		update: Partial<ContentBlock>;
-	}>();
+	let { block, isSelected, onupdate = () => {} }: Props = $props();
 
 	// Update content and dispatch change
 	function update_content(new_content: Partial<ContentBlock['content']>) {
-		dispatch('update', {
+		onupdate({
 			content: new_content,
 			metadata: {
 				...block.metadata,
@@ -45,8 +39,7 @@
 	}
 
 	// Handle media upload
-	function handle_media_upload(e: CustomEvent<MediaFile>) {
-		const media_file = e.detail;
+	function handle_media_upload(media_file: MediaFile) {
 		update_content({
 			...block.content,
 			src: media_file.url,
@@ -62,8 +55,7 @@
 		});
 	}
 
-	function handle_media_upload_error(e: CustomEvent<string>) {
-		const error = e.detail;
+	function handle_media_upload_error(error: string) {
 		console.error('Media upload error:', error);
 		// You could show a toast notification here
 	}

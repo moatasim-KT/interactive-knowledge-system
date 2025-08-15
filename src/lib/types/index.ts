@@ -1,6 +1,5 @@
 // Re-export all types for easy importing
-export * from './content';
-export * from './knowledge';
+export * from './unified';
 export * from './user';
 export * from './interactive';
 export * from './relationships';

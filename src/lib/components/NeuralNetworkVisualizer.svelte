@@ -34,8 +34,7 @@
 		{ name: 'Activation', type: 'select', default: activation, description: 'Activation function', constraints: { options: ['relu', 'sigmoid', 'tanh', 'linear'] } }
 	]);
 
-	function handleParamChange(e: CustomEvent<{ parameter: string; value: any }>) {
-		const { parameter, value } = e.detail;
+	function handleParamChange(parameter: string, value: any) {
 		if (parameter === 'Hidden Layers') hiddenLayers = Number(value);
 		if (parameter === 'Neurons/Hidden') neuronsPerHidden = Number(value);
 		if (parameter === 'Activation') activation = value as Activation;
@@ -78,7 +77,7 @@
 	</header>
 
 	<div class="controls">
-		<ParameterControls parameters={parameters()} onParameterChange={(p) => handleParamChange(new CustomEvent('parameterchange', { detail: p }))} />
+		<ParameterControls parameters={parameters()} onParameterChange={handleParamChange} />
 	</div>
 
 	<div class="canvas-wrapper">

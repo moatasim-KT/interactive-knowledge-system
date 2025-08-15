@@ -3,6 +3,8 @@
 	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.ts';
 	import { createLogger } from '$lib/utils/logger.ts';
 	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui/index.ts';
+	import InteractivePreview from './InteractivePreview.svelte';
+	import type { ContentBlock } from '$lib/types/content.js';
 
 	const logger = createLogger('web-content-analyzer');
 
@@ -10,15 +12,19 @@
 	interface Props {
 		contentId?: string;
 		autoAnalyze?: boolean;
+		onAnalyze?: (analysis: any) => void;
+		onTransform?: (transformedBlocks: ContentBlock[]) => void;
 	}
 
-	let { contentId, autoAnalyze = false }: Props = $props();
+	let { contentId, autoAnalyze = false, onAnalyze = () => {}, onTransform = () => {} }: Props = $props();
 
 	// Component state
 	let selected_content = $state<any>(null);
 	let analysis_results = $state<any>(null);
 	let is_analyzing = $state(false);
 	let selected_opportunities = $state<string[]>([]);
+	let transformedBlocks = $state<ContentBlock[] | null>(null);
+	let is_transforming = $state(false);
 
 	// Get current content
 	$effect(() => {
@@ -69,6 +75,7 @@
 				type: 'success',
 				message: `Found ${analysis.opportunities.length} interactive opportunities`
 			});
+			onAnalyze(analysis);
 
 		} catch (error) {
 			logger.error('Content analysis failed:', error);
@@ -93,6 +100,8 @@
 			return;
 		}
 
+		is_transforming = true;
+
 		const opportunities = selected_opportunities
 			.map(id => analysis_results.opportunities.find((op: any) => op.id === id))
 			.filter(Boolean);
@@ -109,12 +118,14 @@
 
 				webContentActions.addTransformationToHistory(transformation);
 				webContentActions.setCurrentTransformation(transformation);
+				transformedBlocks = transformation.interactiveBlocks;
 			}
 
 			webContentActions.addNotification({
 				type: 'success',
 				message: `Successfully transformed ${opportunities.length} opportunities`
 			});
+			onTransform(transformedBlocks);
 
 			// Clear selection
 			selected_opportunities = [];
@@ -126,6 +137,12 @@
 				type: 'error',
 				message: `Transformation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
 			});
+		} finally {
+			// Ensure transformedBlocks is cleared if transformation fails
+			if (!transformedBlocks) {
+				transformedBlocks = null;
+			}
+			is_transforming = false;
 		}
 	}
 
@@ -225,11 +242,16 @@
 					</Button>
 					<Button
 						onclick={transform_opportunities}
-						disabled={selected_opportunities.length === 0}
+						disabled={selected_opportunities.length === 0 || is_transforming}
 						variant="primary"
 						size="sm"
 					>
-						Transform Selected ({selected_opportunities.length})
+						{#if is_transforming}
+							<LoadingSpinner size="sm" />
+							Transforming...
+						{:else}
+							Transform Selected ({selected_opportunities.length})
+						{/if}
 					</Button>
 					</div>
 				</div>
@@ -299,7 +321,13 @@
 				{/if}
 			</div>
 
-			<!-- Suggestions section removed: analysis_results no longer contains suggestions -->
+			<!-- Interactive Preview Section -->
+			{#if transformedBlocks}
+				<div class="interactive-preview-section">
+					<InteractivePreview blocks={transformedBlocks} />
+				</div>
+			{/if}
+
 		{/if}
 	{:else}
 		<div class="no-content-selected">

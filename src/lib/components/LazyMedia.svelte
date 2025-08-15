@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import type { LazyLoadOptions } from '$lib/types/media';
 
 	interface Props {
@@ -55,7 +55,7 @@
 
 	const placeholder_src = placeholder || default_placeholder;
 
-	onMount(() => {
+	$effect(() => {
 		// Set up intersection observer
 		observer = new IntersectionObserver(
 			(entries) => {

@@ -13,8 +13,18 @@
 		// Svelte 5 event callback props
 		onupdate?: (data: Partial<ContentBlock>) => void;
 		onparameterchange?: (data: { parameter: string; value: any }) => void;
-		ondatachange?: (data: { data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }) => void;
-		onchartinteraction?: (data: any) => void;
+		ondatachange?: (data: { 
+			data: any; 
+			filters: DataFilter[]; 
+			sort: { field: string; direction: 'asc' | 'desc' }; 
+			search: string 
+		}) => void;
+		onchartinteraction?: (data: { 
+			type: string; 
+			point?: any; 
+			coordinates?: { x: number; y: number }; 
+			zoomLevel?: number 
+		}) => void;
 	}
 
 	let { 
@@ -26,13 +36,24 @@
 		onchartinteraction
 	}: Props = $props();
 
-	let current_data = $state(block.content.data);
-	let parameters = $state(block.content.config.parameters || []);
-	let filters = $state<any[]>([]);
+	let current_data = $state<any>(block.content.data);
+	let parameters = $state<Array<{
+		name: string;
+		type: string;
+		default: any;
+		description?: string;
+		constraints?: {
+			min?: number;
+			max?: number;
+			step?: number;
+			options?: string[];
+		};
+	}>>(block.content.config.parameters || []);
+	let filters = $state<DataFilter[]>([]);
 
 	// Handle parameter changes
-	function handle_parameter_change(event: CustomEvent) {
-		const { parameter, value } = event.detail;
+	function handle_parameter_change(event: { parameter: string; value: any }) {
+		const { parameter, value } = event;
 
 		// Update the parameter in the config
 		const param_index = parameters.findIndex((p) => p.name === parameter);
@@ -47,8 +68,8 @@
 	}
 
 	// Handle data manipulation (filtering, sorting)
-	function handle_data_change(event: CustomEvent<{ data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }>) {
-		const { data, filters: newFilters, sort, search } = event.detail;
+	function handle_data_change(event: { data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }) {
+		const { data, filters: newFilters, sort, search } = event;
 		current_data = data;
 		filters = newFilters;
 
@@ -80,13 +101,13 @@
 		<!-- Parameter Controls -->
 		{#if parameters.length > 0}
 			<div class="parameter-section">
-				<ParameterControls {parameters} onParameterChange={(p) => handle_parameter_change(new CustomEvent('parameterchange', { detail: p }))} />
+				<ParameterControls {parameters} onParameterChange={handle_parameter_change} />
 			</div>
 		{/if}
 
 		<!-- Data Manipulation Controls -->
 		<div class="data-manipulation-section">
-			<DataManipulator data={current_data} {filters} onDataChange={(p) => handle_data_change(new CustomEvent('datachange', { detail: p }))} />
+			<DataManipulator data={current_data} {filters} onDataChange={handle_data_change} />
 		</div>
 
 		<!-- Main Visualization -->

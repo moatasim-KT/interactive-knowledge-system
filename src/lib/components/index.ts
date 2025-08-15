@@ -5,7 +5,11 @@ export { default as ContentBlockComponent } from './ContentBlockComponent.svelte
 // Knowledge Management Components
 export { default as KnowledgeTree } from './KnowledgeTree.svelte';
 export { default as KnowledgeMap } from './KnowledgeMap.svelte';
+export { default as AdvancedKnowledgeMap } from './AdvancedKnowledgeMap.svelte';
 export { default as RelationshipManager } from './RelationshipManager.svelte';
+export { default as DependencyChainViewer } from './DependencyChainViewer.svelte';
+export { default as SmartRecommendations } from './SmartRecommendations.svelte';
+export { default as RelationshipDashboard } from './RelationshipDashboard.svelte';
 export { default as SearchEngine } from './SearchEngine.svelte';
 
 // Progress Tracking Components
@@ -53,8 +57,11 @@ export { default as DrillDownChart } from './DrillDownChart.svelte';
 
 // Web Content Components
 export { default as WebContentDashboard } from './WebContentDashboard.svelte';
+export { default as EnhancedWebContentDashboard } from './EnhancedWebContentDashboard.svelte';
 export { default as WebContentImporter } from './WebContentImporter.svelte';
 export { default as WebContentAnalyzer } from './WebContentAnalyzer.svelte';
+export { default as WebContentTransformer } from './WebContentTransformer.svelte';
+export { default as ContentSourceManager } from './ContentSourceManager.svelte';
 
 // Error Handling Components
 export { default as ErrorBoundary } from './ErrorBoundary.svelte';
@@ -67,3 +74,16 @@ export { default as LoadingFallback } from './LoadingFallback.svelte';
 
 // Performance Monitoring Components
 export { default as PerformanceMonitor } from './PerformanceMonitor.svelte';
+
+// Document Upload and Management Components
+export { default as DocumentUploadManager } from './DocumentUploadManager.svelte';
+export { default as FilePreviewCard } from './FilePreviewCard.svelte';
+export { default as BulkUploadManager } from './BulkUploadManager.svelte';
+
+// Interactive Article Components
+export { default as InteractiveArticleViewer } from './InteractiveArticleViewer.svelte';
+export { default as InteractivePreview } from './InteractivePreview.svelte';
+export { default as TransformationPreview } from './TransformationPreview.svelte';
+
+// Knowledge Base Integration Components
+export { default as KnowledgeBaseIntegration } from './KnowledgeBaseIntegration.svelte';

@@ -1,11 +1,11 @@
 <script lang="ts">
 
-	import type { ContentBlock, EditorState } from '$lib/types/content.js';
+	import type { ContentBlock, EditorState } from '$lib/types/unified.js';
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
 	import ContentBlockComponent from './ContentBlockComponent.svelte';
 
 	// Props
-	interface Props {
+	type Props = {
 		initialBlocks?: ContentBlock[];
 		onsave?: (blocks: ContentBlock[]) => void;
 		autoSave?: boolean;
@@ -206,7 +206,7 @@
 			const previous_state = editor_state.history[editor_state.history.length - 1];
 			editor_state.blocks = structuredClone(previous_state);
 
-			actions.addNotification({
+		actions.addNotification({
 				type: 'info',
 				message: 'Undid last action'
 			});
@@ -351,7 +351,7 @@
 					<ContentBlockComponent
 						{block}
 						isSelected={editor_state.selectedBlock === block.id}
-						onupdate={(e) => update_block(block.id, (e as CustomEvent).detail)}
+						onupdate={(e) => update_block(block.id, e)}
 					/>
 				</div>
 			{/each}

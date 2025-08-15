@@ -1,8 +1,5 @@
 <script lang="ts">
 	import { Button, Card } from './ui';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		title?: string;
@@ -20,11 +17,12 @@
 		showRetry = true,
 		icon = '⚠️',
 		error = null,
-		errorInfo = null
+		errorInfo = null,
+		onretry
 	}: Props = $props();
 
 	function handleRetry() {
-		dispatch('retry');
+		onretry?.();
 	}
 </script>
 

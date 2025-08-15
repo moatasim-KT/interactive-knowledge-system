@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
 	import type { MediaFile, MediaStorageQuota } from '$lib/types/media.js';
 	import { mediaStorage } from '$lib/storage/mediaStorage.js';
 	import { formatFileSize } from '$lib/utils/mediaOptimization.js';
@@ -11,22 +10,22 @@
 		allowUpload?: boolean;
 		allowDelete?: boolean;
 		filterType?: 'image' | 'video' | 'all';
-		onupload?: (event: CustomEvent<MediaFile>) => void;
-		onerror?: (event: CustomEvent<string>) => void;
+		onupload?: (file: MediaFile) => void;
+		onerror?: (message: string) => void;
+		onselect?: (file: MediaFile) => void;
+		ondelete?: (fileId: string) => void;
 	}
 
 	let {
 		class: className = '',
 		allowUpload = true,
 		allowDelete = true,
-		filterType = 'all'
+		filterType = 'all',
+		onupload = () => {},
+		onerror = () => {},
+		onselect = () => {},
+		ondelete = () => {}
 	}: Props = $props();
-
-	const dispatch = createEventDispatcher<{
-		select: MediaFile;
-		delete: string;
-		upload: MediaFile;
-	}>();
 
 	// State
 	let media_files = $state<MediaFile[]>([]);
@@ -39,9 +38,9 @@
 	let sort_by = $state<'name' | 'date' | 'size' | 'type'>('date');
 	let sort_order = $state<'asc' | 'desc'>('desc');
 
-	onMount(async () => {
-		await load_media_files();
-		await load_storage_quota();
+	$effect(() => {
+		load_media_files();
+		load_storage_quota();
 	});
 
 	async function load_media_files() {
@@ -111,17 +110,17 @@
 		}
 	});
 
-	async function handle_upload(event: CustomEvent<MediaFile>) {
-		const media_file = event.detail;
+	async function handle_upload(media_file: MediaFile) {
 		media_files = [...media_files, media_file];
 		update_filtered_files();
 		await load_storage_quota();
-		dispatch('upload', media_file);
+		onupload(media_file);
 	}
 
-	function handle_upload_error(event: CustomEvent<string>) {
-		error = event.detail;
+	function handle_upload_error(message: string) {
+		error = message;
 		setTimeout(() => (error = null), 5000);
+		onerror(message);
 	}
 
 	async function delete_file(file: MediaFile) {
@@ -138,7 +137,7 @@
 					selected_file = null;
 				}
 
-				dispatch('delete', file.id);
+				ondelete(file.id);
 			} catch (err) {
 				error = err instanceof Error ? err.message : 'Failed to delete file';
 			}
@@ -147,7 +146,7 @@
 
 	function select_file(file: MediaFile) {
 		selected_file = file;
-		dispatch('select', file);
+		onselect(file);
 	}
 
 	async function cleanupOldFiles() {

@@ -7,9 +7,6 @@
 		formatFileSize
 	} from '$lib/utils/mediaOptimization.js';
 	import { mediaStorage } from '$lib/storage/mediaStorage';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		accept?: string;
@@ -17,8 +14,8 @@
 		options?: MediaUploadOptions;
 		class?: string;
 		disabled?: boolean;
-		onupload?: (event: CustomEvent<MediaFile>) => void;
-		onerror?: (event: CustomEvent<string>) => void;
+		onupload?: (file: MediaFile) => void;
+		onerror?: (message: string) => void;
 	}
 
 	let {
@@ -26,7 +23,9 @@
 		multiple = false,
 		options = {},
 		class: className = '',
-		disabled = false
+		disabled = false,
+		onupload = () => {},
+		onerror = () => {}
 	}: Props = $props();
 
 	// State
@@ -63,7 +62,7 @@
 				// Validate file
 				const validation = validateMediaFile(file, upload_options);
 				if (!validation.valid) {
-					dispatch('error', validation.error || 'Invalid file');
+					onerror(validation.error || 'Invalid file');
 					continue;
 				}
 
@@ -72,10 +71,9 @@
 
 				// Update progress
 				upload_progress = ((i + 1) / total_files) * 100;
-				dispatch('progress', { loaded: i + 1, total: total_files });
 			}
 		} catch (error) {
-			dispatch('error', error instanceof Error ? error.message : 'Upload failed');
+			onerror(error instanceof Error ? error.message : 'Upload failed');
 		} finally {
 			is_uploading = false;
 			upload_progress = 0;
@@ -145,13 +143,13 @@
 		if (processed_data !== undefined) {
 			await mediaStorage.storeMedia(media_file, processed_data);
 		} else {
-			dispatch('error', 'Processed data is undefined, cannot store media.');
+			onerror('Processed data is undefined, cannot store media.');
 		}
 
 		// Set URL for retrieval
 		media_file.url = `media://${media_file.id}`;
 
-		dispatch('upload', media_file);
+		onupload(media_file);
 	}
 
 	function handle_file_input(event: Event) {

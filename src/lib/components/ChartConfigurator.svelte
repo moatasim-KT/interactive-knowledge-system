@@ -5,20 +5,24 @@
 		StyleConfig,
 		LayoutConfig
 	} from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
 
-	interface Props {
+	type Props = {
 		config: VisualizationConfig;
 		chartType?: string;
-		onconfigChange?: (event: CustomEvent) => void;
-		onexport?: (event: CustomEvent) => void;
-		onimport?: (event: CustomEvent) => void;
-		onerror?: (event: CustomEvent) => void;
+		onconfigChange?: (config: { config: VisualizationConfig }) => void;
+		onexport?: (detail: { config: string }) => void;
+		onimport?: (detail: { config: any }) => void;
+		onerror?: (detail: { message: string }) => void;
 	}
 
-	let { config, chartType = 'line' }: Props = $props();
-
-	const dispatch = createEventDispatcher();
+	let { 
+		config, 
+		chartType = 'line',
+		onconfigChange = () => {},
+		onexport = () => {},
+		onimport = () => {},
+		onerror = () => {}
+	}: Props = $props();
 
 	// Local types
 	type Theme = StyleConfig['theme'];
@@ -109,7 +113,7 @@
 			animations: animation_config
 		};
 
-		dispatch('configChange', { config: updated_config });
+		onconfigChange({ config: updated_config });
 	}
 
 	function apply_color_palette(palette: string[]) {
@@ -190,7 +194,7 @@
 		link.click();
 		URL.revokeObjectURL(url);
 
-		dispatch('export', { config: config_json });
+		onexport({ config: config_json });
 	}
 
 	function import_config(event: Event) {
@@ -208,9 +212,9 @@
 					if (imported_config.animations) animation_config = imported_config.animations;
 
 					update_config();
-					dispatch('import', { config: imported_config });
+					onimport({ config: imported_config });
 				} catch (error) {
-					dispatch('error', { message: 'Invalid configuration file' });
+					onerror({ message: 'Invalid configuration file' });
 				}
 			};
 			reader.readAsText(file);

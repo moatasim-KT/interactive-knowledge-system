@@ -13,25 +13,25 @@
 
 	// State (reactive)
 	let active_tab = $state<'export' | 'import' | 'backups'>('export');
-	let is_loading = $state(false);
-	let message = $state('');
+	let is_loading = $state<boolean>(false);
+	let message = $state<string>('');
 	let message_type = $state<'info' | 'success' | 'warning' | 'error'>('info');
 
 	// Export state
-	let export_options = $state({ ...DEFAULT_EXPORT_OPTIONS });
-	let export_filename = $state('');
+	let export_options = $state<ExportOptions>({ ...DEFAULT_EXPORT_OPTIONS });
+	let export_filename = $state<string>('');
 
 	// Import state
-	let import_options = $state({ ...DEFAULT_IMPORT_OPTIONS });
+	let import_options = $state<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
 	let import_file = $state<File | null>(null);
-	let import_content = $state('');
+	let import_content = $state<string>('');
 
 	// Backup state
-	let backups: BackupMetadata[] = $state([]);
-	let selected_backup = $state(null);
-	let backup_name = $state('');
-	let backup_description = $state('');
-	let restore_options = $state({
+	let backups = $state<BackupMetadata[]>([]);
+	let selected_backup = $state<string | null>(null);
+	let backup_name = $state<string>('');
+	let backup_description = $state<string>('');
+	let restore_options = $state<RestoreOptions>({
 		overwriteExisting: false,
 		mergeWithExisting: true,
 		restoreProgress: true,
@@ -44,7 +44,7 @@
 		load_backups();
 	});
 
-	function load_backups() {
+	function load_backups(): void {
 		try {
 			backups = data_service.listBackups();
 		} catch (error) {
@@ -52,7 +52,7 @@
 		}
 	}
 
-	async function handle_export() {
+	async function handle_export(): Promise<void> {
 		if (!export_filename) {
 			show_message('Please enter a filename', 'error');
 			return;
@@ -91,7 +91,7 @@
 		}
 	}
 
-	async function handle_import() {
+	async function handle_import(): Promise<void> {
 		if (!import_file && !import_content) {
 			show_message('Please select a file or enter content to import', 'error');
 			return;
@@ -124,7 +124,7 @@
 		}
 	}
 
-	async function handle_create_backup() {
+	async function handle_create_backup(): Promise<void> {
 		if (!backup_name) {
 			show_message('Please enter a backup name', 'error');
 			return;
@@ -155,7 +155,7 @@
 		}
 	}
 
-	async function handle_restore_backup() {
+	async function handle_restore_backup(): Promise<void> {
 		if (!selected_backup) {
 			show_message('Please select a backup to restore', 'error');
 			return;
@@ -187,7 +187,7 @@
 		}
 	}
 
-	async function handle_delete_backup(backup_id) {
+	async function handle_delete_backup(backup_id: string): Promise<void> {
 		if (!confirm('Are you sure you want to delete this backup?')) {
 			return;
 		}
@@ -208,7 +208,7 @@
 		}
 	}
 
-	function handle_file_select(event: Event) {
+	function handle_file_select(event: Event): void {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
 			import_file = target.files[0];
@@ -220,7 +220,7 @@
 		}
 	}
 
-	function show_message(text: string, type: 'success' | 'error' | 'info' = 'info') {
+	function show_message(text: string, type: 'success' | 'error' | 'info' | 'warning' = 'info'): void {
 		message = text;
 		message_type = type;
 		setTimeout(() => {

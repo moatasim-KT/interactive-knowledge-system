@@ -1,118 +1,56 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import type { CodeSnippetShare, CodeBlockContent } from '$lib/types/code.js';
-	import { appState } from '$lib/stores/appState.svelte.js';
+	import { Button } from './ui';
 
-	// Props
 	interface Props {
-		codeContent: CodeBlockContent;
-		existingShare?: CodeSnippetShare;
+		code: string;
+		language?: string;
+		showLineNumbers?: boolean;
+		copyButtonText?: string;
+		shareButtonText?: string;
+		onCopy?: (detail: { code: string }) => void;
+		onShare?: (detail: { code: string; url?: string }) => void;
 	}
 
-	let { codeContent, existingShare }: Props = $props();
+	let {
+		code,
+		language = 'javascript',
+		showLineNumbers = true,
+		copyButtonText = 'Copy Code',
+		shareButtonText = 'Share',
+		onCopy = () => {},
+		onShare = () => {}
+	}: Props = $props();
 
-	// Event dispatcher
-	const dispatch = createEventDispatcher<{
-		share: CodeSnippetShare;
-		update: CodeSnippetShare;
-		cancel: void;
-	}>();
+	let copied = $state(false);
 
-	// Form state
-	let share_data = $state({
-		title: existingShare?.title || codeContent.title || '',
-		description: existingShare?.description || codeContent.description || '',
-		tags: existingShare?.tags.join(', ') || '',
-		isPublic: existingShare?.isPublic ?? true
-	});
-
-	let is_submitting = $state(false);
-	let error = $state<string | null>(null);
-
-	// Validation
-	let is_valid = $derived(
-		share_data.title.trim().length > 0 && share_data.description.trim().length > 0
-	);
-
-	async function handle_submit(event: Event) {
-		event.preventDefault();
-		if (!is_valid || is_submitting) return;
-
-		is_submitting = true;
-		error = null;
-
+	async function copy_code() {
 		try {
-			const tags = share_data.tags
-				.split(',')
-				.map((tag) => tag.trim())
-				.filter((tag) => tag.length > 0);
-
-			const share_object = {
-				id: existingShare?.id || crypto.randomUUID(),
-				codeBlockId: existingShare?.codeBlockId || crypto.randomUUID(),
-				title: share_data.title.trim(),
-				description: share_data.description.trim(),
-				language: codeContent.language,
-				code: codeContent.code,
-				author: appState.user?.id || 'Anonymous',
-				createdAt: existingShare?.createdAt || new Date(),
-				updatedAt: new Date(),
-				tags,
-				isPublic: share_data.isPublic,
-				likes: existingShare?.likes || 0,
-				views: existingShare?.views || 0,
-				forks: existingShare?.forks || 0
-			};
-
-			if (existingShare) {
-				dispatch('update', share_object);
-				dispatch('update', share_object);
-			} else {
-				dispatch('share', share_object);
-				dispatch('share', share_object);
-			}
+			await navigator.clipboard.writeText(code);
+			copied = true;
+			onCopy({ code });
+			setTimeout(() => (copied = false), 2000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to share code snippet';
-		} finally {
-			is_submitting = false;
+			console.error('Failed to copy code:', err);
+			alert('Failed to copy code.');
 		}
 	}
 
-	function handle_cancel() {
-		dispatch('cancel');
-	}
-
-	// Generate shareable URL (mock implementation)
-	let share_url = $derived(
-		existingShare
-			? `${typeof window !== 'undefined' ? window.location.origin : ''}/snippets/${existingShare.id}`
-			: ''
-	);
-
-	function copy_share_url() {
-		if (share_url) {
-			navigator.clipboard.writeText(share_url);
-			// Could show a toast notification here
+	async function share_code() {
+		if (navigator.share) {
+			try {
+				await navigator.share({
+					title: 'Code Snippet',
+					text: code
+				});
+				onShare({ code });
+			} catch (err) {
+				console.error('Failed to share code:', err);
+			}
+		} else {
+			// Fallback for browsers that do not support Web Share API
+			alert('Web Share API is not supported in your browser. You can copy the code instead.');
+			onShare({ code, url: 'unsupported' });
 		}
-	}
-
-	function generate_shareable_link() {
-		// Create a temporary shareable link for the current code
-		const temp_id = crypto.randomUUID();
-		const temp_url = `${window.location.origin}/snippets/temp/${temp_id}`;
-
-		// Store in session storage for temporary access
-		sessionStorage.setItem(
-			`temp-snippet-${temp_id}`,
-			JSON.stringify({
-				title: share_data.title || 'Untitled Snippet',
-				code: codeContent.code,
-				language: codeContent.language,
-				createdAt: new Date().toISOString()
-			})
-		);
-
-		return temp_url;
 	}
 </script>
 

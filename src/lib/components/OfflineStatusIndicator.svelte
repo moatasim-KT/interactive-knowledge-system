@@ -3,7 +3,7 @@
   Shows current offline/online status and sync information
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import { appState } from '$lib/stores/appState.svelte.js';
 	import { offlineManager } from '$lib/services/offlineManager.js';
 	import { Button, Badge, Card } from '$lib/components/ui/index.js';
@@ -26,7 +26,7 @@
 	// Update status periodically
 	let statusInterval: ReturnType<typeof setInterval>;
 
-	onMount(() => {
+	$effect(() => {
 		// Initialize offline functionality
 		initializeOffline();
 

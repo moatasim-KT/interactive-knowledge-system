@@ -6,49 +6,58 @@
 		exportSimulationReport,
 		type SimulationResult
 	} from '$lib/utils/simulationExport.js';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		block: SimulationBlock;
 		editable?: boolean;
-		onparameterchange?: (event: CustomEvent) => void;
-		onsimulationstart?: (event: CustomEvent) => void;
-		onsimulationpause?: (event: CustomEvent) => void;
-		onsimulationstop?: (event: CustomEvent) => void;
-		onsimulationreset?: (event: CustomEvent) => void;
-		onsimulationstep?: (event: CustomEvent) => void;
-		onsimulationerror?: (event: CustomEvent) => void;
-		onsimulationexport?: (event: CustomEvent) => void;
-		onsimulationreportexport?: (event: CustomEvent) => void;
+		onparameterchange?: (detail: { parameter: string, value: any, blockId: string }) => void;
+		onsimulationstart?: (detail: { blockId: string }) => void;
+		onsimulationpause?: (detail: { blockId: string }) => void;
+		onsimulationstop?: (detail: { blockId: string }) => void;
+		onsimulationreset?: (detail: { blockId: string }) => void;
+		onsimulationstep?: (detail: { step: number, state: Record<string, any>, blockId: string }) => void;
+		onsimulationerror?: (detail: { error: string, step: number }) => void;
+		onsimulationexport?: (detail: { format: string, blockId: string }) => void;
+		onsimulationreportexport?: (detail: { blockId: string }) => void;
 	}
 
 	let { 
 		block, 
 		editable = false,
-		onparameterchange,
-		onsimulationstart,
-		onsimulationpause,
-		onsimulationstop,
-		onsimulationreset,
-		onsimulationstep,
-		onsimulationerror,
-		onsimulationexport,
-		onsimulationreportexport
+		onparameterchange = () => {},
+		onsimulationstart = () => {},
+		onsimulationpause = () => {},
+		onsimulationstop = () => {},
+		onsimulationreset = () => {},
+		onsimulationstep = () => {},
+		onsimulationerror = () => {},
+		onsimulationexport = () => {},
+		onsimulationreportexport = () => {}
 	}: Props = $props();
 
-	let simulation_state = $state({ ...block.content.initialState });
-	let is_running = $state(false);
-	let is_paused = $state(false);
+	let simulation_state = $state<Record<string, any>>({ ...block.content.initialState });
+	let is_running = $state<boolean>(false);
+	let is_paused = $state<boolean>(false);
 	let animation_id = $state<number | null>(null);
-	let step_count = $state(0);
-	let simulation_speed = $state(1);
-	let auto_run = $state(false);
+	let step_count = $state<number>(0);
+	let simulation_speed = $state<number>(1);
+	let auto_run = $state<boolean>(false);
 	let simulation_results = $state<SimulationResult[]>([]);
 
 	// Convert parameters to the format expected by ParameterControls
-	const parameters = $derived(() => block.content.parameters.map((param) => ({
+	const parameters = $derived<Array<{
+		name: string;
+		type: string;
+		default: any;
+		description?: string;
+		constraints?: {
+			min?: number;
+			max?: number;
+			step?: number;
+			options?: string[];
+		};
+	}>>(() => block.content.parameters.map((param) => ({
 		name: param.name,
 		type: param.type,
 		default: param.default,
@@ -79,7 +88,7 @@
 			}
 		}
 
-		dispatch('parameterChange', { parameter, value, blockId: block.id });
+		onparameterchange({ parameter, value, blockId: block.id });
 	}
 
 	// Simulation control functions
@@ -90,7 +99,7 @@
 		is_paused = false;
 
 		run_simulation_step();
-		dispatch('simulationStart', { blockId: block.id });
+		onsimulationstart({ blockId: block.id });
 	}
 
 	function pause_simulation() {
@@ -99,7 +108,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		dispatch('simulationPause', { blockId: block.id });
+		onsimulationpause({ blockId: block.id });
 	}
 
 	function stop_simulation() {
@@ -109,7 +118,7 @@
 			cancelAnimationFrame(animation_id);
 			animation_id = null;
 		}
-		dispatch('simulationStop', { blockId: block.id });
+		onsimulationstop({ blockId: block.id });
 	}
 
 	function reset_simulation() {
@@ -117,7 +126,7 @@
 		simulation_state = { ...block.content.initialState };
 		step_count = 0;
 		simulation_results = [];
-		dispatch('simulationReset', { blockId: block.id });
+		onsimulationreset({ blockId: block.id });
 	}
 
 	// Export simulation results
@@ -142,7 +151,7 @@
 			format
 		);
 
-		dispatch('simulationExport', { format, blockId: block.id });
+		onsimulationexport({ format, blockId: block.id });
 	}
 
 	// Export simulation report
@@ -162,14 +171,14 @@
 
 		exportSimulationReport(block.content.simulationType, parameter_values, simulation_results);
 
-		dispatch('simulationReportExport', { blockId: block.id });
+		onsimulationreportexport({ blockId: block.id });
 	}
 
 	function step_simulation() {
 		if (is_running && !is_paused) return;
 
 		execute_simulation_step();
-		dispatch('simulationStep', {
+		onsimulationstep({ 
 			step: step_count,
 			state: simulation_state,
 			blockId: block.id
@@ -203,7 +212,7 @@
 
 			step_count++;
 		} catch (error) {
-			dispatch('simulationError', { error: (error as Error).message, step: step_count });
+			onsimulationerror({ error: (error as Error).message, step: step_count });
 			stop_simulation();
 		}
 	}

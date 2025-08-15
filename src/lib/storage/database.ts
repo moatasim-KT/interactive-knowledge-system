@@ -1,10 +1,8 @@
 /**
  * IndexedDB database schema and configuration
  */
-import type { ContentModule } from '../types/content.js';
+import type { ContentModule, LearningPath, ContentLink } from '../types/unified.js';
 import type { UserProgress, UserSettings, LearningStreak, Achievement } from '../types/user.js';
-import type { LearningPath } from '../types/knowledge.js';
-import type { ContentLink } from '../types/relationships.js';
 
 export const DATABASE_NAME = 'InteractiveKnowledgeSystem';
 export const DATABASE_VERSION = 3;

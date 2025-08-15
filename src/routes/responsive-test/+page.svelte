@@ -11,8 +11,8 @@
 		{ id: 'settings', label: 'Settings', icon: '⚙️', active: currentView === 'settings' }
 	]);
 
-	function handleNavigation(event: CustomEvent) {
-		currentView = event.detail.item.id;
+	function handleNavigation(item: any) {
+		currentView = item.id;
 	}
 </script>
 
@@ -142,7 +142,7 @@
 	items={navItems} 
 	position="bottom" 
 	variant="tabs"
-	onnavigate={handleNavigation}
+	onnavigate={(item) => handleNavigation(item)}
 />
 
 <style>

@@ -3,7 +3,7 @@
  * Compatible with existing ContentBlock and ContentModule interfaces
  */
 
-import type { ContentBlock, ContentModule } from './content.js';
+import type { ContentBlock, ContentModule } from './unified.js';
 
 /**
  * Web content source information

@@ -1,3 +1,6 @@
 - Make sure the the syntax/formatting is correct by checking syntax using npx eslint --fix after creation of all files
-- Absolutely ensure that the syntax/formatting is correct without any errors or warnings after any edit or file creation. Double check using npx eslint --fix
--- Ensure consistent naming conventions for variables, functions, and classes. Use camelcase for variable names
+- Absolutely ensure that the syntax/formatting is correct without any errors or warnings after any edit or file creation. Double check using npx eslint --fix and npm run check
+- createEventDispatcher is deprecated — Use callback props and/or the $host() rune instead 
+- Unused CSS selectors can cause performance issues. Ensure that all CSS selectors are used and that unused selectors are removed.
+- Use $bindable() to declare a property as bindable. This is the recommended way to declare bindable properties.
+- Ensure consistent naming conventions for variables, functions, and classes. Use camelcase for variable names

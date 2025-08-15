@@ -4,7 +4,15 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { webContentActions } from '../stores/webContentState.svelte.js';
+// In Node (tests/headless), avoid importing Svelte store actions that rely on crypto.randomUUID
+let webContentActions: any;
+const isNodeRuntime = typeof window === 'undefined';
+if (isNodeRuntime) {
+    webContentActions = (await import('../mcp/web-content/svelte-actions-bridge.js')).svelteActions;
+} else {
+    const mod = await import('../stores/webContentState.svelte.js');
+    webContentActions = (mod as any).webContentActions;
+}
 
 const logger = createLogger('web-content-error-handler');
 

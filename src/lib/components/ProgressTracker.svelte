@@ -3,19 +3,16 @@
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import ProgressIndicator from './ProgressIndicator.svelte';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	interface Props {
 		moduleId: string;
 		userId: string;
 		autoTrackTime?: boolean;
 		showControls?: boolean;
-		
+		onProgressUpdate?: (progress: UserProgress) => void;
 	}
 
-	let { moduleId, userId, autoTrackTime = true, showControls = true }: Props = $props();
+	let { moduleId, userId, autoTrackTime = true, showControls = true, onProgressUpdate = () => {} }: Props = $props();
 
 	let progress = $state<UserProgress | null>(null);
 	let is_loading = $state(true);
@@ -89,7 +86,7 @@
 
 			// Update app state
 			appState.progress.userProgress.set(moduleId, progress);
-			dispatch('progressupdate', progress);
+			onProgressUpdate(progress);
 		}
 
 		time_tracker.startTime = null;
@@ -151,7 +148,7 @@
 			if (progress) {
 				progress.bookmarked = is_bookmarked;
 				appState.progress.userProgress.set(moduleId, progress);
-				dispatch('progressupdate', progress);
+				onProgressUpdate(progress);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to toggle bookmark';

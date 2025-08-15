@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import { ErrorToastSystem } from './index.js';
 	import { errorHandler } from '../utils/errorHandler.js';
 	import { appState, actions } from '../stores/appState.svelte.js';
@@ -136,7 +136,7 @@
 	}
 
 	// Add to window for debugging
-	onMount(() => {
+	$effect(() => {
 		// Set up global error handlers
 		window.addEventListener('error', handleGlobalError);
 		window.addEventListener('unhandledrejection', handleUnhandledRejection);

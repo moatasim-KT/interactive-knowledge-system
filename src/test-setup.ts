@@ -3,6 +3,7 @@
  */
 
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock IndexedDB for testing
 const mockIdbRequest = {
@@ -48,12 +49,13 @@ global.indexedDB = {
 	cmp: vi.fn()
 } as any;
 
-// Mock crypto for hash calculations
+// Mock crypto for hash calculations and UUIDs
 Object.defineProperty(global, 'crypto', {
 	value: {
 		subtle: {
 			digest: vi.fn(() => Promise.resolve(new ArrayBuffer(32)))
-		}
+		},
+		randomUUID: () => '00000000-0000-4000-8000-000000000000'
 	}
 });
 

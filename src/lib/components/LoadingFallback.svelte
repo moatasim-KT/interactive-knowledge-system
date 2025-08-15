@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 	import { Card, LoadingSpinner } from './ui';
 
 	interface Props {
@@ -32,7 +32,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
 		if (timeout > 0) {
 			timeoutId = window.setTimeout(handleTimeout, timeout);
 		}

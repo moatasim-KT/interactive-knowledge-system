@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 	import type { WebContentSource, BatchProcessingJob } from '$lib/types/web-content.ts';
 	import { processingPipeline } from '$lib/services/processingPipeline.ts';
 	import { webContentActions } from '$lib/stores/webContentState.svelte.ts';
@@ -13,7 +12,7 @@
 		onImportError?: (error: string) => void;
 	}
 
-	let { allowBatchImport = true, onImportSuccess, onImportError }: Props = $props();
+	let { allowBatchImport = true, onImportSuccess = () => {}, onImportError = () => {} }: Props = $props();
 
 	let single_url = $state('');
 	let batch_urls_input = $state('');
@@ -31,8 +30,6 @@
 	// Import options
 	let skip_processing = $state(false);
 	let enable_ai_enhancements = $state(false);
-
-	const dispatch = createEventDispatcher();
 
 	async function handle_single_import() {
 		error = null;
@@ -67,13 +64,15 @@
 						operation: 'single-import', 
 						component: 'WebContentImporter' 
 					});
-					onImportError?.(error);
+					onImportError(error);
 				}
 			}
 		);
 
 		if (result.success) {
 			batch_job_id = result.data.id;
+		} else {
+			onImportError(error || 'Unknown error during import');
 		}
 
 		is_importing = false;
@@ -110,13 +109,15 @@
 						operation: 'batch-import', 
 						component: 'WebContentImporter' 
 					});
-					onImportError?.(error);
+					onImportError(error);
 				}
 			}
 		);
 
 		if (result.success) {
 			batch_job_id = result.data.id;
+		} else {
+			onImportError(error || 'Unknown error during batch import');
 		}
 
 		is_importing = false;
@@ -132,7 +133,7 @@
 	}
 
 	// Subscribe to pipeline progress updates
-	onMount(() => {
+	$effect(() => {
 		const unsubscribe = processingPipeline.onProgressUpdate((progress) => {
 			if (batch_job_id && progress.jobId === batch_job_id) {
 				import_progress = progress;
@@ -152,13 +153,17 @@
 					currentStage: 'Completed'
 				};
 				batch_job_id = null; // Clear batch job ID
+				onImportSuccess(job);
+			} else if (!batch_job_id && job.total === 1 && job.completed === 1) {
+				// Single import success
+				onImportSuccess(job);
 			}
 		});
 
 		const unsubscribeError = processingPipeline.onJobError((jobId, err) => {
 			if (jobId === batch_job_id || (!batch_job_id && import_progress.total === 1)) {
 				error = err.message;
-				onImportError?.(err.message);
+				onImportError(err.message);
 			}
 		});
 
@@ -169,6 +174,7 @@
 		};
 	});
 </script>
+
 
 <ErrorBoundary 
 	context={{ component: 'WebContentImporter', operation: 'render' }}

@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { LoadingFallback, FallbackComponent, ErrorBoundary } from './index.js';
 	import { errorHandler } from '../utils/errorHandler.js';
 	import type { ErrorContext } from '../utils/errorHandler.js';
 
-	interface Props {
+	type Props = {
 		asyncOperation: () => Promise<any>;
 		context: ErrorContext;
 		children: import('svelte').Snippet<[any]>;
@@ -71,7 +70,7 @@
 		await executeOperation();
 	}
 
-	onMount(() => {
+	$effect(() => {
 		executeOperation();
 	});
 </script>

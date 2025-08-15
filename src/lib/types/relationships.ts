@@ -13,7 +13,18 @@ export type RelationshipType =
 	| 'sequence' // A comes before B in a sequence
 	| 'reference' // A references B
 	| 'example' // A is an example of concept in B
-	| 'practice'; // A provides practice for concepts in B
+	| 'practice' // A provides practice for concepts in B
+	| 'follows' // A follows B in sequence
+	| 'references' // A references B
+	| 'contradicts' // A contradicts B
+	| 'duplicate' // A is a duplicate of B
+	| 'conceptual' // A is conceptually related to B
+	| 'weak'; // A has a weak relationship to B
+
+/**
+ * Strength of relationship between content pieces
+ */
+export type RelationshipStrength = 'strong' | 'medium' | 'weak' | 'very-weak';
 
 /**
  * Bidirectional link between two content pieces
@@ -29,6 +40,25 @@ export interface ContentLink {
 		createdBy: string;
 		description?: string;
 		automatic: boolean; // true if created by algorithm, false if manual
+	};
+}
+
+/**
+ * Enhanced content relationship with confidence and metadata
+ */
+export interface ContentRelationship {
+	id: string;
+	sourceId: string;
+	targetId: string;
+	type: string;
+	strength: RelationshipStrength;
+	confidence: number; // 0-1, confidence in the relationship
+	metadata?: {
+		created: Date;
+		detectionMethod: 'automatic' | 'manual' | 'suggested';
+		similarities?: unknown;
+		analysisDepth?: 'shallow' | 'medium' | 'deep';
+		suggestionReason?: string;
 	};
 }
 
@@ -92,11 +122,11 @@ export interface ContentRecommendation {
 
 export interface RecommendationReason {
 	type:
-		| 'prerequisite-completed'
-		| 'similar-content'
-		| 'user-interest'
-		| 'difficulty-match'
-		| 'topic-continuation';
+	| 'prerequisite-completed'
+	| 'similar-content'
+	| 'user-interest'
+	| 'difficulty-match'
+	| 'topic-continuation';
 	weight: number;
 	description: string;
 }
@@ -128,6 +158,11 @@ export interface KnowledgeMapNode {
 	position: { x: number; y: number };
 	size: number; // Visual size based on importance/content amount
 	color: string; // Color coding based on topic/difficulty
+	// D3 force simulation properties
+	x?: number;
+	y?: number;
+	fx?: number | null;
+	fy?: number | null;
 }
 
 export interface KnowledgeMapConnection {

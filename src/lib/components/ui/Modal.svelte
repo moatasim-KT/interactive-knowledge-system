@@ -112,9 +112,9 @@
 		}
 	}
 
-	onMount(() => {
+	$effect(() => {
+		// Cleanup on unmount
 		return () => {
-			// Cleanup on unmount
 			cleanup_focus_management();
 			document.body.style.overflow = '';
 		};
