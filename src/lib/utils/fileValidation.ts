@@ -1,4 +1,15 @@
-import type { FileValidationResult, FilePreview } from '$lib/types/content.js';
+export type FileValidationResult = {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+    fileInfo?: { name: string; size: number; type: string; lastModified: Date };
+    preview?: FilePreview;
+};
+
+export type FilePreview =
+    | { type: 'image'; url: string }
+    | { type: 'text'; content: string }
+    | { type: 'none'; content: string };
 
 export interface ValidationOptions {
     maxSize?: number;

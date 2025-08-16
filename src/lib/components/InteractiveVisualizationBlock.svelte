@@ -1,91 +1,96 @@
 <script lang="ts">
-	import type { InteractiveVisualizationBlock, DataFilter } from '$lib/types/web-content.js';
-	import type { ContentBlock } from '$lib/types/content.js';
+	import type { InteractiveVisualizationBlock, DataFilter, Parameter } from '$lib/types/unified';
 	import InteractiveChart from './InteractiveChart.svelte';
 	import ParameterControls from './ParameterControls.svelte';
-	import DataManipulator from './DataManipulator.svelte';
-	import NeuralNetworkVisualizer from './NeuralNetworkVisualizer.svelte';
 	import SimulationBlock from './SimulationBlock.svelte';
+	import SystemDiagramBlock from './SystemDiagramBlock.svelte';
+	import NeuralNetworkVisualizer from './NeuralNetworkVisualizer.svelte';
 	import DataExplorer from './DataExplorer.svelte';
+	import SimulationManager from './SimulationManager.svelte';
+	import { Card, Badge, Button } from '$lib/components/ui/index.ts';
+
 	interface Props {
 		block: InteractiveVisualizationBlock;
 		editable?: boolean;
-		// Svelte 5 event callback props
-		onupdate?: (data: Partial<ContentBlock>) => void;
-		onparameterchange?: (data: { parameter: string; value: any }) => void;
-		ondatachange?: (data: { 
-			data: any; 
-			filters: DataFilter[]; 
-			sort: { field: string; direction: 'asc' | 'desc' }; 
-			search: string 
-		}) => void;
-		onchartinteraction?: (data: { 
-			type: string; 
-			point?: any; 
-			coordinates?: { x: number; y: number }; 
-			zoomLevel?: number 
-		}) => void;
+		onParameterChange?: (event: { parameter: string; value: any; allValues: Record<string, any> }) => void;
+		onSimulationUpdate?: (event: { data: any; parameters: Parameter[] }) => void;
 	}
 
 	let { 
 		block, 
 		editable = false,
-		onupdate,
-		onparameterchange,
-		ondatachange,
-		onchartinteraction
+		onParameterChange,
+		onSimulationUpdate
 	}: Props = $props();
 
 	let current_data = $state<any>(block.content.data);
-	let parameters = $state<Array<{
-		name: string;
-		type: string;
-		default: any;
-		description?: string;
-		constraints?: {
-			min?: number;
-			max?: number;
-			step?: number;
-			options?: string[];
-		};
-	}>>(block.content.config.parameters || []);
-	let filters = $state<DataFilter[]>([]);
+	let current_parameters = $state<Parameter[]>(block.content.config.parameters || []);
+	let simulation_state = $state<any>({});
+	let is_running = $state(false);
+	let current_step = $state(0);
+
+	// Ensure all parameters have required description
+	const parameters = $derived(() => 
+		block.content.config.parameters?.map(p => ({
+			...p,
+			description: p.description || `Parameter: ${p.name}`,
+			constraints: p.constraints || {}
+		})) || []
+	);
 
 	// Handle parameter changes
-	function handle_parameter_change(event: { parameter: string; value: any }) {
-		const { parameter, value } = event;
-
-		// Update the parameter in the config
-		const param_index = parameters.findIndex((p) => p.name === parameter);
+	function handle_parameter_change(event: { parameter: string; value: any; allValues: Record<string, any> }) {
+		const { parameter, value, allValues } = event;
+		
+		// Update the parameter in the current parameters
+		const param_index = current_parameters.findIndex((p) => p.name === parameter);
 		if (param_index >= 0) {
-			parameters[param_index].default = value;
+			current_parameters[param_index] = { ...current_parameters[param_index], default: value };
 		}
-
-		// Trigger data update based on parameter change
-		update_visualization();
-
-		onparameterchange?.({ parameter, value });
+		
+		onParameterChange?.(event);
 	}
 
-	// Handle data manipulation (filtering, sorting)
-	function handle_data_change(event: { data: any; filters: DataFilter[]; sort: { field: string; direction: 'asc' | 'desc' }; search: string }) {
-		const { data, filters: newFilters, sort, search } = event;
-		current_data = data;
-		filters = newFilters;
-
-		ondatachange?.({ data, filters: newFilters, sort, search });
+	// Handle simulation updates
+	function handle_simulation_update(event: { data: any; parameters: Parameter[] }) {
+		current_data = event.data;
+		current_parameters = event.parameters;
+		simulation_state = event.data;
+		onSimulationUpdate?.(event);
 	}
 
-	// Update visualization based on current parameters and data
-	function update_visualization() {
-		// This would typically involve recalculating data based on parameters
-		// For now, we'll just trigger a re-render
-		current_data = { ...current_data };
+	// Get visualization type display name
+	function get_visualization_type_display_name(type: string): string {
+		const type_names: Record<string, string> = {
+			'neural-network': 'Neural Network',
+			'chart': 'Interactive Chart',
+			'simulation': 'Simulation',
+			'algorithm': 'Algorithm Visualizer',
+			'data-explorer': 'Data Explorer'
+		};
+		return type_names[type] || type;
 	}
 
-	// Handle chart interactions (hover, zoom, etc.)
-	function handle_chart_interaction(event: any) {
-		onchartinteraction?.(event.detail);
+	// Start simulation
+	function start_simulation() {
+		is_running = true;
+		current_step = 0;
+		// In a real implementation, this would start the simulation
+		// For now, we'll just update the state
+		simulation_state = { running: true };
+	}
+
+	// Stop simulation
+	function stop_simulation() {
+		is_running = false;
+		simulation_state = { ...simulation_state, running: false };
+	}
+
+	// Reset simulation
+	function reset_simulation() {
+		is_running = false;
+		current_step = 0;
+		simulation_state = { running: false };
 	}
 </script>
 
@@ -99,16 +104,11 @@
 
 	<div class="visualization-content">
 		<!-- Parameter Controls -->
-		{#if parameters.length > 0}
+		{#if parameters().length > 0}
 			<div class="parameter-section">
-				<ParameterControls {parameters} onParameterChange={handle_parameter_change} />
+				<ParameterControls parameters={parameters()} onParameterChange={handle_parameter_change} />
 			</div>
 		{/if}
-
-		<!-- Data Manipulation Controls -->
-		<div class="data-manipulation-section">
-			<DataManipulator data={current_data} {filters} onDataChange={handle_data_change} />
-		</div>
 
 		<!-- Main Visualization -->
 		<div class="visualization-display">
@@ -116,7 +116,7 @@
 				<InteractiveChart
 					data={current_data}
 					config={block.content.config}
-					oninteraction={handle_chart_interaction}
+					oninteraction={() => {}}
 				/>
 			{:else if block.content.visualizationType === 'neural-network'}
 				<NeuralNetworkVisualizer
@@ -248,12 +248,7 @@
 		border: 1px solid var(--border-light, #e9ecef);
 	}
 
-	.data-manipulation-section {
-		background: var(--bg-secondary, #f8f9fa);
-		padding: 1rem;
-		border-radius: 6px;
-		border: 1px solid var(--border-light, #e9ecef);
-	}
+
 
 	.visualization-display {
 		min-height: 300px;
@@ -351,8 +346,7 @@
 			gap: 0.75rem;
 		}
 
-		.parameter-section,
-		.data-manipulation-section {
+		.parameter-section {
 			padding: 0.75rem;
 			border-radius: 4px;
 		}
@@ -404,7 +398,6 @@
 		}
 
 		.parameter-section,
-		.data-manipulation-section,
 		.visualization-display {
 			border-width: 2px;
 		}

@@ -2,7 +2,7 @@
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import { searchEngine, type SearchFilters } from '../utils/searchEngine.js';
 	import { contentStorage } from '../storage/contentStorage.js';
-	import type { SearchResult } from '../types/interactive.js';
+	import type { SearchResult } from '$lib/types/unified';
 
 	// Props
 	interface Props {

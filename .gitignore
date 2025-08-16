@@ -24,6 +24,7 @@ yarn-error.log*
 *.sublime-project
 *.sublime-workspace
 .kiro
+.husky/
 
 # OS generated files
 .DS_Store

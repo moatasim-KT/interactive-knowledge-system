@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { select, type Selection } from 'd3-selection';
 	import { zoom, type ZoomBehavior } from 'd3-zoom';
 	import { drag } from 'd3-drag';
@@ -10,10 +9,12 @@
 		KnowledgeMap,
 		KnowledgeMapNode,
 		KnowledgeMapConnection,
-		RelationshipType
-	} from '../types/relationships.js';
-	import type { ContentModule } from '../types/content.js';
-	import { enhancedRelationshipService, type GraphVisualizationOptions } from '../services/enhancedRelationshipService.js';
+		RelationshipType,
+		ContentModule,
+		GraphVisualizationOptions
+	} from '$lib/types/unified';
+	import { difficultyToRank } from '$lib/types/unified';
+	import { enhancedRelationshipService } from '../services/enhancedRelationshipService.js';
 
 	// Props
 	interface Props {
@@ -26,6 +27,15 @@
 		options?: Partial<GraphVisualizationOptions>;
 	}
 
+	// UI callbacks
+	interface Callbacks {
+		onNodeSelected?: (payload: { node: KnowledgeMapNode }) => void;
+		onPathRequested?: (payload: { targetId: string }) => void;
+		onPrerequisiteCheck?: (payload: { nodeId: string }) => void;
+		onLayoutChanged?: (payload: { layout: string }) => void;
+	}
+
+	// Initialize props using $props once
 	let {
 		modules,
 		completedContent = new Set(),
@@ -33,30 +43,36 @@
 		userProgress,
 		width = 1200,
 		height = 800,
-		options = {}
-	}: Props = $props();
+		options = {},
+		onNodeSelected = () => {},
+		onPathRequested = () => {},
+		onPrerequisiteCheck = () => {},
+		onLayoutChanged = () => {}
+	}: Props & Callbacks = $props();
 
-	// Component state
+	// Component state - properly declared with $state()
 	let container: HTMLDivElement;
 	let svg: Selection<SVGSVGElement, unknown, null, undefined>;
 	let g: Selection<SVGGElement, unknown, null, undefined>;
 	let simulation: any;
-	let knowledgeMap: KnowledgeMap | null = null;
-	let selectedNode: KnowledgeMapNode | null = null;
-	let highlightedPath: string[] = [];
+	let knowledgeMap = $state<KnowledgeMap | null>(null);
+	let selectedNode = $state<KnowledgeMapNode | null>(null);
+	let highlightedPath = $state<string[]>([]);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
+	
+	// Derived selected module for details panel
+	let selectedModule = $derived(selectedNode ? modules.find((m) => m.id === selectedNode.contentId) : undefined);
 
-	// Visualization options with defaults
+	// Visualization options with defaults - fixed type issues
 	const visualOptions: GraphVisualizationOptions = {
 		layout: 'force-directed',
 		width,
 		height,
-		nodeSize: 'by-content',
 		colorScheme: 'by-progress',
-		showLabels: true,
+		nodeColorBy: 'status',
+		edgeColorBy: 'type',
 		showConnections: true,
-		animateLayout: true,
 		clustered: false,
 		...options
 	};
@@ -76,15 +92,11 @@
 	let showFilters = $state(false);
 	let showNodeDetails = $state(false);
 	let showLegend = $state(true);
-	let zoomLevel = $state(1);
-
-	// Event dispatcher
-	const dispatch = createEventDispatcher<{
-		nodeSelected: { node: KnowledgeMapNode };
-		pathRequested: { targetId: string };
-		prerequisiteCheck: { nodeId: string };
-		layoutChanged: { layout: string };
-	}>();
+	let zoomLevel = $state(1 as number);
+	
+	// Additional visualization options for internal use
+	let showLabels = $state(true);
+	let animateLayout = $state(true);
 
 	// Scales and colors
 	const colorScale = scaleOrdinal(schemeCategory10);
@@ -208,8 +220,8 @@
 			// Difficulty filter
 			const module = modules.find(m => m.id === node.contentId);
 			if (module) {
-				const difficulty = module.metadata.difficulty;
-				if (difficulty < filters.difficultyRange[0] || difficulty > filters.difficultyRange[1]) {
+                const difficulty = difficultyToRank(module.metadata.difficulty);
+                if (difficulty < filters.difficultyRange[0] || difficulty > filters.difficultyRange[1]) {
 					return false;
 				}
 			}
@@ -255,11 +267,11 @@
 				.strength(d => d.strength || 0.5)
 			)
 			.force('charge', forceManyBody()
-				.strength(d => -300 * Math.sqrt(d.size || 20))
+				.strength(d => -300 * Math.sqrt((d as any).size || 20))
 			)
 			.force('center', forceCenter(width / 2, height / 2))
 			.force('collision', forceCollide()
-				.radius(d => (d.size || 20) + 5)
+				.radius(d => ((d as any).size || 20) + 5)
 			)
 			.alpha(1)
 			.alphaDecay(0.02);
@@ -276,12 +288,12 @@
 		renderNodes(nodes);
 
 		// Add labels if enabled
-		if (visualOptions.showLabels) {
+		if (showLabels) {
 			renderLabels(nodes);
 		}
 
 		// Start simulation
-		if (visualOptions.animateLayout && simulation) {
+		if (animateLayout && simulation) {
 			simulation.on('tick', () => {
 				updatePositions();
 			});
@@ -338,7 +350,7 @@
 		// Node circles
 		nodeElements
 			.append('circle')
-			.attr('r', d => d.size)
+			.attr('r', d => (d as any).size)
 			.style('fill', d => getNodeFillColor(d))
 			.style('stroke', d => getNodeStrokeColor(d))
 			.style('stroke-width', d => d.id === selectedNode?.id ? 3 : 1.5)
@@ -349,11 +361,11 @@
 			.append('text')
 			.attr('text-anchor', 'middle')
 			.attr('dy', '0.35em')
-			.style('font-size', d => `${d.size * 0.6}px`)
+			.style('font-size', d => `${(d as any).size * 0.6}px`)
 			.style('fill', '#ffffff')
 			.style('font-weight', 'bold')
 			.style('pointer-events', 'none')
-			.text(d => getNodeIcon(d.type));
+			.text(d => getNodeIcon(d.type as string));
 
 		// Add interaction behaviors
 		nodeElements.call(
@@ -367,7 +379,7 @@
 		nodeElements
 			.on('click', (event, d) => {
 				selectNode(d);
-				dispatch('nodeSelected', { node: d });
+				onNodeSelected({ node: d });
 			})
 			.on('mouseover', function(event, d) {
 				highlightConnectedNodes(d);
@@ -393,7 +405,7 @@
 			.append('text')
 			.attr('class', 'label')
 			.attr('text-anchor', 'middle')
-			.attr('dy', d => d.size + 15)
+			.attr('dy', d => ((d as any).size + 15))
 			.style('font-size', '12px')
 			.style('fill', '#333')
 			.style('font-weight', '500')
@@ -405,19 +417,19 @@
 	function updatePositions() {
 		// Update link positions
 		g.selectAll('.link')
-			.attr('x1', d => d.source.x)
-			.attr('y1', d => d.source.y)
-			.attr('x2', d => d.target.x)
-			.attr('y2', d => d.target.y);
+			.attr('x1', d => (d as any).source.x)
+			.attr('y1', d => (d as any).source.y)
+			.attr('x2', d => (d as any).target.x)
+			.attr('y2', d => (d as any).target.y);
 
 		// Update node positions
 		g.selectAll('.node')
-			.attr('transform', d => `translate(${d.x},${d.y})`);
+			.attr('transform', d => `translate(${(d as any).x},${(d as any).y})`);
 
 		// Update label positions
 		g.selectAll('.label')
-			.attr('x', d => d.x)
-			.attr('y', d => d.y);
+			.attr('x', d => (d as any).x)
+			.attr('y', d => (d as any).y);
 	}
 
 	function getNodeFillColor(node: KnowledgeMapNode): string {
@@ -434,9 +446,9 @@
 	}
 
 	function getNodeStrokeColor(node: KnowledgeMapNode): string {
-		if (node.id === currentContent) return '#dc3545';
+		if (currentContent && node.id === currentContent) return '#dc3545';
 		if (highlightedPath.includes(node.id)) return '#fd7e14';
-		if (node.id === selectedNode?.id) return '#20c997';
+		if (selectedNode && node.id === selectedNode.id) return '#20c997';
 		return '#ffffff';
 	}
 
@@ -456,10 +468,10 @@
 
 		// Update node stroke colors
 		g.selectAll('.node circle')
-			.style('stroke-width', d => d.id === node.id ? 3 : 1.5);
+			.style('stroke-width', d => (d as any).id === node.id ? 3 : 1.5);
 
 		// Check prerequisites
-		dispatch('prerequisiteCheck', { nodeId: node.id });
+		onPrerequisiteCheck({ nodeId: node.id });
 	}
 
 	function highlightConnectedNodes(node: KnowledgeMapNode) {
@@ -474,16 +486,16 @@
 
 		// Highlight connected nodes
 		g.selectAll('.node')
-			.style('opacity', d => connectedNodes.has(d.id) || d.id === node.id ? 1 : 0.3);
+			.style('opacity', d => connectedNodes.has((d as any).id) || (d as any).id === node.id ? 1 : 0.3);
 
 		// Highlight connected links
 		g.selectAll('.link')
-			.style('opacity', d => d.sourceId === node.id || d.targetId === node.id ? 1 : 0.1);
+			.style('opacity', d => (d as any).sourceId === node.id || (d as any).targetId === node.id ? 1 : 0.1);
 	}
 
 	function clearHighlights() {
 		g.selectAll('.node').style('opacity', 1);
-		g.selectAll('.link').style('opacity', d => Math.max(0.3, d.strength));
+		g.selectAll('.link').style('opacity', d => Math.max(0.3, (d as any).strength));
 	}
 
 	function showNodeTooltip(event: MouseEvent, node: KnowledgeMapNode) {
@@ -506,8 +518,8 @@
 			<strong>${node.title}</strong><br>
 			<small>Type: ${node.type}</small><br>
 			<small>Status: ${node.status}</small><br>
-			<small>Difficulty: ${module.metadata.difficulty}/10</small><br>
-			<small>Tags: ${module.metadata.tags.join(', ')}</small>
+			<small>Difficulty: ${(module as any).metadata.difficulty}</small><br>
+			<small>Tags: ${(module as any).metadata.tags.join(', ')}</small>
 		`);
 
 		tooltip
@@ -548,19 +560,19 @@
 
 	function dragStarted(event: any, d: KnowledgeMapNode) {
 		if (!event.active && simulation) simulation.alphaTarget(0.3).restart();
-		d.fx = d.x;
-		d.fy = d.y;
+		(d as any).fx = (d as any).x;
+		(d as any).fy = (d as any).y;
 	}
 
 	function dragged(event: any, d: KnowledgeMapNode) {
-		d.fx = event.x;
-		d.fy = event.y;
+		(d as any).fx = event.x;
+		(d as any).fy = event.y;
 	}
 
 	function dragEnded(event: any, d: KnowledgeMapNode) {
 		if (!event.active && simulation) simulation.alphaTarget(0);
-		d.fx = null;
-		d.fy = null;
+		(d as any).fx = null;
+		(d as any).fy = null;
 	}
 
 	function truncateText(text: string, maxLength: number): string {
@@ -570,7 +582,7 @@
 	async function changeLayout(newLayout: GraphVisualizationOptions['layout']) {
 		visualOptions.layout = newLayout;
 		await initializeVisualization();
-		dispatch('layoutChanged', { layout: newLayout });
+		onLayoutChanged({ layout: newLayout });
 	}
 
 	async function applyFiltersAndRefresh() {
@@ -678,8 +690,11 @@
 			<div class="controls-content">
 				<!-- Layout Controls -->
 				<div class="control-group">
-					<label>Layout</label>
-					<select onchange={(e) => changeLayout(e.target.value)}>
+					<label for="layout-select">Layout</label>
+					<select 
+						id="layout-select"
+						onchange={(e) => changeLayout((e.target as HTMLSelectElement).value as GraphVisualizationOptions['layout'])}
+					>
 						<option value="force-directed">Force Directed</option>
 						<option value="hierarchical">Hierarchical</option>
 						<option value="circular">Circular</option>
@@ -690,27 +705,30 @@
 
 				<!-- Status Filters -->
 				<div class="control-group">
-					<label>Show Content</label>
-					<div class="checkbox-group">
-						<label>
-							<input type="checkbox" bind:checked={filters.showCompleted} onchange={applyFiltersAndRefresh}>
-							Completed
-						</label>
-						<label>
-							<input type="checkbox" bind:checked={filters.showInProgress} onchange={applyFiltersAndRefresh}>
-							In Progress
-						</label>
-						<label>
-							<input type="checkbox" bind:checked={filters.showLocked} onchange={applyFiltersAndRefresh}>
-							Locked
-						</label>
-					</div>
+					<fieldset>
+						<legend>Show Content</legend>
+						<div class="checkbox-group">
+							<label>
+								<input type="checkbox" bind:checked={filters.showCompleted} onchange={applyFiltersAndRefresh}>
+								Completed
+							</label>
+							<label>
+								<input type="checkbox" bind:checked={filters.showInProgress} onchange={applyFiltersAndRefresh}>
+								In Progress
+							</label>
+							<label>
+								<input type="checkbox" bind:checked={filters.showLocked} onchange={applyFiltersAndRefresh}>
+								Locked
+							</label>
+						</div>
+					</fieldset>
 				</div>
 
 				<!-- Search -->
 				<div class="control-group">
-					<label>Search</label>
+					<label for="search-input">Search</label>
 					<input
+						id="search-input"
 						type="text"
 						placeholder="Search content..."
 						bind:value={filters.searchTerm}
@@ -720,8 +738,9 @@
 
 				<!-- Difficulty Range -->
 				<div class="control-group">
-					<label>Difficulty: {filters.difficultyRange[0]} - {filters.difficultyRange[1]}</label>
+					<label for="difficulty-min">Difficulty: {filters.difficultyRange[0]} - {filters.difficultyRange[1]}</label>
 					<input
+						id="difficulty-min"
 						type="range"
 						min="0"
 						max="10"
@@ -729,6 +748,7 @@
 						onchange={applyFiltersAndRefresh}
 					>
 					<input
+						id="difficulty-max"
 						type="range"
 						min="0"
 						max="10"
@@ -739,21 +759,23 @@
 
 				<!-- View Controls -->
 				<div class="control-group">
-					<label>View Options</label>
-					<div class="checkbox-group">
-						<label>
-							<input type="checkbox" bind:checked={showLegend}>
-							Show Legend
-						</label>
-						<label>
-							<input type="checkbox" bind:checked={visualOptions.showLabels} onchange={applyFiltersAndRefresh}>
-							Show Labels
-						</label>
-						<label>
-							<input type="checkbox" bind:checked={visualOptions.animateLayout}>
-							Animate Layout
-						</label>
-					</div>
+					<fieldset>
+						<legend>View Options</legend>
+						<div class="checkbox-group">
+							<label>
+								<input type="checkbox" bind:checked={showLegend}>
+									Show Legend
+								</label>
+							<label>
+								<input type="checkbox" bind:checked={showLabels} onchange={applyFiltersAndRefresh}>
+									Show Labels
+								</label>
+							<label>
+								<input type="checkbox" bind:checked={animateLayout}>
+									Animate Layout
+								</label>
+						</div>
+					</fieldset>
 				</div>
 
 				<!-- Action Buttons -->
@@ -818,8 +840,7 @@
 				<button onclick={() => showNodeDetails = false}>×</button>
 			</div>
 			<div class="panel-content">
-				{@const module = modules.find(m => m.id === selectedNode.contentId)}
-				{#if module}
+				{#if selectedModule}
 					<div class="detail-item">
 						<strong>Type:</strong> {selectedNode.type}
 					</div>
@@ -827,20 +848,22 @@
 						<strong>Status:</strong> {selectedNode.status}
 					</div>
 					<div class="detail-item">
-						<strong>Difficulty:</strong> {module.metadata.difficulty}/10
+						<strong>Difficulty:</strong> {selectedModule.metadata.difficulty}
 					</div>
 					<div class="detail-item">
-						<strong>Estimated Time:</strong> {module.metadata.estimatedTime}min
+						<strong>Estimated Time:</strong> {selectedModule.metadata.estimatedTime}min
 					</div>
 					<div class="detail-item">
-						<strong>Tags:</strong> {module.metadata.tags.join(', ')}
+						<strong>Tags:</strong> {selectedModule.metadata.tags.join(', ')}
 					</div>
-					<div class="detail-item">
-						<strong>Description:</strong> {module.description}
-					</div>
+					{#if selectedModule.metadata.description}
+						<div class="detail-item">
+							<strong>Description:</strong> {selectedModule.metadata.description}
+						</div>
+					{/if}
 				{/if}
 				<div class="panel-actions">
-					<button onclick={() => dispatch('pathRequested', { targetId: selectedNode.id })}>
+					<button onclick={() => onPathRequested({ targetId: selectedNode.id })}>
 						Show Learning Path
 					</button>
 				</div>

@@ -4,7 +4,7 @@
  * with automatic section detection and hierarchy building
  */
 
-import type { ContentBlock, DocumentSource, UploadProgress, DocumentMetadata, ProcessedDocument, DocumentStructure, Section, TableOfContents, TocEntry, StructureMetadata, MediaAsset } from '../types/unified.js';
+import type { ContentBlock, DocumentSource, UploadProgress, DocumentMetadata, ProcessedDocument, DocumentStructure, DocumentSection, TableOfContents, TocEntry, StructureMetadata, MediaAsset } from '$lib/types/unified';
 
 
 
@@ -80,18 +80,29 @@ export class EnhancedDocumentProcessor {
 
             // Create document metadata
             const metadata: DocumentMetadata = {
-                originalFormat: 'pdf',
+                title: file.name.split('.').slice(0, -1).join('.'),
+                author: undefined, // No author from PDF by default
+                subject: undefined,
+                keywords: [],
+                language: 'en',
                 created: new Date(),
                 modified: new Date(),
-                version: 1.0,
-                originalFileName: file.name,
+                version: 1,
+                pageCount: undefined,
+                sourceUrl: '',
+                wordCount: this.countWords(extractedText),
+                readingTime: Math.ceil(this.countWords(extractedText) / 200), // Assuming 200 words per minute
                 fileSize: file.size,
                 mimeType: file.type,
+                contentType: 'document/pdf',
+                difficulty: 'intermediate',
+                estimatedTime: 10,
+                originalFormat: 'pdf',
+                originalFileName: file.name,
                 processedAt: new Date(),
                 processingTime: 0, // Would be calculated in real implementation
-                wordCount: this.countWords(extractedText),
-                language: 'en',
-                keywords: []
+                tags: [],
+                prerequisites: [],
             };
 
             // Process content and structure
@@ -106,9 +117,35 @@ export class EnhancedDocumentProcessor {
                 structure,
                 assets,
                 source: {
+                    id: this.generateId(),
                     type: 'file',
+                    name: file.name,
                     originalUrl: file.name,
-                    uploadedAt: new Date()
+                    uploadedAt: new Date(),
+                    metadata: {}
+                },
+                documentContent: {
+                    html: extractedText,
+                    text: extractedText,
+                    codeBlocks: [],
+                    tables: [],
+                    images: []
+                },
+                extraction: {
+                    method: 'pdf-extraction',
+                    issues: [],
+                    confidence: 0.9
+                },
+                success: true,
+                relationships: {
+                    prerequisites: [],
+                    dependents: [],
+                    related: []
+                },
+                analytics: {
+                    complexity: 0.5,
+                    readability: 0.7,
+                    engagement: 0.6
                 }
             };
         } catch (error) {
@@ -137,12 +174,26 @@ export class EnhancedDocumentProcessor {
                 originalFormat: 'markdown',
                 created: frontmatter?.date ? new Date(frontmatter.date) : new Date(),
                 modified: new Date(),
-                version: 1.0,
+                version: 1,
                 originalFileName: filename,
                 author: frontmatter?.author,
-                language: frontmatter?.language || 'en',
+                language: frontmatter?.lang || 'en',
                 wordCount: this.countWords(cleanContent),
-                keywords: frontmatter?.tags || []
+                keywords: frontmatter?.keywords || [],
+                title: frontmatter?.title || (filename ? filename.split('.').slice(0, -1).join('.') : 'Untitled Markdown Document'),
+                subject: frontmatter?.subject,
+                pageCount: undefined,
+                sourceUrl: '', // Not applicable for markdown without explicit pages
+                readingTime: Math.ceil(this.countWords(cleanContent) / 200),
+                fileSize: content.length, // Approximation for markdown
+                mimeType: 'text/markdown',
+                contentType: 'document/markdown',
+                difficulty: frontmatter?.difficulty || 'intermediate',
+                estimatedTime: frontmatter?.estimatedTime || 10,
+                processedAt: new Date(),
+                processingTime: 0,
+                tags: frontmatter?.tags || [],
+                prerequisites: frontmatter?.prerequisites || [],
             };
 
             return {
@@ -153,9 +204,35 @@ export class EnhancedDocumentProcessor {
                 structure,
                 assets,
                 source: {
-                    type: 'text',
+                    id: this.generateId(),
+                    type: 'file',
+                    name: filename || 'markdown-content',
                     originalUrl: 'markdown-content',
-                    uploadedAt: new Date()
+                    uploadedAt: new Date(),
+                    metadata: {}
+                },
+                documentContent: {
+                    html: cleanContent,
+                    text: cleanContent,
+                    codeBlocks: [],
+                    tables: [],
+                    images: []
+                },
+                extraction: {
+                    method: 'markdown-parsing',
+                    issues: [],
+                    confidence: 0.9
+                },
+                success: true,
+                relationships: {
+                    prerequisites: [],
+                    dependents: [],
+                    related: []
+                },
+                analytics: {
+                    complexity: 0.5,
+                    readability: 0.8,
+                    engagement: 0.7
                 }
             };
         } catch (error) {
@@ -181,14 +258,29 @@ export class EnhancedDocumentProcessor {
             const assets = await this.extractHtmlAssets(cleanContent, url);
 
             const metadata: DocumentMetadata = {
-                originalFormat: 'html',
+                title: this.extractHtmlTitle(cleanContent) || 'Untitled Web Content',
+                author: this.extractHtmlAuthor(cleanContent),
+                subject: undefined,
+                keywords: this.extractHtmlTags(html),
+                language: this.extractHtmlLanguage(cleanContent) || 'en',
                 created: new Date(),
                 modified: new Date(),
                 version: 1,
-                sourceUrl: url,
-                language: 'en',
+                pageCount: undefined,
                 wordCount: this.countWords(this.stripHtml(cleanContent)),
-                keywords: this.extractHtmlTags(html)
+                readingTime: Math.ceil(this.countWords(this.stripHtml(cleanContent)) / 200),
+                fileSize: cleanContent.length, // Approximation for HTML
+                mimeType: 'text/html',
+                contentType: 'web/html',
+                difficulty: 'intermediate',
+                estimatedTime: 10,
+                originalFormat: 'html',
+                originalFileName: undefined,
+                processedAt: new Date(),
+                processingTime: 0,
+                sourceUrl: url,
+                tags: this.extractHtmlTags(html),
+                prerequisites: [],
             };
 
             return {
@@ -199,9 +291,35 @@ export class EnhancedDocumentProcessor {
                 structure,
                 assets,
                 source: {
+                    id: this.generateId(),
                     type: 'url',
+                    name: 'web-content',
                     originalUrl: url || 'web-content',
-                    uploadedAt: new Date()
+                    uploadedAt: new Date(),
+                    metadata: {}
+                },
+                documentContent: {
+                    html: cleanContent,
+                    text: this.stripHtml(cleanContent),
+                    codeBlocks: [],
+                    tables: [],
+                    images: []
+                },
+                extraction: {
+                    method: 'html-parsing',
+                    issues: [],
+                    confidence: 0.9
+                },
+                success: true,
+                relationships: {
+                    prerequisites: [],
+                    dependents: [],
+                    related: []
+                },
+                analytics: {
+                    complexity: 0.6,
+                    readability: 0.7,
+                    engagement: 0.8
                 }
             };
         } catch (error) {
@@ -261,20 +379,31 @@ export class EnhancedDocumentProcessor {
         const toc = this.generateTableOfContents(sections);
 
         const metadata: StructureMetadata = {
-            maxDepth: this.getMaxDepth(sections),
             sectionCount: this.countAllSections(sections),
-            hasImages: text.includes('![') || text.includes('<img'),
-            hasCodeBlocks: text.includes('```') || text.includes('<code'),
-            hasTables: text.includes('|') || text.includes('<table')
+            averageSectionLength: this.calculateAverageSectionLength(sections),
+            hasTableOfContents: sections.some(s => s.level === 1 && s.subsections.length > 0), // Simple check
+            hasIndex: false, // Not automatically detectable from markdown structure
+            complexity: this.determineComplexity(sections),
+            totalSections: this.countAllSections(sections),
+            maxDepth: this.getMaxDepth(sections),
+            hasImages: this.hasImages(sections),
+            hasCode: this.hasCodeBlocks(sections), // Assuming hasCode is equivalent to hasCodeBlocks
+            hasCodeBlocks: this.hasCodeBlocks(sections),
+            hasTables: this.hasTables(sections),
         };
 
-        return { sections, toc, metadata };
+        return {
+            sections,
+            tableOfContents: toc,
+            metadata,
+            outline: this.generateOutline(sections),
+        };
     }
 
-    private detectSections(text: string): Section[] {
-        const sections: Section[] = [];
+    private detectSections(text: string): DocumentSection[] {
+        const sections: DocumentSection[] = [];
         const lines = text.split('\n');
-        let currentSection: Section | null = null;
+        let currentSection: DocumentSection | null = null;
         let sectionId = 0;
 
         for (let i = 0; i < lines.length; i++) {
@@ -314,9 +443,9 @@ export class EnhancedDocumentProcessor {
         return this.buildSectionHierarchy(sections);
     }
 
-    private buildSectionHierarchy(flatSections: Section[]): Section[] {
-        const hierarchy: Section[] = [];
-        const stack: Section[] = [];
+    private buildSectionHierarchy(flatSections: DocumentSection[]): DocumentSection[] {
+        const hierarchy: DocumentSection[] = [];
+        const stack: DocumentSection[] = [];
 
         for (const section of flatSections) {
             // Find the correct parent level
@@ -338,9 +467,9 @@ export class EnhancedDocumentProcessor {
         return hierarchy;
     }
 
-    private generateTableOfContents(sections: Section[]): TableOfContents {
+    private generateTableOfContents(sections: DocumentSection[]): TableOfContents {
 
-        const processSection = (section: Section): TocEntry => {
+        const processSection = (section: DocumentSection): TocEntry => {
             const entry: TocEntry = {
                 id: section.id,
                 title: section.title,
@@ -353,8 +482,11 @@ export class EnhancedDocumentProcessor {
 
         const entries = sections.map(processSection);
         return {
-            items: entries,
-            entries // Backward compatibility
+            title: 'Table of Contents', // Default title
+            maxDepth: this.getMaxDepth(sections),
+            includePageNumbers: false, // Assuming no page numbers from raw text
+            entries,
+            items: entries // Backward compatibility
         };
     }
 
@@ -433,18 +565,29 @@ export class EnhancedDocumentProcessor {
         const toc = this.generateTableOfContents(sections);
 
         const metadata: StructureMetadata = {
-            maxDepth: this.getMaxDepth(sections),
             sectionCount: this.countAllSections(sections),
+            averageSectionLength: this.calculateAverageSectionLength(sections),
+            hasTableOfContents: sections.some(s => s.level === 1 && s.subsections.length > 0), // Simple check
+            hasIndex: false, // Not automatically detectable from markdown structure
+            complexity: this.determineComplexity(sections),
+            totalSections: this.countAllSections(sections),
+            maxDepth: this.getMaxDepth(sections),
             hasImages: /!\[.*?\]\(.*?\)/.test(content),
+            hasCode: /```[\s\S]*?```/.test(content), // Assuming hasCode is equivalent to hasCodeBlocks
             hasCodeBlocks: /```[\s\S]*?```/.test(content),
             hasTables: /\|.*\|/.test(content)
         };
 
-        return { sections, toc, metadata };
+        return {
+            sections,
+            tableOfContents: toc,
+            metadata,
+            outline: this.generateOutline(sections),
+        };
     }
 
-    private detectMarkdownSections(content: string): Section[] {
-        const sections: Section[] = [];
+    private detectMarkdownSections(content: string): DocumentSection[] {
+        const sections: DocumentSection[] = [];
         const lines = content.split('\n');
         let sectionId = 0;
 
@@ -594,7 +737,7 @@ export class EnhancedDocumentProcessor {
         return blocks;
     }
 
-    private extractSectionContent(content: string, section: Section): string {
+    private extractSectionContent(content: string, section: DocumentSection): string {
         const lines = content.split('\n');
         return lines.slice(section.startPosition, section.endPosition).join('\n');
     }
@@ -614,6 +757,8 @@ export class EnhancedDocumentProcessor {
                 assets.push({
                     id: this.generateId(),
                     type: 'image',
+                    name: url.split('/').pop() || 'image',
+                    path: url,
                     url,
                     filename: url.split('/').pop() || 'image',
                     size: 0, // Would need to fetch to get actual size
@@ -630,7 +775,7 @@ export class EnhancedDocumentProcessor {
     private buildHtmlStructure(html: string): Promise<DocumentStructure> {
         // Parse HTML headings to build structure
         const headingRegex = /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi;
-        const sections: Section[] = [];
+        const sections: DocumentSection[] = [];
         let match;
         let sectionId = 0;
 
@@ -653,14 +798,25 @@ export class EnhancedDocumentProcessor {
         const toc = this.generateTableOfContents(hierarchy);
 
         const metadata: StructureMetadata = {
-            maxDepth: this.getMaxDepth(hierarchy),
             sectionCount: this.countAllSections(hierarchy),
+            averageSectionLength: this.calculateAverageSectionLength(hierarchy),
+            hasTableOfContents: hierarchy.some(s => s.level === 1 && s.subsections.length > 0),
+            hasIndex: false, // Not automatically detectable from HTML structure
+            complexity: this.determineComplexity(hierarchy),
+            totalSections: this.countAllSections(hierarchy),
+            maxDepth: this.getMaxDepth(hierarchy),
             hasImages: /<img[^>]*>/i.test(html),
+            hasCode: /<code[^>]*>|<pre[^>]*>/i.test(html),
             hasCodeBlocks: /<code[^>]*>|<pre[^>]*>/i.test(html),
             hasTables: /<table[^>]*>/i.test(html)
         };
 
-        return Promise.resolve({ sections: hierarchy, toc, metadata });
+        return Promise.resolve({
+            sections: hierarchy,
+            tableOfContents: toc,
+            metadata,
+            outline: this.generateOutline(hierarchy)
+        });
     }
 
     private async createHtmlContentBlocks(html: string, structure: DocumentStructure): Promise<ContentBlock[]> {
@@ -730,11 +886,14 @@ export class EnhancedDocumentProcessor {
             assets.push({
                 id: this.generateId(),
                 type: 'image',
+                name: url.split('/').pop() || 'image',
+                path: url,
                 url,
                 filename: url.split('/').pop() || 'image',
                 size: 0,
                 mimeType: this.getMimeTypeFromUrl(url),
-                extractedFrom: 'html'
+                extractedFrom: 'html',
+                metadata: {}
             });
         }
 
@@ -753,6 +912,16 @@ export class EnhancedDocumentProcessor {
         return titleMatch ? this.stripHtml(titleMatch[1]) : '';
     }
 
+    private extractHtmlAuthor(html: string): string | undefined {
+        const authorMatch = html.match(/<meta[^>]+name="author"[^>]+content="([^"]+)"/i);
+        return authorMatch ? authorMatch[1] : undefined;
+    }
+
+    private extractHtmlLanguage(html: string): string | undefined {
+        const langMatch = html.match(/<html[^>]+lang="([^"]+)"/i);
+        return langMatch ? langMatch[1] : undefined;
+    }
+
     private extractHtmlTags(html: string): string[] {
         const metaTagRegex = /<meta[^>]+name="keywords"[^>]+content="([^"]+)"/i;
         const match = html.match(metaTagRegex);
@@ -765,13 +934,29 @@ export class EnhancedDocumentProcessor {
         const content = await this.createContentBlocks(text, structure);
 
         const metadata: DocumentMetadata = {
-            originalFormat: 'text',
+            title: 'Plain Text Document',
+            author: undefined,
+            subject: undefined,
+            keywords: [],
+            language: 'en',
             created: new Date(),
             modified: new Date(),
             version: 1,
+            pageCount: undefined,
             wordCount: this.countWords(text),
-            language: 'en',
-            keywords: []
+            readingTime: Math.ceil(this.countWords(text) / 200),
+            fileSize: text.length, // Approximation for plain text
+            mimeType: 'text/plain',
+            contentType: 'document/text',
+            difficulty: 'intermediate',
+            estimatedTime: 10,
+            originalFormat: 'text',
+            originalFileName: undefined,
+            processedAt: new Date(),
+            processingTime: 0,
+            sourceUrl: undefined,
+            tags: [],
+            prerequisites: [],
         };
 
         return {
@@ -782,8 +967,34 @@ export class EnhancedDocumentProcessor {
             structure,
             assets: [],
             source: {
+                id: this.generateId(),
                 type: 'text',
-                uploadedAt: new Date()
+                name: 'plain-text-content',
+                uploadedAt: new Date(),
+                metadata: {}
+            },
+            documentContent: {
+                html: `<pre>${text}</pre>`,
+                text: text,
+                codeBlocks: [],
+                tables: [],
+                images: []
+            },
+            extraction: {
+                method: 'text-parsing',
+                issues: [],
+                confidence: 0.9
+            },
+            success: true,
+            relationships: {
+                prerequisites: [],
+                dependents: [],
+                related: []
+            },
+            analytics: {
+                complexity: 0.3,
+                readability: 0.9,
+                engagement: 0.5
             }
         };
     }
@@ -848,13 +1059,26 @@ export class EnhancedDocumentProcessor {
         return mimeTypes[extension || ''] || 'application/octet-stream';
     }
 
+    private generateOutline(sections: DocumentSection[]): string[] {
+        const outline: string[] = [];
+        const traverse = (secs: DocumentSection[], prefix: string = '') => {
+            secs.forEach((section, index) => {
+                const sectionNumber = prefix ? `${prefix}.${index + 1}` : `${index + 1}`;
+                outline.push(`${sectionNumber} ${section.title}`);
+                traverse(section.subsections, sectionNumber);
+            });
+        };
+        traverse(sections);
+        return outline;
+    }
+
     private generateId(): string {
         return `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    private getMaxDepth(sections: Section[]): number {
+    private getMaxDepth(sections: DocumentSection[]): number {
         let maxDepth = 0;
-        const traverse = (secs: Section[], depth: number) => {
+        const traverse = (secs: DocumentSection[], depth: number) => {
             for (const section of secs) {
                 maxDepth = Math.max(maxDepth, depth);
                 traverse(section.subsections, depth + 1);
@@ -864,12 +1088,86 @@ export class EnhancedDocumentProcessor {
         return maxDepth;
     }
 
-    private countAllSections(sections: Section[]): number {
+    private countAllSections(sections: DocumentSection[]): number {
         let count = sections.length;
         for (const section of sections) {
             count += this.countAllSections(section.subsections);
         }
         return count;
+    }
+
+    private calculateAverageSectionLength(sections: DocumentSection[]): number {
+        let totalLength = 0;
+        let totalSections = 0;
+        const traverse = (secs: DocumentSection[]) => {
+            for (const section of secs) {
+                totalLength += section.content.length; // Assuming content is string or array of blocks
+                totalSections++;
+                traverse(section.subsections);
+            }
+        };
+        traverse(sections);
+        return totalSections > 0 ? totalLength / totalSections : 0;
+    }
+
+    private determineComplexity(sections: DocumentSection[]): 'simple' | 'moderate' | 'complex' {
+        const maxDepth = this.getMaxDepth(sections);
+        const sectionCount = this.countAllSections(sections);
+        const hasCode = this.hasCodeBlocks(sections);
+        const hasTables = this.hasTables(sections);
+
+        if (maxDepth > 3 || sectionCount > 10 || hasCode || hasTables) {
+            return 'complex';
+        } else if (maxDepth > 1 || sectionCount > 3) {
+            return 'moderate';
+        } else {
+            return 'simple';
+        }
+    }
+
+    private hasImages(sections: DocumentSection[]): boolean {
+        const traverse = (secs: DocumentSection[]): boolean => {
+            for (const section of secs) {
+                if (section.content.some((block: ContentBlock) => block.type === 'image')) {
+                    return true;
+                }
+                if (traverse(section.subsections)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        return traverse(sections);
+    }
+
+    private hasCodeBlocks(sections: DocumentSection[]): boolean {
+        const traverse = (secs: DocumentSection[]): boolean => {
+            for (const section of secs) {
+                if (section.content.some((block: ContentBlock) => block.type === 'code')) {
+                    return true;
+                }
+                if (traverse(section.subsections)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        return traverse(sections);
+    }
+
+    private hasTables(sections: DocumentSection[]): boolean {
+        const traverse = (secs: DocumentSection[]): boolean => {
+            for (const section of secs) {
+                if (section.content.some((block: ContentBlock) => block.type === 'table')) {
+                    return true;
+                }
+                if (traverse(section.subsections)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        return traverse(sections);
     }
 }
 
@@ -908,10 +1206,9 @@ export async function processDocumentBatch(
                 onProgress?.(fileId, {
                     fileId,
                     fileName: file.name,
-                    percentage: 0,
+                    progress: 0,
                     status: 'processing',
-                    message: 'Starting processing...',
-                    totalBytes: file.size
+                    message: 'Starting processing...'
                 });
 
                 // Process the document
@@ -921,11 +1218,9 @@ export async function processDocumentBatch(
                 onProgress?.(fileId, {
                     fileId,
                     fileName: file.name,
-                    percentage: 100,
+                    progress: 100,
                     status: 'completed',
-                    message: 'Processing completed',
-                    bytesUploaded: file.size,
-                    totalBytes: file.size
+                    message: 'Processing completed'
                 });
 
                 return result;
@@ -934,8 +1229,8 @@ export async function processDocumentBatch(
                 onProgress?.(fileId, {
                     fileId,
                     fileName: file.name,
-                    percentage: 0,
-                    status: 'error',
+                    progress: 0,
+                    status: 'failed',
                     message: error instanceof Error ? error.message : 'Processing failed'
                 });
 

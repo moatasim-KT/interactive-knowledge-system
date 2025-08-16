@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DataFilter } from '$lib/types/web-content.js';
+	import type { DataFilter } from '$lib/types/unified';
 
 	let {
 		data = [],

@@ -50,8 +50,8 @@ export class WebContentMcpEntrypoint {
 
             const zodSchema = Object.keys(shape).length > 0 ? z.object(shape) : null;
 
-            if (zodSchema) {
-                this.mcp.tool(t.name, t.description ?? '', zodSchema, async (args, _extra) => {
+            if (Object.keys(shape).length > 0) {
+                this.mcp.tool(t.name, t.description ?? '', shape, async (args, _extra) => {
                     const result = await this.app.executeTool(t.name, args as Record<string, unknown>);
                     const out: CallToolResult = {
                         content: [{ type: 'text', text: JSON.stringify(result) }]

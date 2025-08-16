@@ -7,13 +7,7 @@ import { createLogger } from '../utils/logger.js';
 import { storageService } from './storage.js';
 import { webContentFetcher } from './webContentFetcher.js';
 import { knowledgeSystemIntegration } from './knowledgeSystemIntegration.js';
-import type {
-	WebContentSource,
-	SourceHealthCheck,
-	SourceUpdateResult,
-	DuplicateDetectionResult
-} from '../types/web-content.js';
-import type { ContentModule } from '../types/content.js';
+import type { WebContentSource, DuplicateDetectionResult, SourceUpdateResult, SourceHealthCheck, ContentModule } from '$lib/types/unified';
 
 export interface SourceFilters {
 	domain?: string;
@@ -273,7 +267,7 @@ export class SourceManager {
 				await storageService.updateSource(source);
 			}
 
-			const result: SourceUpdateResult = {
+            const result: SourceUpdateResult = {
 				sourceId: sourceId,
 				success: true,
 				hasChanges: has_changes,
@@ -281,12 +275,15 @@ export class SourceManager {
 					? {
 						title: updates?.title !== original_source.title,
 						content: source.metadata.contentHash !== original_source.metadata.contentHash,
-						metadata:
+                        metadata:
 							updates?.category !== original_source.metadata.category ||
 							JSON.stringify(updates?.tags) !== JSON.stringify(original_source.metadata.tags)
-					}
-					: undefined,
-				updatedAt: new Date()
+                    ,
+                        relationships: false
+                    }
+                    : { content: false, metadata: false, relationships: false },
+                timestamp: new Date(),
+                // removed updatedAt to conform to SourceUpdateResult
 			};
 
 			this.logger.info('Source updated successfully', {
@@ -297,12 +294,13 @@ export class SourceManager {
 			return result;
 		} catch (error) {
 			this.logger.error('Failed to update source:', error);
-			return {
+            return {
 				sourceId: sourceId,
 				success: false,
 				hasChanges: false,
-				error: error instanceof Error ? error.message : 'Unknown error',
-				updatedAt: new Date()
+                changes: { content: false, metadata: false, relationships: false },
+                timestamp: new Date(),
+                errors: [error instanceof Error ? error.message : 'Unknown error']
 			};
 		}
 	}
@@ -595,22 +593,24 @@ export class SourceManager {
 						s.id !== source.id && !processed.has(s.id) && this.calculateSimilarity(source, s) > 0.8
 				);
 
-				if (similar_sources.length > 0) {
-					const duplicate_result = {
-						sourceId: source.id,
-						duplicates: similar_sources.map((s) => ({
-							id: s.id,
-							similarity: this.calculateSimilarity(source, s),
-							reason: this.getDuplicateReason(source, s)
-						})),
-						suggestions: [
-							{
-								action: 'merge' as const,
-								confidence: 0.8,
-								reasoning: 'High similarity detected, consider merging sources'
-							}
-						]
-					};
+                if (similar_sources.length > 0) {
+                    const duplicate_result = {
+                        sourceId: source.id,
+                        duplicates: similar_sources.map((s) => ({
+                            sourceId: s.id,
+                            similarity: this.calculateSimilarity(source, s),
+                            method: 'composite',
+                            confidence: this.calculateSimilarity(source, s)
+                        })),
+                        recommendations: [
+                            {
+                                action: 'merge' as const,
+                                confidence: 0.8,
+                                reason: 'High similarity detected, consider merging sources'
+                            }
+                        ],
+                        timestamp: new Date()
+                    };
 
 					duplicates.push(duplicate_result);
 					processed.add(source.id);

@@ -3,13 +3,14 @@
  */
 
 import type {
-	ContentModule,
-	UserProgress,
-	LearningPath,
-	KnowledgeNode,
-	UserSettings,
-	ContentBlock
-} from '../types/index.js';
+    ContentModule,
+    UserProgress,
+    LearningPath,
+    KnowledgeNode,
+    UserSettings,
+    ContentBlock,
+    DifficultyLevel
+} from '$lib/types/unified';
 import type { ExportData } from './exportUtils.js';
 
 /**
@@ -371,8 +372,8 @@ function importFromOpml(opmlString: string): ImportResult {
 					author: 'Imported',
 					created: new Date(),
 					modified: new Date(),
-					version: 1,
-					difficulty: 3,
+                    version: 1,
+                    difficulty: 'intermediate',
 					estimatedTime: 30,
 					prerequisites: [],
 					tags: [],
@@ -480,8 +481,18 @@ function importFromCsv(csvString: string): ImportResult {
 					author: module_data.author || 'Imported',
 					created: new Date(),
 					modified: new Date(),
-					version: 1,
-					difficulty: parseInt(module_data.difficulty) || 3,
+                    version: 1,
+                    difficulty: ((): DifficultyLevel => {
+                        const raw = module_data.difficulty;
+                        if (raw === 'beginner' || raw === 'intermediate' || raw === 'advanced') {return raw;}
+                        const n = parseInt(raw);
+                        if (!isNaN(n)) {
+                            if (n <= 2) {return 'beginner';}
+                            if (n <= 3) {return 'intermediate';}
+                            return 'advanced';
+                        }
+                        return 'intermediate';
+                    })(),
 					estimatedTime: parseInt(module_data.estimatedTime) || 30,
 					prerequisites: module_data.prerequisites ? module_data.prerequisites.split(';') : [],
 					tags: module_data.tags ? module_data.tags.split(';') : [],
@@ -587,8 +598,18 @@ function importFromXml(xmlString: string): ImportResult {
 					author: element.querySelector('author')?.textContent || 'Imported',
 					created: new Date(),
 					modified: new Date(),
-					version: 1,
-					difficulty: parseInt(element.getAttribute('difficulty') || '3'),
+                    version: 1,
+                    difficulty: ((): DifficultyLevel => {
+                        const raw = element.getAttribute('difficulty') || '3';
+                        if (raw === 'beginner' || raw === 'intermediate' || raw === 'advanced') {return raw as DifficultyLevel;}
+                        const n = parseInt(raw);
+                        if (!isNaN(n)) {
+                            if (n <= 2) {return 'beginner';}
+                            if (n <= 3) {return 'intermediate';}
+                            return 'advanced';
+                        }
+                        return 'intermediate';
+                    })(),
 					estimatedTime: parseInt(element.getAttribute('estimatedTime') || '30'),
 					prerequisites: [],
 					tags: [],
@@ -736,7 +757,7 @@ function createDefaultSettings(): UserSettings {
 		preferences: {
 			theme: 'light',
 			learningStyle: 'visual',
-			difficulty: 3,
+            difficulty: 'intermediate',
 			language: 'en',
 			notifications: true,
 			autoSave: true

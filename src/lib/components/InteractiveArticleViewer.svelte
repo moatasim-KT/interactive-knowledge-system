@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import type { ProcessedDocument, ContentBlock, DocumentSection, TocEntry } from '$lib/types/content.js';
-	import type { Question, QuizState } from '$lib/types/interactive.js';
+	import type { ProcessedDocument, ContentBlock, DocumentSection, TocEntry } from '$lib/types/unified.js';
+	import type { Question, QuizState } from '$lib/types/unified';
 	import Card from './ui/Card.svelte';
 	import Button from './ui/Button.svelte';
 	import ProgressBar from './ui/ProgressBar.svelte';
@@ -204,9 +204,10 @@
 
 	function initializeQuiz(blockId: string, questions: Question[]) {
 		quizStates.set(blockId, {
+			quizId: blockId,
 			questions,
 			currentQuestion: 0,
-			answers: new Map(),
+			answers: {},
 			score: 0,
 			completed: false
 		});
@@ -217,14 +218,14 @@
 		const quizState = quizStates.get(blockId);
 		if (!quizState) return;
 
-		quizState.answers.set(questionId, answer);
+        quizState.answers[questionId] = String(answer);
 		
 		// Check if quiz is complete
-		if (quizState.answers.size === quizState.questions.length) {
+		if (Object.keys(quizState.answers).length === quizState.questions.length) {
 			// Calculate score
 			let correct = 0;
 			quizState.questions.forEach(q => {
-				if (quizState.answers.get(q.id) === q.correctAnswer) {
+				if (quizState.answers[q.id] === q.correctAnswer) {
 					correct++;
 				}
 			});
@@ -295,7 +296,7 @@
 					{document.metadata.pageCount ? `${document.metadata.pageCount} pages` : ''}
 				</span>
 				<span class="meta-item">
-					{Math.ceil(document.metadata.extractedText / 200)} min read
+                    {Math.ceil((document.metadata.readingTime ?? 0))} min read
 				</span>
 			</div>
 		</div>
@@ -408,7 +409,8 @@
 
 		<!-- Main article content -->
 		<main class="article-main" bind:this={articleContainer} onscroll={updateReadingProgress}>
-			<article class="article-content" role="main" onmouseup={handleTextSelection}>
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<div class="article-content" role="application" onmouseup={handleTextSelection} aria-label="Interactive article content - select text to add annotations">
 				{#each document.structure.sections as section, index}
 					<section
 						class="content-section"
@@ -522,7 +524,7 @@
 						</div>
 					</section>
 				{/each}
-			</article>
+			</div>
 		</main>
 	</div>
 
@@ -545,7 +547,7 @@
 					<Button
 						size="sm"
 						onclick={(e) => {
-							const textarea = e.currentTarget.parentElement?.previousElementSibling as HTMLTextAreaElement;
+							const textarea = (e.currentTarget as HTMLButtonElement).parentElement?.previousElementSibling as HTMLTextAreaElement;
 							addAnnotation(annotationTarget || '', textarea?.value || '');
 						}}
 					>

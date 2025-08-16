@@ -4,8 +4,7 @@
     import { WebContentImporter, WebContentAnalyzer, WebContentTransformer } from '$lib/components/index.ts';
     import { ErrorBoundary } from '$lib/components/index.ts';
 	import { Button, Input, Card, Badge, LoadingSpinner } from '$lib/components/ui/index.ts';
-	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
-	import type { WebContentSource } from '$lib/types/web-content.ts';
+	import type { KnowledgeNode, WebContentSource } from '$lib/types/unified';
 
 	// Component state
 	let active_tab = $state<'import' | 'sources' | 'analyze' | 'transform'>('sources');
@@ -108,8 +107,8 @@
 			id: `web-content-${content_id}`,
 			title: content.title,
 			type: 'module' as const,
-			metadata: {
-				difficulty: 3 as 1 | 2 | 3 | 4 | 5,
+            metadata: {
+                difficulty: 'intermediate',
 				estimatedTime: content.metadata.readingTime,
 				prerequisites: [],
 				tags: content.metadata.tags

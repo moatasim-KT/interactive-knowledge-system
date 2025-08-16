@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { InteractiveTransformer } from '../services/interactiveTransformer.js';
 	import { EnhancedDocumentProcessor } from '../services/enhancedDocumentProcessor.js';
-	import type { InteractiveArticle } from '../services/interactiveTransformer.js';
+	import type { InteractiveArticle } from '$lib/types/unified';
 
 	let transformer = $state<InteractiveTransformer | null>(null);
 	let documentProcessor = $state<EnhancedDocumentProcessor | null>(null);
@@ -193,7 +193,7 @@ This example demonstrates the power of transforming static documents into engagi
 						<div class="block-header">
 							<h5>Block {index + 1}: {block.type}</h5>
 								<span class="interactivity-level">
-									{getInteractivityLevelText(block.interactivity.level)}
+									{getInteractivityLevelText(String(block.interactivity.level))}
 								</span>
 							</div>
 
@@ -226,24 +226,24 @@ This example demonstrates the power of transforming static documents into engagi
 									</div>
 								{/if}
 
-								{#if block.type === 'text' && block.interactivity.expandable}
+								{#if block.type === 'text' && block.interactivity.features.find(f => f.type === 'expandable')}
 									<div class="expandable-config">
 										<strong>Expandable Configuration:</strong>
 										<ul>
-											<li>Default Expanded: {block.interactivity.expandable.defaultExpanded}</li>
-											<li>Preview Length: {block.interactivity.expandable.previewLength} characters</li>
-											<li>Animation Duration: {block.interactivity.expandable.animationDuration}ms</li>
+											<li>Default Expanded: {block.interactivity.features.find(f => f.type === 'expandable')?.config.defaultExpanded}</li>
+											<li>Preview Length: {block.interactivity.features.find(f => f.type === 'expandable')?.config.previewLength} characters</li>
+											<li>Animation Duration: {block.interactivity.features.find(f => f.type === 'expandable')?.config.animationDuration}ms</li>
 										</ul>
 									</div>
 								{/if}
 
-								{#if block.type === 'code' && block.interactivity.executable}
+								{#if block.type === 'code' && block.interactivity.features.find(f => f.type === 'code-execution')}
 									<div class="executable-config">
 										<strong>Code Execution Configuration:</strong>
 										<ul>
-											<li>Language: {block.interactivity.executable.language}</li>
-											<li>Runtime: {block.interactivity.executable.runtime}</li>
-											<li>Timeout: {block.interactivity.executable.timeoutMs}ms</li>
+											<li>Language: {block.interactivity.features.find(f => f.type === 'code-execution')?.config.language}</li>
+											<li>Runtime: {block.interactivity.features.find(f => f.type === 'code-execution')?.config.runtime}</li>
+											<li>Timeout: {block.interactivity.features.find(f => f.type === 'code-execution')?.config.timeoutMs}ms</li>
 										</ul>
 									</div>
 								{/if}

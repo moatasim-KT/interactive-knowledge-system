@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Parameter } from '$lib/types/web-content.js';
+	import type { Parameter } from '$lib/types/unified';
 
 	interface Props {
 		parameters: Parameter[];

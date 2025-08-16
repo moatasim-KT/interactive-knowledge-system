@@ -8,7 +8,7 @@ import type {
 	ProgressStats,
 	LearningStreak,
 	Achievement
-} from '../types/user.js';
+} from '$lib/types/unified';
 
 /**
  * User progress storage operations
@@ -232,7 +232,7 @@ export class ProgressStorage {
 			currentStreak: streak.currentStreak,
 			longestStreak: streak.longestStreak,
 			lastActivityDate: last_activity_date
-		};
+		} as any;
 	}
 
 	/**
@@ -243,11 +243,17 @@ export class ProgressStorage {
 
 		if (!streak) {
 			streak = {
+				id: `streak-${userId}-${Date.now()}`,
 				userId,
+				startDate: new Date(),
+				endDate: undefined,
+				duration: 0,
+				isActive: true,
 				currentStreak: 0,
 				longestStreak: 0,
 				lastActivityDate: new Date(),
-				streakStartDate: new Date()
+				streakStartDate: new Date(),
+				milestones: [],
 			};
 			await storage.add('streaks', streak);
 		}
@@ -324,7 +330,10 @@ export class ProgressStorage {
 				title: 'First Steps',
 				description: 'Completed your first module!',
 				earnedAt: new Date(),
-				metadata: { modulesCompleted: stats.completedModules }
+				metadata: { modulesCompleted: stats.completedModules },
+				icon: '',
+				unlockedAt: undefined,
+				rarity: 'common'
 			};
 			await this.awardAchievement(achievement);
 			new_achievements.push(achievement);
@@ -342,7 +351,10 @@ export class ProgressStorage {
 				title: 'Week Warrior',
 				description: 'Maintained a 7-day learning streak!',
 				earnedAt: new Date(),
-				metadata: { streakLength: stats.currentStreak }
+				metadata: { streakLength: stats.currentStreak },
+				icon: '',
+				unlockedAt: undefined,
+				rarity: 'common'
 			};
 			await this.awardAchievement(achievement);
 			new_achievements.push(achievement);
@@ -361,7 +373,10 @@ export class ProgressStorage {
 				title: 'High Achiever',
 				description: 'Maintained 90%+ average score across 5+ modules!',
 				earnedAt: new Date(),
-				metadata: { averageScore: stats.averageScore, modulesCompleted: stats.completedModules }
+				metadata: { averageScore: stats.averageScore, modulesCompleted: stats.completedModules },
+				icon: '',
+				unlockedAt: undefined,
+				rarity: 'common'
 			};
 			await this.awardAchievement(achievement);
 			new_achievements.push(achievement);
@@ -405,15 +420,28 @@ export class SettingsStorage {
 			preferences: {
 				theme: 'light',
 				learningStyle: 'visual',
-				difficulty: 3,
+				difficulty: 'intermediate',
 				language: 'en',
 				notifications: true,
-				autoSave: true
+				autoSave: true,
+				autoSync: false,
+				defaultView: 'grid',
+				showProgress: false,
+				showDifficulty: false,
+				estimatedTime: false
 			},
 			profile: {
 				name,
 				email,
 				joinDate: new Date()
+			},
+			theme: 'light',
+			language: '',
+			notifications: false,
+			accessibility: {
+				highContrast: false,
+				fontSize: 0,
+				reducedMotion: false
 			}
 		};
 

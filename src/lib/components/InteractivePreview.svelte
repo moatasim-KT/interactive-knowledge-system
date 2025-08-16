@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { interactiveDocumentGenerator } from '$lib/services/InteractiveDocumentGenerator.js';
-	import type { ContentBlock } from '$lib/types/content.js';
+	import type { ContentBlock } from '$lib/types/unified';
 
 	interface Props {
 		blocks: ContentBlock[];

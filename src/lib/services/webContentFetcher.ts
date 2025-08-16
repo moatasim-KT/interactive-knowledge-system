@@ -6,7 +6,7 @@
 
 import { createLogger } from '../utils/logger.js';
 import { webContentErrorHandler } from './webContentErrorHandler.js';
-import type { WebContent, WebContentMetadata } from '../types/web-content.js';
+import type { WebContent, WebContentMetadata } from '$lib/types/unified';
 
 export interface FetchOptions {
     timeout?: number;
@@ -287,7 +287,7 @@ export class WebContentFetcher {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    private async shouldUseHeadlessBrowser(url: string): boolean {
+    private async shouldUseHeadlessBrowser(url: string): Promise<boolean> {
         // Heuristics to determine if a site likely needs JavaScript
         const domain = this.safeParseDomain(url).toLowerCase();
 
@@ -930,7 +930,9 @@ export class WebContentFetcher {
             attribution: originalUrl,
             tags: [], // Will be populated by content analysis
             // category is determined by contentType, domain, title, then description
-            category: this.categorizeContent(content_type, domain, title, description)
+            category: this.categorizeContent(content_type, domain, title, description),
+            url: originalUrl,
+            fetched_at: new Date().toISOString()
         };
     }
 

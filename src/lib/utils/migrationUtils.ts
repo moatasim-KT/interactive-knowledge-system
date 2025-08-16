@@ -3,12 +3,13 @@
  */
 
 import type {
-	ContentModule,
-	UserProgress,
-	LearningPath,
-	KnowledgeNode,
-	UserSettings
-} from '../types/index.js';
+    ContentModule,
+    UserProgress,
+    LearningPath,
+    KnowledgeNode,
+    UserSettings,
+    DifficultyLevel
+} from '$lib/types/unified';
 import type { ExportData } from './exportUtils.js';
 
 /**
@@ -219,9 +220,11 @@ export function validateDataIntegrity(data: ExportData): {
 		if (!module.blocks || !Array.isArray(module.blocks)) {
 			errors.push(`Module ${index}: Invalid blocks array`);
 		}
-		if (module.metadata.difficulty < 1 || module.metadata.difficulty > 5) {
-			warnings.push(`Module ${index}: Difficulty out of range (1-5)`);
-		}
+        // Difficulty is now a string level; validate allowed values
+        const allowed: DifficultyLevel[] = ['beginner', 'intermediate', 'advanced'];
+        if (!allowed.includes(module.metadata.difficulty as any)) {
+            warnings.push(`Module ${index}: Difficulty must be one of ${allowed.join(', ')}`);
+        }
 	});
 
 	// Validate progress entries

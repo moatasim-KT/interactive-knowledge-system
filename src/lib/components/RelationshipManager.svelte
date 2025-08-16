@@ -3,14 +3,14 @@
     KnowledgeNode, 
     ContentRelationship, 
     RelationshipStrength 
-  } from '../types/index.js';
+  } from '$lib/types/unified';
   import type { SuggestedConnection } from '../services/relationshipDetectionService.js';
-  import { Button } from './ui/Button.svelte';
-  import { Card } from './ui/Card.svelte';
-  import { Badge } from './ui/Badge.svelte';
-  import { Modal } from './ui/Modal.svelte';
-  import { Input } from './ui/Input.svelte';
-  import { LoadingSpinner } from './ui/LoadingSpinner.svelte';
+  import Button from './ui/Button.svelte';
+  import Card from './ui/Card.svelte';
+  import Badge from './ui/Badge.svelte';
+import { Modal } from './ui/index.ts';
+  import Input from './ui/Input.svelte';
+  import LoadingSpinner from './ui/LoadingSpinner.svelte';
   import { logger } from '../utils/logger.js';
 
   // Props
@@ -345,7 +345,7 @@
 </div>
 
 <!-- Create Relationship Modal -->
-<Modal bind:show={showCreateModal} title="Create New Relationship">
+<Modal bind:open={showCreateModal} title="Create New Relationship">
   <div class="space-y-4">
     <div>
       <label for="search" class="block text-sm font-medium text-gray-700 mb-2">
@@ -412,7 +412,7 @@
     {/if}
   </div>
 
-  <div slot="footer" class="flex justify-end gap-3">
+  <div class="mt-6 flex justify-end gap-3">
     <Button variant="ghost" onclick={() => { showCreateModal = false; resetNewRelationship(); }}>
       Cancel
     </Button>
@@ -427,13 +427,13 @@
 </Modal>
 
 <!-- Edit Relationship Modal -->
-<Modal bind:show={showEditModal} title="Edit Relationship">
+<Modal bind:open={showEditModal} title="Edit Relationship">
   {#if selectedRelationship}
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <div class="block text-sm font-medium text-gray-700 mb-2">
           Connected to: {getNodeTitle(selectedRelationship.targetId)}
-        </label>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -472,7 +472,7 @@
       </div>
     </div>
 
-    <div slot="footer" class="flex justify-end gap-3">
+    <div class="mt-6 flex justify-end gap-3">
       <Button variant="ghost" onclick={() => { showEditModal = false; selectedRelationship = null; }}>
         Cancel
       </Button>

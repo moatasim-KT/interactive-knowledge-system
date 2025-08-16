@@ -3,7 +3,7 @@
 
 	// Get derived values
 	const progressStatsValue = $derived(() => getProgressStats());
-	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
+	import type { KnowledgeNode } from '$lib/types/unified';
 
 	// Get filtered content for overview
 	const allNodes = $derived(() => Array.from(appState.content.nodes.values()));
@@ -104,9 +104,7 @@
 								<h3>{node.title}</h3>
 							</div>
 							<div class="node-card-meta">
-								<span class="difficulty">
-									{'★'.repeat(node.metadata.difficulty)}{'☆'.repeat(5 - node.metadata.difficulty)}
-								</span>
+                                <span class="difficulty">{node.metadata.difficulty}</span>
 								{#if node.metadata.estimatedTime > 0}
 									<span class="time">~{node.metadata.estimatedTime}min</span>
 								{/if}

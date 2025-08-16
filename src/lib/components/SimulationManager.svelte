@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SimulationBlock, SystemDiagramBlock } from '$lib/types/web-content.js';
+	import type { SimulationBlock, SystemDiagramBlock } from '$lib/types/unified';
 	import SimulationBlockComponent from './SimulationBlock.svelte';
 	import SystemDiagramBlockComponent from './SystemDiagramBlock.svelte';
 	import {

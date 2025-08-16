@@ -2,7 +2,7 @@
  * Optimistic UI updates with rollback capability
  */
 
-import type { SyncOperation } from '../types/sync.js';
+import type { SyncOperation } from '$lib/types/unified';
 import { appState, actions } from '../stores/appState.svelte.js';
 
 interface OptimisticUpdate {

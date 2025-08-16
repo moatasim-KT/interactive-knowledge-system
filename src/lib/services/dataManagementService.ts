@@ -8,7 +8,7 @@ import type {
 	LearningPath,
 	KnowledgeNode,
 	UserSettings
-} from '../types/index.js';
+} from '$lib/types/unified';
 import {
 	exportToJSON,
 	exportToMarkdown,
@@ -533,8 +533,8 @@ export class DataManagementService {
 			id: 'default',
 			preferences: {
 				theme: 'light',
-				learningStyle: 'visual',
-				difficulty: 3,
+                learningStyle: 'visual',
+                difficulty: 'intermediate',
 				language: 'en',
 				notifications: true,
 				autoSave: true

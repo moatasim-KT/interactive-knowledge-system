@@ -1,11 +1,8 @@
 {
 	"/": [],
-	"/accessibility-test": [],
 	"/articles/machine-learning": [],
 	"/content-sources": [],
 	"/enhanced-dashboard": [],
-	"/interactive-article-demo": [],
-	"/knowledge-test": [],
 	"/knowledge": [
 		"src/routes/knowledge/+layout.ts",
 		"src/routes/knowledge/+layout.ts"
@@ -14,6 +11,5 @@
 		"src/routes/knowledge/[id]/+page.ts",
 		"src/routes/knowledge/+layout.ts"
 	],
-	"/responsive-test": [],
 	"/visualizations": []
 }

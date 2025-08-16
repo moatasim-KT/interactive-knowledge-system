@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { ChartData } from '$lib/types/web-content.js';
-	import { createEventDispatcher } from 'svelte';
+	import type { ChartData } from '$lib/types/unified';
 
 	interface Props {
 		data: ChartData;
@@ -25,7 +24,11 @@
 		onchartInteraction
 	}: Props = $props();
 
-	const dispatch = createEventDispatcher();
+    // In Svelte runes mode, dispatch DOM CustomEvents
+    function dispatch(name: string, detail: unknown) {
+        // @ts-ignore
+        dispatchEvent(new CustomEvent(name, { detail }));
+    }
 
 	// Drill-down state
 	let drill_stack = $state<any[]>([]);

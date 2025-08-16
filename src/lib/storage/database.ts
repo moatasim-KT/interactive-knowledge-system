@@ -1,8 +1,15 @@
 /**
  * IndexedDB database schema and configuration
  */
-import type { ContentModule, LearningPath, ContentLink } from '../types/unified.js';
-import type { UserProgress, UserSettings, LearningStreak, Achievement } from '../types/user.js';
+import type {
+  ContentModule,
+  LearningPath,
+  ContentLink,
+  UserProgress,
+  UserSettings,
+  LearningStreak,
+  Achievement
+} from '$lib/types/unified';
 
 export const DATABASE_NAME = 'InteractiveKnowledgeSystem';
 export const DATABASE_VERSION = 3;
@@ -11,19 +18,19 @@ export const DATABASE_VERSION = 3;
  * Database schema definition
  */
 export interface DatabaseSchema {
-	modules: ContentModule;
-	progress: UserProgress;
-	paths: LearningPath;
-	settings: UserSettings;
-	streaks: LearningStreak;
-	achievements: Achievement;
-	links: ContentLink;
-	versions: VersionRecord;
-	web_sources: import('../types/web-content.js').WebContentSource;
-	offline_queue: OfflineQueueRecord;
-	sync_conflicts: SyncConflict;
-	content_recommendations: ContentRecommendation;
-	integration_metrics: IntegrationMetrics;
+  modules: ContentModule;
+  progress: UserProgress;
+  paths: LearningPath;
+  settings: UserSettings;
+  streaks: LearningStreak;
+  achievements: Achievement;
+  links: ContentLink;
+  versions: VersionRecord;
+  web_sources: import('$lib/types/unified').WebContentSource;
+  offline_queue: OfflineQueueRecord;
+  sync_conflicts: SyncConflict;
+  content_recommendations: ContentRecommendation;
+  integration_metrics: IntegrationMetrics;
 }
 
 /**

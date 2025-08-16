@@ -11,7 +11,7 @@ import type {
 	SourceUpdateResult,
 	DuplicateDetectionResult,
 	QualityMetrics
-} from '../../types/web-content';
+} from '../../types/unified';
 
 export class SourceManagementTools {
 	private logger = createLogger('mcp:source-management-tools');
@@ -263,14 +263,16 @@ export class SourceManagementTools {
 				hasChanges: has_changes,
 				changes: has_changes
 					? {
-							title: updates?.title !== original_source.title,
-							content: content_changed,
-							metadata:
-								updates?.category !== original_source.metadata.category ||
-								JSON.stringify(updates?.tags) !== JSON.stringify(original_source.metadata.tags)
-						}
-					: undefined,
-				updatedAt: new Date()
+						title: updates?.title !== original_source.title,
+						content: content_changed,
+						metadata:
+							updates?.category !== original_source.metadata.category ||
+							JSON.stringify(updates?.tags) !== JSON.stringify(original_source.metadata.tags)
+						,
+						relationships: false
+					}
+					: { content: false, metadata: false, relationships: false },
+				timestamp: new Date()
 			};
 
 			this.logger.info('Source updated successfully', {
@@ -286,8 +288,9 @@ export class SourceManagementTools {
 				sourceId,
 				success: false,
 				hasChanges: false,
-				error: error instanceof Error ? error.message : 'Unknown error',
-				updatedAt: new Date()
+				changes: { content: false, metadata: false, relationships: false },
+				timestamp: new Date(),
+				errors: [error instanceof Error ? error.message : 'Unknown error']
 			};
 		}
 	}
@@ -552,7 +555,7 @@ export class SourceManagementTools {
 			const processed = new Set<string>();
 
 			for (const source of sources) {
-				if (processed.has(source.id)) {continue;}
+				if (processed.has(source.id)) { continue; }
 
 				const similar_sources = sources.filter(
 					(s) =>
@@ -563,17 +566,19 @@ export class SourceManagementTools {
 					const duplicate_result: DuplicateDetectionResult = {
 						sourceId: source.id,
 						duplicates: similar_sources.map((s) => ({
-							id: s.id,
+							sourceId: s.id,
 							similarity: this.calculateSimilarity(source, s),
-							reason: this.getDuplicateReason(source, s)
+							method: 'composite',
+							confidence: this.calculateSimilarity(source, s)
 						})),
-						suggestions: [
+						recommendations: [
 							{
 								action: 'merge',
 								confidence: 0.8,
-								reasoning: 'High similarity detected, consider merging sources'
+								reason: 'High similarity detected, consider merging sources'
 							}
-						]
+						],
+						timestamp: new Date()
 					};
 
 					duplicates.push(duplicate_result);

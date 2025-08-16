@@ -9,7 +9,7 @@ import type {
 	WebContent,
 	BatchProcessingJob,
 
-} from '../types/web-content.js';
+} from '$lib/types/unified';
 
 interface WebContentDB extends DBSchema {
 	sources: {

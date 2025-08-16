@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.ts';
-	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer.ts';
-	import { createLogger } from '$lib/utils/logger.ts';
-	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui/index.ts';
+	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte';
+	import { interactiveAnalyzer } from '$lib/services/interactiveAnalyzer';
+	import { createLogger } from '$lib/utils/logger';
+	import { Button, Card, LoadingSpinner, Badge } from '$lib/components/ui/index';
 	import InteractivePreview from './InteractivePreview.svelte';
-	import type { ContentBlock } from '$lib/types/content.js';
+	import type { ContentBlock } from '$lib/types/unified';
 
 	const logger = createLogger('web-content-analyzer');
 

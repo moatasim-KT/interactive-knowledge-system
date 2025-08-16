@@ -2,7 +2,24 @@
  * Media optimization utilities for compression, resizing, and format conversion
  */
 
-import type { MediaFile, MediaUploadOptions, ResponsiveImageSizes } from '../types/media.js';
+import type { MediaFile } from '$lib/types/unified';
+
+export type MediaUploadOptions = {
+    quality?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+    generateThumbnail?: boolean;
+    generateWebP?: boolean;
+    maxSize?: number;
+    allowedTypes?: string[];
+};
+
+export type ResponsiveImageSizes = {
+    small?: string;
+    medium?: string;
+    large?: string;
+    xlarge?: string;
+};
 
 /**
  * Compress and optimize an image file

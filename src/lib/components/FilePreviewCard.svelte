@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { FileValidationResult, UploadProgress } from '$lib/types/content.js';
-	import { formatFileSize } from '$lib/utils/fileValidation.js';
+    import type { UploadProgress } from '$lib/types/unified';
+    import type { FileValidationResult } from '$lib/utils/fileValidation';
+    import { formatFileSize } from '$lib/utils/fileValidation.js';
 	import Button from './ui/Button.svelte';
 	import ProgressBar from './ui/ProgressBar.svelte';
 	import Card from './ui/Card.svelte';
@@ -198,12 +199,12 @@
 </Card>
 
 <style>
-	.file-preview-card {
+	:global(.file-preview-card) {
 		position: relative;
 		transition: all 0.2s ease;
 	}
 
-	.file-preview-card:hover {
+	:global(.file-preview-card:hover) {
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 	}
 
@@ -244,12 +245,12 @@
 		color: var(--color-text-tertiary);
 	}
 
-	.remove-button {
+	:global(.remove-button) {
 		flex-shrink: 0;
 		color: var(--color-text-secondary);
 	}
 
-	.remove-button:hover {
+	:global(.remove-button:hover) {
 		color: var(--color-error);
 	}
 
@@ -414,7 +415,7 @@
 			align-self: flex-start;
 		}
 
-		.remove-button {
+		:global(.remove-button) {
 			position: absolute;
 			top: 0.5rem;
 			right: 0.5rem;

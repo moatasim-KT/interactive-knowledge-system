@@ -1,7 +1,7 @@
 <script lang="ts">
 	import DocumentUploadManager from './DocumentUploadManager.svelte';
 	import BulkUploadManager from './BulkUploadManager.svelte';
-	import type { ProcessedDocument } from '$lib/types/content.js';
+	import type { ProcessedDocument } from '$lib/types/unified';
 
 	let showBulkUpload = $state(false);
 	let uploadedDocuments = $state<ProcessedDocument[]>([]);
@@ -66,11 +66,11 @@
 		{#if showBulkUpload}
 			<BulkUploadManager
 				maxConcurrentUploads={2}
-				allowedTypes={['.pdf', '.md', '.markdown']}
+				acceptedTypes={['.pdf', '.md', '.markdown']}
 				maxFileSize={25 * 1024 * 1024}
 				maxTotalFiles={20}
-				on:batchComplete={handleBatchComplete}
-				on:batchError={handleError}
+				batchComplete={handleBatchComplete}
+				batchError={handleError}
 			/>
 		{:else}
 			<DocumentUploadManager
@@ -78,8 +78,8 @@
 				maxFileSize={25 * 1024 * 1024}
 				maxFiles={5}
 				allowBulkUpload={true}
-				on:upload={handleUpload}
-				on:error={handleError}
+				onupload={handleUpload}
+				onerror={handleError}
 			/>
 		{/if}
 	</div>

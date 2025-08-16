@@ -1,7 +1,8 @@
 /**
  * Content similarity analysis and recommendation engine
  */
-import type { ContentModule, SimilarityScore, SimilarityReason, ContentRecommendation, RecommendationReason } from '../types/unified.js';
+import type { ContentModule, SimilarityScore, ContentRecommendation, RecommendationReason, DifficultyLevel, SimilarityReason } from '../types/unified';
+import { difficultyToRank } from '../types/unified';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
 
 /**
@@ -30,10 +31,10 @@ export class SimilarityEngine {
 		weight_sum += 0.3;
 
 		// Difficulty similarity (weight: 0.2)
-		const difficulty_similarity = this.calculateDifficultySimilarity(
-			module1.metadata.difficulty,
-			module2.metadata.difficulty
-		);
+        const difficulty_similarity = this.calculateDifficultySimilarity(
+            difficultyToRank(module1.metadata.difficulty),
+            difficultyToRank(module2.metadata.difficulty)
+        );
 		reasons.push({
 			type: 'difficulty',
 			score: difficulty_similarity,
@@ -180,8 +181,8 @@ export class SimilarityEngine {
 	/**
 	 * Calculate difficulty similarity (closer difficulties = higher similarity)
 	 */
-	private calculateDifficultySimilarity(diff1: number, diff2: number): number {
-		const max_diff = 4; // Max difference between difficulty levels (1-5)
+    private calculateDifficultySimilarity(diff1: number, diff2: number): number {
+        const max_diff = 2; // Max difference between difficulty ranks (1-3)
 		const actual_diff = Math.abs(diff1 - diff2);
 		return 1 - actual_diff / max_diff;
 	}
@@ -368,21 +369,21 @@ export class SimilarityEngine {
 		allModules: ContentModule[],
 		completedContent: Set<string>
 	): Promise<ContentRecommendation[]> {
-                const recommendations: ContentRecommendation[] = [];
-                const target_difficulty = currentModule.metadata.difficulty;
+        const recommendations: ContentRecommendation[] = [];
+        const target_difficulty = difficultyToRank(currentModule.metadata.difficulty);
 
 		const similar_difficulty_modules = allModules.filter(
-			(module) =>
-                                !completedContent.has(module.id) &&
-                                module.id !== currentModule.id &&
-				Math.abs(module.metadata.difficulty - target_difficulty) <= 1
+            (module) =>
+                !completedContent.has(module.id) &&
+                module.id !== currentModule.id &&
+                Math.abs(difficultyToRank(module.metadata.difficulty) - target_difficulty) <= 1
 		);
 
 		for (const module of similar_difficulty_modules.slice(0, 3)) {
-			const difficulty_score = this.calculateDifficultySimilarity(
-				target_difficulty,
-				module.metadata.difficulty
-			);
+            const difficulty_score = this.calculateDifficultySimilarity(
+                target_difficulty,
+                difficultyToRank(module.metadata.difficulty)
+            );
 
 			recommendations.push({
 				contentId: module.id,

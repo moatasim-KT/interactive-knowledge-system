@@ -10,27 +10,19 @@ export const nodes = [
 	() => import('./nodes/6'),
 	() => import('./nodes/7'),
 	() => import('./nodes/8'),
-	() => import('./nodes/9'),
-	() => import('./nodes/10'),
-	() => import('./nodes/11'),
-	() => import('./nodes/12'),
-	() => import('./nodes/13')
+	() => import('./nodes/9')
 ];
 
 export const server_loads = [];
 
 export const dictionary = {
 		"/": [3],
-		"/accessibility-test": [4],
-		"/articles/machine-learning": [5],
-		"/content-sources": [6],
-		"/enhanced-dashboard": [7],
-		"/interactive-article-demo": [8],
-		"/knowledge-test": [11],
-		"/knowledge": [9,[2]],
-		"/knowledge/[id]": [10,[2]],
-		"/responsive-test": [12],
-		"/visualizations": [13]
+		"/articles/machine-learning": [4],
+		"/content-sources": [5],
+		"/enhanced-dashboard": [6],
+		"/knowledge": [7,[2]],
+		"/knowledge/[id]": [8,[2]],
+		"/visualizations": [9]
 	};
 
 export const hooks = {

@@ -28,17 +28,18 @@
 	});
 
 	// ParameterControls bridge
-	const parameters = $derived(() => [
-		{ name: 'Hidden Layers', type: 'slider', default: hiddenLayers, description: 'Number of hidden layers', constraints: { min: 0, max: 5, step: 1 } },
-		{ name: 'Neurons/Hidden', type: 'slider', default: neuronsPerHidden, description: 'Neurons per hidden layer', constraints: { min: 1, max: 12, step: 1 } },
-		{ name: 'Activation', type: 'select', default: activation, description: 'Activation function', constraints: { options: ['relu', 'sigmoid', 'tanh', 'linear'] } }
-	]);
+    const parameters = $derived((): import('$lib/types/unified').Parameter[] => [
+        { name: 'Hidden Layers', type: 'slider', default: hiddenLayers, description: 'Number of hidden layers', constraints: { min: 0, max: 5, step: 1 } },
+        { name: 'Neurons/Hidden', type: 'slider', default: neuronsPerHidden, description: 'Neurons per hidden layer', constraints: { min: 1, max: 12, step: 1 } },
+        { name: 'Activation', type: 'select', default: activation, description: 'Activation function', constraints: { options: ['relu', 'sigmoid', 'tanh', 'linear'] } }
+    ]);
 
-	function handleParamChange(parameter: string, value: any) {
-		if (parameter === 'Hidden Layers') hiddenLayers = Number(value);
-		if (parameter === 'Neurons/Hidden') neuronsPerHidden = Number(value);
-		if (parameter === 'Activation') activation = value as Activation;
-	}
+    function handleParamChange(payload: { parameter: string; value: any; allValues: Record<string, any> }) {
+        const { parameter, value } = payload;
+        if (parameter === 'Hidden Layers') hiddenLayers = Number(value);
+        if (parameter === 'Neurons/Hidden') neuronsPerHidden = Number(value);
+        if (parameter === 'Activation') activation = value as Activation;
+    }
 
 	// Layout
 	const width = 800;

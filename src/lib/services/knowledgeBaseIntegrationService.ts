@@ -4,7 +4,7 @@ import type {
     ContentRelationship,
     NodeMetadata,
     InteractiveArticle
-} from '../types/index.js';
+} from '$lib/types/unified';
 import { relationshipDetectionService, type RelationshipDetectionResult } from './relationshipDetectionService.js';
 import { logger } from '../utils/logger.js';
 
@@ -128,18 +128,22 @@ export class KnowledgeBaseIntegrationService {
             source: {
                 type: this.determineDocumentSource(document),
                 originalId: document.id,
-                url: document.metadata.sourceUrl,
+                originalUrl: document.metadata.sourceUrl,
                 importedAt: new Date()
             },
             content: document.content,
-            metadata: nodeMetadata,
             relationships: [], // Will be populated separately
-            interactivity: this.determineInteractivityLevel(document),
-            structure: document.structure,
-            assets: document.assets,
-            created: new Date(),
-            modified: new Date(),
-            version: 1
+            prerequisites: [],
+            dependents: [],
+            status: 'available',
+            interactivity: this.determineInteractivityLevel(document) as any,
+            // Move temporal/version info into metadata per unified types
+            metadata: {
+                ...nodeMetadata,
+                created: new Date(),
+                modified: new Date(),
+                version: 1
+            }
         };
 
         return node;
@@ -161,7 +165,9 @@ export class KnowledgeBaseIntegrationService {
             wordCount: this.calculateWordCount(document),
             readingTime: this.estimateReadingTime(document),
             difficulty: this.assessDifficulty(document),
-            completionStatus: 'draft'
+            completionStatus: 'draft',
+            tags: [],
+            estimatedTime: this.estimateReadingTime(document)
         };
 
         if (options.generateTags) {

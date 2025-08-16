@@ -1,6 +1,6 @@
 <script lang="ts">
 
-	import type { UserProgress } from '../types/user.js';
+	import type { UserProgress } from '$lib/types/unified';
 	import { progressStorage } from '../storage/userStorage.js';
 
 
@@ -37,8 +37,8 @@
 		return { letter: 'F', color: 'text-red-600' };
 	};
 
-	// Check if score is passing
-	const is_passing = $derived<boolean>(() => current_score >= passingScore);
+    // Check if score is passing
+    const is_passing: boolean = ($derived(() => current_score >= passingScore) as unknown) as boolean;
 
 	// Get score color based on performance
 	const get_score_color = (score: number): string => {
@@ -97,10 +97,10 @@
 			attempts = updated_progress.attempts;
 
 			// Trigger typed callback prop with a single detail object
-			onScoreUpdate?.({ score: current_score, isPassing: is_passing() });
+            onScoreUpdate?.({ score: current_score, isPassing: is_passing });
 
 			// If passing, complete the module
-			if (is_passing()) {
+            if (is_passing) {
 				await progressStorage.completeModule(userId, moduleId, best_score);
 			}
 		} catch (err) {
@@ -186,8 +186,8 @@
 				<div class="text-lg font-semibold {get_score_color(current_score)}">
 					{get_percentage(current_score)}%
 				</div>
-				<div class="text-sm {is_passing() ? 'text-green-600' : 'text-red-600'}">
-					{is_passing() ? '✓ Passing' : '✗ Below passing score'}
+                <div class="text-sm {is_passing ? 'text-green-600' : 'text-red-600'}">
+                    {is_passing ? '✓ Passing' : '✗ Below passing score'}
 				</div>
 			</div>
 		</div>
@@ -200,7 +200,7 @@
 			</div>
 			<div class="w-full bg-gray-200 rounded-full h-2">
 				<div
-					class="h-2 rounded-full transition-all duration-300 {is_passing()
+                    class="h-2 rounded-full transition-all duration-300 {is_passing
 						? 'bg-green-500'
 						: 'bg-blue-500'}"
 					style="width: {Math.min(100, get_percentage(current_score))}%"
@@ -247,7 +247,7 @@
 					</div>
 				</div>
 			</div>
-		{:else if is_passing() && attempts === 1}
+        {:else if is_passing && attempts === 1}
 			<div class="mt-4 bg-green-50 border border-green-200 rounded-md p-3">
 				<div class="flex items-center">
 					<div class="text-green-500 text-lg mr-2">⭐</div>

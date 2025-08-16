@@ -15,8 +15,7 @@
 		Toast,
 		ToastContainer
 	} from '$lib/components/ui/index.ts';
-	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
-	import type { WebContentSource } from '$lib/types/web-content.ts';
+	import type { KnowledgeNode, WebContentSource } from '$lib/types/unified';
 
 	// Component state
 	let activeTab = $state('sources');
@@ -42,7 +41,7 @@
 	// Mobile navigation items
 	const mobileNavItems = $derived(() => [
 		{ id: 'import', label: 'Import', icon: '📥', active: activeTab === 'import' },
-		{ id: 'sources', label: 'Sources', icon: '📚', active: activeTab === 'sources', badge: filteredSources().length || undefined },
+		{ id: 'sources', label: 'Sources', icon: '📚', active: activeTab === 'sources', badge: filteredSources().length },
 		{ id: 'analyze', label: 'Analyze', icon: '🔍', active: activeTab === 'analyze' },
 		{ id: 'transform', label: 'Transform', icon: '✨', active: activeTab === 'transform' }
 	]);
@@ -182,8 +181,13 @@
 			id: `web-content-${contentId}`,
 			title: content.title,
 			type: 'module' as const,
+            content: [], // ContentBlock[] per type
+			relationships: [], // Added missing required relationships property
+			prerequisites: [], // Added missing required prerequisites property
+			dependents: [], // Added missing required dependents property
+			status: 'available', // Added missing required status property
 			metadata: {
-				difficulty: 3 as 1 | 2 | 3 | 4 | 5,
+				difficulty: 'intermediate',
 				estimatedTime: content.metadata.readingTime,
 				prerequisites: [],
 				tags: content.metadata.tags
@@ -257,7 +261,7 @@
 		<!-- Desktop Navigation -->
 		{#if !isMobile}
 			<nav class="desktop-tabs">
-				{#each mobileNavItems as item (item.id)}
+				{#each mobileNavItems() as item (item.id)}
 					<button 
 						class="tab-button"
 						class:active={activeTab === item.id}
@@ -373,7 +377,7 @@
 
 						<!-- Sources Grid/List -->
 						<div class="sources-container" class:list-view={viewMode === 'list'}>
-							{#each sortedSources as source (source.id)}
+							{#each sortedSources() as source (source.id)}
 								<Card class={`source-card ${viewMode}-view ${selectedSourceId === source.id ? 'selected' : ''}`}>
 									<div class="source-header">
 										<div class="source-info">
@@ -446,7 +450,7 @@
 							{/each}
 						</div>
 
-						{#if sortedSources.length === 0}
+						{#if sortedSources().length === 0}
 							<div class="empty-state">
 								<span class="empty-icon">📚</span>
 								<h3>No Sources Found</h3>
@@ -506,10 +510,10 @@
 		<!-- Mobile Navigation -->
 		{#if isMobile}
 			<MobileNavigation
-				items={mobileNavItems}
+				items={mobileNavItems()}
 				position="bottom"
 				variant="tabs"
-				onnavigate={handleMobileNavigation}
+				on:navigate={handleMobileNavigation}
 			/>
 		{/if}
 	</div>

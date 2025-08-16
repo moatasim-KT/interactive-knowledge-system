@@ -2,12 +2,12 @@
 
 	import { Toast } from './ui';
 	import { errorHandler } from '../utils/errorHandler.js';
-	import type { Toast as ToastType } from '../types/index.js';
+	import type { Toast as ToastType } from '$lib/types/unified';
 
 	let toasts = $state<ToastType[]>([]);
 	let toastContainer: HTMLElement;
 
-	function addToast(toast: ToastType) {
+    function addToast(toast: ToastType) {
 		toasts.push(toast);
 		
 		// Auto-remove toast after duration
@@ -25,11 +25,20 @@
 		}
 	}
 
-	function handleToastEvent(toast: ToastType) {
-		addToast(toast);
+    function handleToastEvent(toast: any) {
+        // Normalize to unified Toast shape
+        const normalized: ToastType = {
+            id: toast.id,
+            type: toast.type,
+            title: toast.title,
+            message: toast.message,
+            duration: toast.duration ?? 5000,
+            dismissible: toast.dismissible ?? true
+        };
+        addToast(normalized);
 	}
 
-	function handleRetryEvent(detail: { error: Error; context: any }) {
+    function handleRetryEvent(_detail: { error: Error; context: any }) {
 		// Show retry toast
 		const retryToast: ToastType = {
 			id: `retry_${Date.now()}`,
@@ -37,7 +46,7 @@
 			title: 'Retrying...',
 			message: 'Attempting to retry the operation.',
 			duration: 3000,
-			timestamp: new Date()
+			dismissible: true
 		};
 		addToast(retryToast);
 	}
@@ -45,11 +54,11 @@
 	$effect(() => {
 		// Listen for toast events from error handler
 		errorHandler.on('show-toast', handleToastEvent);
-		errorHandler.on('error-retry', handleRetryEvent);
+        errorHandler.on('error-retry', handleRetryEvent);
 
 		// Add any queued toasts from error handler
-		const queuedToasts = errorHandler.getToastQueue();
-		queuedToasts.forEach(toast => addToast(toast));
+        const queuedToasts = errorHandler.getToastQueue();
+        queuedToasts.forEach(t => handleToastEvent(t));
 		errorHandler.clearToastQueue();
 
 		return () => {

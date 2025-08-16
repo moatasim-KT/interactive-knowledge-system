@@ -1,48 +1,52 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+    interface NavItem {
+        id: string;
+        label: string;
+        icon?: string;
+        href?: string;
+        active?: boolean;
+        badge?: string | number;
+    }
 
-	interface NavItem {
-		id: string;
-		label: string;
-		icon?: string;
-		href?: string;
-		active?: boolean;
-		badge?: string | number;
-	}
+    // Explicitly declare component events for TS consumers
+    interface $$Events {
+        navigate: CustomEvent<{ item: NavItem }>;
+    }
 
-	interface Props {
-		items: NavItem[];
-		position?: 'top' | 'bottom';
-		variant?: 'tabs' | 'pills';
-		class?: string;
-		onnavigate?: (event: CustomEvent<{ item: NavItem }>) => void;
-	}
+    interface Props {
+        items: NavItem[];
+        position?: 'top' | 'bottom';
+        variant?: 'tabs' | 'pills';
+        class?: string;
+        onNavigate?: (item: NavItem) => void;
+    }
 
-	let {
-		items,
-		position = 'bottom',
-		variant = 'tabs',
-		class: className = ''
-	}: Props = $props();
+    let {
+        items,
+        position = 'bottom',
+        variant = 'tabs',
+        class: className = '',
+        onNavigate
+    }: Props = $props();
+    
+    import { createEventDispatcher } from 'svelte';
+    const dispatch = createEventDispatcher<{ navigate: { item: NavItem } }>();
 
-	const dispatch = createEventDispatcher<{
-		navigate: { item: NavItem };
-	}>();
+    function handleNavigation(item: NavItem) {
+        onNavigate?.(item);
+        dispatch('navigate', { item });
+    }
 
-	function handleNavigation(item: NavItem) {
-		dispatch('navigate', { item });
-	}
-
-	const containerClasses = $derived(() =>
-		[
-			'mobile-navigation',
-			`mobile-navigation--${position}`,
-			`mobile-navigation--${variant}`,
-			className
-		]
-			.filter(Boolean)
-			.join(' ')
-	);
+    const containerClasses = $derived(() =>
+        [
+            'mobile-navigation',
+            `mobile-navigation--${position}`,
+            `mobile-navigation--${variant}`,
+            className
+        ]
+            .filter(Boolean)
+            .join(' ')
+    );
 </script>
 
 <nav class={containerClasses} aria-label="Mobile navigation">

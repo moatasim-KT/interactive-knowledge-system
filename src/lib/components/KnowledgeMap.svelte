@@ -1,6 +1,6 @@
 <script lang="ts">
 
-	import type { KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentGraph, ContentModule } from '../types/unified.js';
+	import type { KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentGraph, ContentModule } from '$lib/types/unified';
 
 	interface Props {
 		modules: ContentModule[];
@@ -294,7 +294,7 @@
 			locked: 'Locked'
 		}[status];
 
-		return `${module.description}\nStatus: ${status_text}\nDifficulty: ${module.metadata.difficulty}/5\nTags: ${module.metadata.tags.join(', ')}`;
+		return `${module.description}\nStatus: ${status_text}\nDifficulty: ${module.metadata.difficulty}\nTags: ${module.metadata.tags.join(', ')}`;
 	}
 </script>
 

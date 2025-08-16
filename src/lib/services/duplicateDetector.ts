@@ -3,7 +3,7 @@
  * Identifies duplicate or similar content sources and provides merging capabilities
  */
 
-import type { WebContentSource, DuplicateDetectionResult } from '../types/web-content.js';
+import type { WebContentSource, DuplicateDetectionResult } from '$lib/types/unified';
 import { sourceManager } from './sourceManager.js';
 
 /**
@@ -100,31 +100,34 @@ export class DuplicateDetector {
 		const all_sources = await sourceManager.getAllSources();
 		const other_sources = all_sources.filter((s) => s.id !== sourceId);
 
-		const duplicates: Array<{ id: string; similarity: number; reason: string }> = [];
+        const duplicates: Array<{ sourceId: string; similarity: number; method: string; confidence: number }> = [];
 
 		for (const source of other_sources) {
 			const similarity = this.calculateSimilarity(target_source, source);
 
 			if (similarity >= this.config.similarityThreshold) {
 				const reason = this.generateSimilarityReason(target_source, source, similarity);
-				duplicates.push({
-					id: source.id,
-					similarity,
-					reason
-				});
+                duplicates.push({
+                    sourceId: source.id,
+                    similarity,
+                    method: 'composite',
+                    confidence: similarity
+                });
 			}
 		}
 
 		// Sort by similarity (highest first)
 		duplicates.sort((a, b) => b.similarity - a.similarity);
 
-		const suggestions = this.generateMergeSuggestions(target_source, duplicates);
+        const suggestions = this.generateMergeSuggestions(target_source, duplicates.map(d => ({ id: d.sourceId, similarity: d.similarity, reason: 'similar' })) as any);
+        const recommendations = suggestions.map(s => ({ action: s.action === 'remove_duplicate' ? 'ignore' as const : (s.action as 'merge' | 'keep-both'), reason: s.reasoning, confidence: s.confidence }));
 
-		return {
-			sourceId,
-			duplicates,
-			suggestions
-		};
+        return {
+            sourceId,
+            duplicates,
+            recommendations,
+            timestamp: new Date()
+        };
 	}
 
 	/**
@@ -139,8 +142,8 @@ export class DuplicateDetector {
 			const result = await this.detectDuplicatesForSource(source.id);
 
 			// Filter out already processed pairs to avoid duplicates in results
-			const filtered_duplicates = result.duplicates.filter((dup) => {
-				const pair_key = [source.id, dup.id].sort().join('-');
+            const filtered_duplicates = result.duplicates.filter((dup) => {
+                const pair_key = [source.id, dup.sourceId].sort().join('-');
 				if (processed_pairs.has(pair_key)) {
 					return false;
 				}
@@ -511,8 +514,13 @@ export class DuplicateDetector {
 			}
 		}
 
-		// Update primary source
-		await sourceManager.updateSource(primary_source.id, primary_source);
+        // Update primary source (only allowed fields)
+        await sourceManager.updateSource(primary_source.id, {
+            title: primary_source.title,
+            category: primary_source.metadata?.category,
+            tags: primary_source.metadata?.tags,
+            status: primary_source.status === 'inactive' ? 'active' : primary_source.status
+        });
 
 		// Remove duplicate sources
 		for (const duplicate_id of duplicateSourceIds) {

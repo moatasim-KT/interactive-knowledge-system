@@ -3,7 +3,8 @@
  * Provides comprehensive bidirectional linking, dependency management, and graph operations
  */
 import { storage } from './indexeddb.js';
-import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, SimilarityScore, ContentModule } from '../types/unified.js';
+import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, SimilarityScore, ContentModule } from '$lib/types/unified';
+import { difficultyToRank } from '$lib/types/unified';
 
 export interface LinkFilter {
 	sourceIds?: string[];
@@ -129,33 +130,31 @@ export class RelationshipStorage {
 	/**
 	 * Update an existing link
 	 */
-	async updateLink(
-		linkId: string,
-		updates: Partial<Pick<ContentLink, 'strength' | 'metadata'>>
-	): Promise<ContentLink | null> {
-		const existingLink = await storage.get<ContentLink>('links', linkId);
+  async updateLink(
+    linkId: string,
+    updates: Partial<Pick<ContentLink, 'strength' | 'metadata'>>
+  ): Promise<ContentLink | null> {
+    const existingLink = await storage.get<'links'>('links', linkId);
 		if (!existingLink) {return null;}
 
 		const updatedLink: ContentLink = {
-			...existingLink,
+      ...(existingLink as ContentLink),
 			...updates,
 			metadata: {
-				...existingLink.metadata,
+        ...(existingLink as ContentLink).metadata,
 				...updates.metadata
 			}
 		};
 
-		await storage.update('links', linkId, updatedLink, 'Updated link');
+    await storage.put('links', updatedLink, 'Updated link');
 
 		// Update reverse link if it exists
-		if (this.isBidirectionalType(existingLink.type)) {
-			const reverseId = this.getReverseId(existingLink);
-			const reverseLink = await storage.get<ContentLink>('links', reverseId);
+    if (this.isBidirectionalType((existingLink as ContentLink).type)) {
+      const reverseId = this.getReverseId(existingLink as ContentLink);
+      const reverseLink = await storage.get<'links'>('links', reverseId);
 			if (reverseLink && updates.strength !== undefined) {
-				await storage.update('links', reverseId,
-					{ ...reverseLink, strength: updates.strength },
-					'Updated reverse link'
-				);
+        const newReverse = { ...(reverseLink as ContentLink), strength: updates.strength } as ContentLink;
+        await storage.put('links', newReverse, 'Updated reverse link');
 			}
 		}
 
@@ -166,20 +165,20 @@ export class RelationshipStorage {
 	/**
 	 * Delete a link and its reverse if applicable
 	 */
-	async deleteLink(linkId: string): Promise<boolean> {
-		const link = await storage.get<ContentLink>('links', linkId);
+  async deleteLink(linkId: string): Promise<boolean> {
+    const link = await storage.get<'links'>('links', linkId);
 		if (!link) {return false;}
 
 		// Delete reverse link first if it exists
-		if (this.isBidirectionalType(link.type)) {
-			const reverseId = this.getReverseId(link);
-			await storage.delete('links', reverseId, 'Deleted reverse link');
+    if (this.isBidirectionalType((link as ContentLink).type)) {
+      const reverseId = this.getReverseId(link as ContentLink);
+      await storage.delete('links', reverseId);
 		}
 
-		await storage.delete('links', linkId, 'Deleted link');
+    await storage.delete('links', linkId);
 
 		// Update dependency chains if this was a prerequisite relationship
-		if (link.type === 'prerequisite' || link.type === 'dependent') {
+    if ((link as ContentLink).type === 'prerequisite' || (link as ContentLink).type === 'dependent') {
 			await this.recalculateDependencyChains();
 		}
 
@@ -190,20 +189,20 @@ export class RelationshipStorage {
 	/**
 	 * Find all links matching the given filter criteria
 	 */
-	async findLinks(filter: LinkFilter = {}): Promise<ContentLink[]> {
-		const allLinks = await storage.getAll<ContentLink>('links');
+  async findLinks(filter: LinkFilter = {}): Promise<ContentLink[]> {
+    const allLinks = (await storage.getAll<'links'>('links')) as unknown as ContentLink[];
 
 		return allLinks.filter(link => {
-			if (filter.sourceIds && !filter.sourceIds.includes(link.sourceId)) {return false;}
-			if (filter.targetIds && !filter.targetIds.includes(link.targetId)) {return false;}
-			if (filter.types && !filter.types.includes(link.type)) {return false;}
+      if (filter.sourceIds && !filter.sourceIds.includes((link as ContentLink).sourceId)) {return false;}
+      if (filter.targetIds && !filter.targetIds.includes((link as ContentLink).targetId)) {return false;}
+      if (filter.types && !filter.types.includes((link as ContentLink).type)) {return false;}
 			if (filter.strengthRange) {
 				const [min, max] = filter.strengthRange;
-				if (link.strength < min || link.strength > max) {return false;}
+        if ((link as ContentLink).strength < min || (link as ContentLink).strength > max) {return false;}
 			}
-			if (filter.automatic !== undefined && link.metadata.automatic !== filter.automatic) {return false;}
-			if (filter.createdAfter && link.metadata.created < filter.createdAfter) {return false;}
-			if (filter.createdBefore && link.metadata.created > filter.createdBefore) {return false;}
+      if (filter.automatic !== undefined && (link as ContentLink).metadata.automatic !== filter.automatic) {return false;}
+      if (filter.createdAfter && (link as ContentLink).metadata.created < filter.createdAfter) {return false;}
+      if (filter.createdBefore && (link as ContentLink).metadata.created > filter.createdBefore) {return false;}
 
 			return true;
 		});
@@ -212,19 +211,35 @@ export class RelationshipStorage {
 	/**
 	 * Get all links for a specific content piece
 	 */
-	async getLinksForContent(contentId: string): Promise<{
+  async getLinksForContent(contentId: string): Promise<{
 		incoming: ContentLink[];
 		outgoing: ContentLink[];
 		all: ContentLink[]
 	}> {
-		const allLinks = await storage.getAll<ContentLink>('links');
+    const allLinks = (await storage.getAll<'links'>('links')) as unknown as ContentLink[];
 
-		const incoming = allLinks.filter(link => link.targetId === contentId);
-		const outgoing = allLinks.filter(link => link.sourceId === contentId);
+    const incoming = allLinks.filter(link => (link as ContentLink).targetId === contentId) as ContentLink[];
+    const outgoing = allLinks.filter(link => (link as ContentLink).sourceId === contentId) as ContentLink[];
 		const all = [...incoming, ...outgoing];
 
 		return { incoming, outgoing, all };
 	}
+
+  /**
+   * Convenience: get only outgoing links for a content id
+   */
+  async getOutgoingLinks(contentId: string): Promise<ContentLink[]> {
+    const { outgoing } = await this.getLinksForContent(contentId);
+    return outgoing;
+  }
+
+  /**
+   * Convenience: get only incoming links for a content id
+   */
+  async getIncomingLinks(contentId: string): Promise<ContentLink[]> {
+    const { incoming } = await this.getLinksForContent(contentId);
+    return incoming;
+  }
 
 	/**
 	 * Build comprehensive content graph with caching
@@ -276,7 +291,7 @@ export class RelationshipStorage {
 	/**
 	 * Analyze dependency chains for a content piece
 	 */
-	async analyzeDependencyChain(contentId: string): Promise<DependencyChain> {
+  async analyzeDependencyChain(contentId: string, _completedContent?: Set<string>): Promise<DependencyChain> {
 		if (this.dependencyCache.has(contentId) && !this.isCacheExpired()) {
 			return this.dependencyCache.get(contentId)!;
 		}
@@ -309,8 +324,8 @@ export class RelationshipStorage {
 		const allLinks = await this.findLinks({ types: ['prerequisite', 'dependent'] });
 		const graph = new Map<string, string[]>();
 
-		// Build adjacency list
-		for (const link of allLinks) {
+        // Build adjacency list
+        for (const link of allLinks) {
 			if (link.type === 'prerequisite') {
 				if (!graph.has(link.targetId)) {graph.set(link.targetId, []);}
 				graph.get(link.targetId)!.push(link.sourceId);
@@ -352,6 +367,13 @@ export class RelationshipStorage {
 
 		return cycles;
 	}
+
+  /**
+   * Alias kept for backward compatibility in services
+   */
+  async findCircularDependencies(): Promise<string[][]> {
+    return this.detectCircularDependencies();
+  }
 
 	/**
 	 * Generate automatic link suggestions based on content similarity
@@ -417,13 +439,24 @@ export class RelationshipStorage {
 			return this.analyticsCache;
 		}
 
-		const allLinks = await storage.getAll<ContentLink>('links');
+        const allLinks = await storage.getAll<'links'>('links') as unknown as ContentLink[];
 
 		const totalLinks = allLinks.length;
-		const linksByType: Record<RelationshipType, number> = {
-			prerequisite: 0, dependent: 0, related: 0, similar: 0,
-			sequence: 0, reference: 0, example: 0, practice: 0
-		};
+        const linksByType: Record<RelationshipType, number> = {
+            prerequisite: 0,
+            dependent: 0,
+            related: 0,
+            similar: 0,
+            sequence: 0,
+            reference: 0,
+            example: 0,
+            practice: 0,
+            follows: 0,
+            references: 0,
+            contradicts: 0,
+            duplicate: 0,
+            conceptual: 0
+        };
 
 		let totalStrength = 0;
 		let automaticCount = 0;
@@ -607,7 +640,7 @@ export class RelationshipStorage {
 		factors += 0.4;
 
 		// Difficulty similarity
-		const difficultyDiff = Math.abs(moduleA.metadata.difficulty - moduleB.metadata.difficulty);
+        const difficultyDiff = Math.abs(difficultyToRank(moduleA.metadata.difficulty) - difficultyToRank(moduleB.metadata.difficulty));
 		const difficultySimilarity = Math.max(0, 1 - (difficultyDiff / 10));
 		score += difficultySimilarity * 0.3;
 		factors += 0.3;
@@ -661,7 +694,7 @@ export class RelationshipStorage {
 		moduleB: ContentModule,
 		similarity: SimilarityScore
 	): RelationshipType {
-		const difficultyDiff = moduleB.metadata.difficulty - moduleA.metadata.difficulty;
+        const difficultyDiff = difficultyToRank(moduleB.metadata.difficulty) - difficultyToRank(moduleA.metadata.difficulty);
 
 		// If B is significantly harder, suggest A as prerequisite for B
 		if (difficultyDiff >= 2) {return 'prerequisite';}

@@ -8,7 +8,7 @@ import type {
 	WebContent,
 	SourceHealthCheck,
 	SourceUpdateResult
-} from '../types/web-content.js';
+} from '$lib/types/unified';
 import { sourceManager } from './sourceManager.js';
 
 /**
@@ -157,24 +157,22 @@ export class ContentUpdateDetector {
 				}
 			}
 
-			return {
+            return {
 				sourceId: sourceId,
 				url: source.url,
 				status,
 				lastChecked: new Date(),
-				responseTime: response_time,
-				issues,
-				suggestions
+                issues,
+                recommendations: suggestions
 			};
 		} catch (error) {
-			return {
+            return {
 				sourceId: sourceId,
 				url: source.url,
 				status: 'error',
 				lastChecked: new Date(),
-				responseTime: Date.now() - start_time,
-				issues: [`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`],
-				suggestions: ['Check network connectivity', 'Verify URL is still valid']
+                issues: [`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`],
+                recommendations: ['Check network connectivity', 'Verify URL is still valid']
 			};
 		}
 	}

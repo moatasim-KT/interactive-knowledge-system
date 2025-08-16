@@ -4,7 +4,7 @@
     ProcessedDocument, 
     KnowledgeNode, 
     ContentRelationship 
-  } from '../types/index.js';
+  } from '$lib/types/unified';
   import { knowledgeBaseIntegrationService, type IntegrationResult } from '../services/knowledgeBaseIntegrationService.js';
   import { relationshipDetectionService, type RelationshipDetectionResult } from '../services/relationshipDetectionService.js';
   import RelationshipManager from './RelationshipManager.svelte';
@@ -13,7 +13,7 @@
   import Button from './ui/Button.svelte';
   import Badge from './ui/Badge.svelte';
   import LoadingSpinner from './ui/LoadingSpinner.svelte';
-  import Modal from './ui/Modal.svelte';
+import { Modal } from './ui/index.ts';
   import { logger } from '../utils/logger.js';
 
   // Props
@@ -293,7 +293,7 @@
             <div class="flex items-center gap-4 text-sm text-gray-600 mb-3">
               <span>Type: {integrationResult.node.type}</span>
               <span>Interactivity: {integrationResult.node.interactivity}</span>
-              <span>Version: {integrationResult.node.version}</span>
+              <span>Version: {integrationResult.node.metadata?.version}</span>
             </div>
             {#if integrationResult.node.metadata?.tags && integrationResult.node.metadata.tags.length > 0}
               <div class="flex items-center gap-2 mb-3">

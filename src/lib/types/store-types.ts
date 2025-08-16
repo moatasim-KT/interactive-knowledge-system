@@ -17,7 +17,7 @@ import type {
 	BatchProcessingJob,
 	ContentProcessingResult,
 	InteractiveOpportunity
-} from './web-content.js';
+} from './unified';
 
 /**
  * Application state structure for main app store

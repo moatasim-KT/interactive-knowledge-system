@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { MediaFile, MediaUploadOptions } from '$lib/types/media.js';
+    import type { MediaFile } from '$lib/types/unified';
+    import type { MediaUploadOptions } from '$lib/utils/mediaOptimization';
 	import {
 		optimizeImage,
 		optimizeVideo,
@@ -85,17 +86,18 @@
 			id: crypto.randomUUID(),
 			name: file.name,
 			type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio',
+			path: '',
 			mimeType: file.type,
 			size: file.size,
 			url: '',
 			thumbnailUrl: undefined,
-			metadata: {
-				created: new Date(),
-				modified: new Date(),
-				width: undefined,
-				height: undefined,
-				duration: undefined
-			},
+            metadata: {
+                created: new Date(),
+                modified: new Date(),
+                format: 'unknown',
+                tags: []
+            },
+			uploadedAt: new Date(),
 			optimized: undefined
 		};
 

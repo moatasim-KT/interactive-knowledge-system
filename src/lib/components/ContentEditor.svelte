@@ -1,6 +1,6 @@
 <script lang="ts">
 
-	import type { ContentBlock, EditorState } from '$lib/types/unified.js';
+import type { ContentBlock } from '$lib/types/unified';
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
 	import ContentBlockComponent from './ContentBlockComponent.svelte';
 
@@ -15,7 +15,14 @@
 	let { initialBlocks = [], onsave, autoSave = true, autoSaveDelay = 1000 }: Props = $props();
 
 	// Editor state using Svelte 5 runes
-	let editor_state = $state<EditorState>({
+type EditorStateLocal = {
+    blocks: ContentBlock[];
+    selectedBlock: string | null;
+    isEditing: boolean;
+    history: ContentBlock[][];
+};
+
+let editor_state = $state<EditorStateLocal>({
 		blocks: [...initialBlocks],
 		selectedBlock: null,
 		isEditing: false,

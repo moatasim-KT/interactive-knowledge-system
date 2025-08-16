@@ -1,6 +1,6 @@
 <script lang="ts">
 
-	import type { ProgressStats, Achievement, LearningStreak } from '../types/user.js';
+	import type { ProgressStats, Achievement, LearningStreak } from '$lib/types/unified';
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState } from '../stores/appState.svelte.js';
 	import ProgressIndicator from './ProgressIndicator.svelte';
@@ -54,7 +54,7 @@
 	};
 
 	// Get achievement icon
-	const get_achievement_icon = (type: Achievement['type']): string => {
+    const get_achievement_icon = (type: Achievement['type']): string => {
 		switch (type) {
 			case 'completion':
 				return '🎯';
@@ -62,8 +62,7 @@
 				return '🔥';
 			case 'score':
 				return '⭐';
-			case 'time':
-				return '⏰';
+			
 			case 'milestone':
 				return '🏆';
 			default:

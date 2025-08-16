@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { appState, actions } from '$lib/stores/appState.svelte.ts';
 	import { goto } from '$app/navigation';
-	import type { KnowledgeNode } from '$lib/types/knowledge.ts';
+	import type { KnowledgeNode } from '$lib/types/unified';
 
 	// Get current node from URL parameter
 	const node_id = $derived(() => $page.params.id);
@@ -117,9 +117,10 @@
 		}
 	}
 
-	function get_difficulty_stars(difficulty: number): string {
-		return '★'.repeat(difficulty) + '☆'.repeat(5 - difficulty);
-	}
+    function get_difficulty_stars(level: 'beginner' | 'intermediate' | 'advanced'): string {
+        const rank = level === 'beginner' ? 1 : level === 'intermediate' ? 2 : 3;
+        return '★'.repeat(rank) + '☆'.repeat(3 - rank);
+    }
 
 	function format_date(date: Date): string {
 		return new Intl.DateTimeFormat('en-US', {

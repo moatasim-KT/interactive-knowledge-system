@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { InteractiveDocumentGenerator } from '$lib/services/InteractiveDocumentGenerator'; // Assuming this path
+  import type { ContentBlock } from '$lib/types/unified';
+  import { InteractiveDocumentGenerator } from '$lib/services/InteractiveDocumentGenerator';
 
   type Props = {
     originalContent?: string;
@@ -16,9 +16,17 @@
     isLoading = true;
     message = 'Generating preview...';
     try {
-      // Simulate a more complex transformation with parameters
+      // Convert the input string into a minimal ContentBlock[]
+      const blocks: ContentBlock[] = originalContent
+        ? [{
+            id: `preview_${Date.now()}`,
+            type: 'text',
+            content: { html: `<p>${originalContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` },
+            metadata: { created: new Date(), modified: new Date(), version: 1 }
+          }]
+        : [];
       const generator = new InteractiveDocumentGenerator();
-      transformedContent = generator.generatePreviewHtml(originalContent);
+      transformedContent = generator.generatePreviewHtml(blocks);
       message = 'Preview generated!';
     } catch (error: any) {
       message = `Error: ${error.message}`;
@@ -41,7 +49,7 @@
     isMobile = window.innerWidth < 768; // Example breakpoint
   }
 
-  onMount(() => {
+  $effect(() => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);

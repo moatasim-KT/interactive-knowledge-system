@@ -2,13 +2,21 @@
  * Knowledge System Integration Service
  * Seamlessly integrates web-sourced content with the existing Interactive Knowledge System
  */
-import type { ContentModule } from '../types/content.js';
+import type {
+    ContentModule,
+    WebContentSource,
+    RelationshipType,
+    ContentLink,
+    LearningPath,
+    KnowledgeNode,
+    ContentRecommendation,
+    LearningPathSuggestion,
+    LearningPathModule
+} from '$lib/types/unified';
 import { storage } from '../storage/indexeddb.js';
-import type { KnowledgeNode, LearningPath } from '../types/knowledge.js';
-import type { ContentLink, RelationshipType, ContentRecommendation } from '../types/relationships.js';
-import type { WebContentSource as ContentSource } from '../types/web-content.js';
 import { searchEngine } from '../utils/searchEngine.js';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
+import { difficultyToRank } from '$lib/types/unified';
 
 /**
  * Configuration for automatic relationship detection
@@ -41,19 +49,7 @@ export interface SuggestedRelationship {
     automatic: boolean;
 }
 
-/**
- * Learning path suggestion result
- */
-export interface LearningPathSuggestion {
-    pathId: string;
-    name: string;
-    description: string;
-    suggestedModules: string[];
-    estimatedDuration: number;
-    difficulty: number;
-    confidence: number;
-    reasoning: string[];
-}
+// LearningPathSuggestion is imported from unified types
 
 /**
  * Integration statistics and metrics
@@ -92,7 +88,7 @@ export class KnowledgeSystemIntegration {
      * Integrate imported web content with the existing knowledge system
      */
     async integrateContent(
-        source: ContentSource,
+        source: WebContentSource,
         processedModule: ContentModule
     ): Promise<RelationshipDetectionResult> {
         const start_time = Date.now();
@@ -126,36 +122,41 @@ export class KnowledgeSystemIntegration {
      * Create a KnowledgeNode entry for imported content
      */
     private async createKnowledgeNode(
-        source: ContentSource,
+        source: WebContentSource,
         module: ContentModule
     ): Promise<KnowledgeNode> {
         // Determine appropriate parent based on content tags and existing structure
         const parent_id = await this.findAppropriateParent(module);
 
         // Normalize difficulty to 1-5 literal union
-        const normalizedDifficulty = Math.min(5, Math.max(1, module.metadata.difficulty)) as 1 | 2 | 3 | 4 | 5;
+        const normalizedDifficulty = difficultyToRank(module.metadata.difficulty);
 
-        const knowledge_node: KnowledgeNode = {
-            id: module.id,
-            title: module.title,
-            type: 'module',
-            parent: parent_id,
-            metadata: {
-                difficulty: normalizedDifficulty,
-                estimatedTime: module.metadata.estimatedTime,
-                prerequisites: module.relationships.prerequisites,
-                tags: [
-                    ...module.metadata.tags,
-                    'imported',
-                    `source:${source.domain}`,
-                    `type:${source.metadata.category}`
-                ]
-            },
-            progress: {
-                completed: false,
-                lastAccessed: new Date()
-            }
-        };
+            const knowledge_node: KnowledgeNode = {
+                id: module.id,
+                title: module.title,
+                type: 'module',
+                content: [],
+                metadata: {
+                    difficulty: module.metadata.difficulty,
+                    estimatedTime: module.metadata.estimatedTime,
+                    prerequisites: module.metadata.prerequisites,
+                    tags: [
+                        ...module.metadata.tags,
+                        'imported',
+                        `source:${source.domain}`,
+                        `type:${source.metadata?.category}`
+                    ],
+                    parent: parent_id
+                },
+                relationships: [],
+                prerequisites: [],
+                dependents: [],
+                status: 'available',
+                progress: {
+                    completed: false,
+                    lastAccessed: new Date()
+                }
+            };
 
         // Persisting KnowledgeNode to a 'knowledge_nodes' store is unsupported in current schema.
         // Return the in-memory node for downstream processing.
@@ -264,7 +265,7 @@ export class KnowledgeSystemIntegration {
         }
 
         // Difficulty similarity bonus
-        const difficulty_diff = Math.abs(module1.metadata.difficulty - module2.metadata.difficulty);
+        const difficulty_diff = Math.abs(difficultyToRank(module1.metadata.difficulty) - difficultyToRank(module2.metadata.difficulty));
         if (difficulty_diff <= 1) {
             total_score += 0.1;
             reasons.push(`Similar difficulty levels`);
@@ -320,7 +321,7 @@ export class KnowledgeSystemIntegration {
         similarity: { score: number; reasons: string[] }
     ): RelationshipType {
         // Check for prerequisite relationships based on difficulty and content
-        if (targetModule.metadata.difficulty < sourceModule.metadata.difficulty) {
+        if (difficultyToRank(targetModule.metadata.difficulty) < difficultyToRank(sourceModule.metadata.difficulty)) {
             // Lower difficulty content might be a prerequisite
             const has_foundational_content = similarity.reasons.some(reason =>
                 reason.includes('basic') || reason.includes('intro') || reason.includes('fundamental')
@@ -426,13 +427,41 @@ export class KnowledgeSystemIntegration {
             const similarity = await this.calculatePathSimilarity(module, pathModules);
 
             if (similarity.score > 0.4) {
+                const modules: LearningPathModule[] = [
+                    ...pathModules.map((m, idx) => ({
+                        id: m.id,
+                        title: m.title,
+                        position: idx,
+                        isImported: false,
+                        estimatedTime: m.metadata.estimatedTime,
+                        difficulty: m.metadata.difficulty,
+                        sourceUrl: '',
+                        tags: m.metadata.tags,
+                        prerequisites: m.metadata.prerequisites
+                    })),
+                    {
+                        id: module.id,
+                        title: module.title,
+                        position: pathModules.length,
+                        isImported: true,
+                        estimatedTime: module.metadata.estimatedTime,
+                        difficulty: module.metadata.difficulty,
+                        sourceUrl: '',
+                        tags: module.metadata.tags,
+                        prerequisites: module.metadata.prerequisites
+                    }
+                ];
+
+                const totalDuration = modules.reduce((sum, m) => sum + m.estimatedTime, 0);
+                const averageDifficulty = modules.reduce((sum, m) => sum + difficultyToRank(m.difficulty), 0) / modules.length;
+
                 suggestions.push({
-                    pathId: path.id,
+                    id: `enhanced-${path.id}`,
                     name: `Enhanced ${path.name}`,
                     description: `${path.description} - Enhanced with imported content from ${module.metadata.tags.join(', ')}`,
-                    suggestedModules: [...path.modules, module.id],
-                    estimatedDuration: path.estimatedDuration + module.metadata.estimatedTime,
-                    difficulty: Math.max(path.difficulty, module.metadata.difficulty),
+                    modules,
+                    totalDuration,
+                    averageDifficulty,
                     confidence: similarity.score,
                     reasoning: similarity.reasons
                 });
@@ -442,18 +471,34 @@ export class KnowledgeSystemIntegration {
 
         // Generate new learning paths based on content relationships
         const relationships = await relationshipStorage.getLinksForContent(module.id);
-        if (relationships.length > 0) {
-            const related_module_ids = relationships.map(rel =>
+        if (relationships.all.length > 0) {
+            const related_module_ids = relationships.all.map(rel =>
                 rel.sourceId === module.id ? rel.targetId : rel.sourceId
             );
 
+            const relatedModules = allModules.filter((m: ContentModule) => related_module_ids.includes(m.id)).slice(0, 3);
+            const modules: LearningPathModule[] = [module, ...relatedModules]
+                .map((m, idx) => ({
+                    id: m.id,
+                    title: m.title,
+                    position: idx,
+                    isImported: m.id === module.id,
+                    estimatedTime: m.metadata.estimatedTime,
+                    difficulty: m.metadata.difficulty,
+                    sourceUrl: '',
+                    tags: m.metadata.tags,
+                    prerequisites: m.metadata.prerequisites
+                }));
+            const totalDuration = modules.reduce((sum, m) => sum + m.estimatedTime, 0);
+            const averageDifficulty = modules.reduce((sum, m) => sum + difficultyToRank(m.difficulty), 0) / modules.length;
+
             suggestions.push({
-                pathId: `generated-${module.id}`,
+                id: `generated-${module.id}`,
                 name: `Learning Path: ${module.title}`,
                 description: `Auto-generated learning path based on imported content and related materials`,
-                suggestedModules: [module.id, ...related_module_ids.slice(0, 3)],
-                estimatedDuration: module.metadata.estimatedTime * 2,
-                difficulty: module.metadata.difficulty,
+                modules,
+                totalDuration,
+                averageDifficulty,
                 confidence: 0.7,
                 reasoning: ['Based on automatic relationship detection', 'Includes related existing content']
             });
@@ -484,10 +529,10 @@ export class KnowledgeSystemIntegration {
 
         // Check difficulty progression
         const path_difficulties = pathModules
-            .map((m) => m.metadata.difficulty)
+            .map((m) => difficultyToRank(m.metadata.difficulty))
             .sort((a, b) => a - b);
-        const fits_progression = module.metadata.difficulty >= path_difficulties[0] &&
-            module.metadata.difficulty <= path_difficulties[path_difficulties.length - 1];
+        const fits_progression = difficultyToRank(module.metadata.difficulty) >= path_difficulties[0] &&
+            difficultyToRank(module.metadata.difficulty) <= path_difficulties[path_difficulties.length - 1];
         if (fits_progression) {
             total_score += 0.3;
             reasons.push('Difficulty fits path progression');
@@ -495,7 +540,7 @@ export class KnowledgeSystemIntegration {
 
         // Check for existing relationships with path modules
         const relationships = await relationshipStorage.getLinksForContent(module.id);
-        const related_path_modules = relationships.filter((rel) =>
+        const related_path_modules = relationships.all.filter((rel) =>
             pathModules.some((pm) => pm.id === rel.targetId || pm.id === rel.sourceId)
         );
         if (related_path_modules.length > 0) {
@@ -601,7 +646,7 @@ export class KnowledgeSystemIntegration {
         for (const module of imported_modules) {
             const relationships = await relationshipStorage.getLinksForContent(module.id);
             const prerequisites = relationships
-                .filter(rel => rel.type === 'prerequisite' && rel.targetId === module.id)
+                .all.filter(rel => rel.type === 'prerequisite' && rel.targetId === module.id)
                 .map(rel => rel.sourceId);
 
             // Check if prerequisites are met
@@ -612,7 +657,7 @@ export class KnowledgeSystemIntegration {
                 let score = 0.5; // Base score for available imported content
 
                 // Boost score based on relationships with completed content
-                const related_completed = relationships.filter(rel =>
+                const related_completed = relationships.all.filter(rel =>
                     completedContent.has(rel.sourceId) || completedContent.has(rel.targetId)
                 );
                 score += related_completed.length * 0.1;

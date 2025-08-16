@@ -292,7 +292,7 @@
 	{/snippet}
 
 	<!-- Main Content -->
-	<ResponsiveContainer maxWidth="full" padding="md" class="mobile:px-3">
+	<div class="mobile:px-3">
 		<ErrorBoundary>
 			{#if appState.ui.currentView === 'dashboard'}
 			<div class="space-y-6">
@@ -458,7 +458,7 @@
 			</div>
 		{/if}
 		</ErrorBoundary>
-	</ResponsiveContainer>
+	</div>
 
 	<ErrorBoundary>
 		{@render children?.()}

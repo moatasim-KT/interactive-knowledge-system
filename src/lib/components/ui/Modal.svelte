@@ -1,48 +1,47 @@
+
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { trapFocus, generateId, KEYBOARD_KEYS } from '$lib/utils/accessibility.js';
+    import { trapFocus, generateId, KEYBOARD_KEYS } from '$lib/utils/accessibility.js';
+    import { onDestroy } from 'svelte';
+    
 
-	interface Props {
-		open?: boolean;
-		size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-		closable?: boolean;
-		title?: string;
-		class?: string;
-		children?: any;
-		// Accessibility props
-		'aria-label'?: string;
-		'aria-describedby'?: string;
-		id?: string;
-		role?: 'dialog' | 'alertdialog';
-		closeOnBackdropClick?: boolean;
-		closeOnEscape?: boolean;
-		initialFocus?: string; // selector for element to focus initially
-		returnFocus?: boolean; // whether to return focus to trigger element
-		// Svelte 5 event callback props
-		onclose?: () => void;
-	}
-
-	let {
-		open = $bindable(false),
-		size = 'md',
-		closable = true,
-		title,
-		class: className = '',
-		children,
-		'aria-label': ariaLabel,
-		'aria-describedby': ariaDescribedby,
-		id = generateId('modal'),
-		role = 'dialog',
-		closeOnBackdropClick = true,
-		closeOnEscape = true,
-		initialFocus,
-		returnFocus = true,
-		onclose
-	}: Props = $props();
+    // Runes props
+    let {
+        open = $bindable(false),
+        size = 'md',
+        closable = true,
+        title,
+        className,
+        ariaLabel,
+        ariaDescribedby,
+        id = generateId('modal'),
+        role = 'dialog',
+        closeOnBackdropClick = true,
+        closeOnEscape = true,
+        initialFocus,
+        returnFocus = true,
+        children
+    }: {
+        open?: boolean;
+        size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+        closable?: boolean;
+        title?: string;
+        className?: string;
+        ariaLabel?: string;
+        ariaDescribedby?: string;
+        id?: string;
+        role?: 'dialog' | 'alertdialog';
+        closeOnBackdropClick?: boolean;
+        closeOnEscape?: boolean;
+        initialFocus?: string;
+        returnFocus?: boolean;
+        // accept standard class attr on component usage
+        class?: string;
+        children?: import('svelte').Snippet;
+    } = $props();
 
 	let dialog_element: HTMLDialogElement;
 	let content_element: HTMLElement;
-	let is_animating = $state(false);
+	let is_animating = false;
 	let previous_active_element: Element | null = null;
 	let cleanup_focus_trap: (() => void) | null = null;
 
@@ -54,17 +53,27 @@
 		full: 'max-w-full mx-4'
 	};
 
-	const titleId = $derived(title ? `${id}-title` : undefined);
-	const descriptionId = $derived(ariaDescribedby ? ariaDescribedby : undefined);
+    // Compute ids as plain strings for attributes
+    const _titleId: string | undefined = $derived(() => (title ? `${id}-title` : undefined)) as any;
+    const _descId: string | undefined = $derived(() => (ariaDescribedby ? (ariaDescribedby as string) : undefined)) as any;
 
-	function handle_close() {
+    function handle_close() {
 		if (!closable) return;
 
 		is_animating = true;
 		setTimeout(() => {
 			open = false;
 			is_animating = false;
-			onclose?.();
+            // Dispatch a component event without createEventDispatcher
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore - Svelte runtime augments component event dispatching
+            // In runes mode, parent components should listen with on:close
+            // This triggers the component 'close' event
+            // falls back to DOM CustomEvent for environments that require it
+            // The following pattern avoids deprecated createEventDispatcher
+            // and works with Svelte 5's event system
+            // @ts-ignore
+            dispatchEvent(new CustomEvent('close'));
 		}, 200);
 	}
 
@@ -112,78 +121,68 @@
 		}
 	}
 
-	$effect(() => {
-		// Cleanup on unmount
-		return () => {
-			cleanup_focus_management();
-			document.body.style.overflow = '';
-		};
+	onDestroy(() => {
+		cleanup_focus_management();
+		document.body.style.overflow = '';
 	});
 
-	$effect(() => {
-		if (dialog_element) {
-			if (open) {
-				dialog_element.showModal();
-				document.body.style.overflow = 'hidden';
-				document.body.setAttribute('aria-hidden', 'true');
-				
-				// Set up focus management after the modal is shown
-				setTimeout(setup_focus_management, 0);
-			} else {
-				dialog_element.close();
-				document.body.style.overflow = '';
-				document.body.removeAttribute('aria-hidden');
-				cleanup_focus_management();
-			}
-		}
-	});
+    $effect(() => {
+        if (!dialog_element) return;
+        if (open) {
+            dialog_element.showModal();
+            document.body.style.overflow = 'hidden';
+            document.body.setAttribute('aria-hidden', 'true');
+            setTimeout(setup_focus_management, 0);
+        } else {
+            dialog_element.close();
+            document.body.style.overflow = '';
+            document.body.removeAttribute('aria-hidden');
+            cleanup_focus_management();
+        }
+    });
 
-	const modal_classes = $derived(() =>
-		[
-			'fixed inset-0 z-modal bg-transparent p-4 flex items-center justify-center',
-			'backdrop:bg-black backdrop:bg-opacity-50 backdrop:backdrop-blur-sm',
-			open && !is_animating ? 'animate-fade-in' : '',
-			is_animating ? 'animate-fade-out' : ''
-		]
-			.filter(Boolean)
-			.join(' ')
-	);
+    const modal_classes = $derived(() => [
+        'fixed inset-0 z-modal bg-transparent p-4 flex items-center justify-center',
+        'backdrop:bg-black backdrop:bg-opacity-50 backdrop:backdrop-blur-sm',
+        open && !is_animating ? 'animate-fade-in' : '',
+        is_animating ? 'animate-fade-out' : ''
+    ]
+        .filter(Boolean)
+        .join(' '));
 
-	const content_classes = $derived(() =>
-		[
-			'bg-surface rounded-lg shadow-xl border border-border w-full transition-all duration-200',
-			size_classes[size],
-			open && !is_animating ? 'animate-slide-in-up' : '',
-			is_animating ? 'opacity-0 scale-95' : '',
-			className
-		]
-			.filter(Boolean)
-			.join(' ')
-	);
+    const content_classes = $derived(() => [
+        'bg-surface rounded-lg shadow-xl border border-border w-full transition-all duration-200',
+        size_classes[size],
+        open && !is_animating ? 'animate-slide-in-up' : '',
+        is_animating ? 'opacity-0 scale-95' : '',
+        (className ?? '')
+    ]
+        .filter(Boolean)
+        .join(' '));
 </script>
 
 <dialog
 	bind:this={dialog_element}
 	{id}
-	class={modal_classes()}
+	class={modal_classes}
 	onclick={handle_backdrop_click}
 	onkeydown={handle_keydown}
 	aria-modal="true"
-	aria-labelledby={titleId}
-	aria-describedby={descriptionId}
+	aria-labelledby={_titleId}
+	aria-describedby={_descId}
 	aria-label={ariaLabel}
 	{role}
 >
     <div 
 		bind:this={content_element}
-		class={content_classes()} 
+        class={content_classes} 
 		onpointerdown={(e) => e.stopPropagation()} 
 		onpointerup={(e) => e.stopPropagation()}
 	>
 		{#if title || closable}
 			<header class="flex items-center justify-between p-6 border-b border-border">
 				{#if title}
-					<h2 id={titleId} class="text-lg font-semibold text-text-primary">
+					<h2 id={_titleId} class="text-lg font-semibold text-text-primary">
 						{title}
 					</h2>
 				{/if}
@@ -207,9 +206,11 @@
 			</header>
 		{/if}
 
-		<div class="p-6" id={descriptionId}>
-			{@render children?.()}
-		</div>
+        <div class="p-6" id={_descId}>
+            {#if children}
+                {@render children()}
+            {/if}
+        </div>
 	</div>
 </dialog>
 

@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { sourceManager } from '$lib/services/sourceManager.js';
 	import { enhancedUrlFetcher } from '$lib/services/EnhancedUrlFetcher.js';
-	import type { WebContentSource } from '$lib/types/web-content.js';
+	import type { WebContentSource } from '$lib/types/unified';
 	import { createLogger } from '$lib/utils/logger.js';
 	import { Button, Card, LoadingSpinner, Input, Badge } from '$lib/components/ui/index.ts';
 
@@ -17,8 +16,8 @@
 	let selectedSource = $state<WebContentSource | null>(null);
 	let isDragging = $state(false);
 
-	onMount(async () => {
-		await loadSources();
+	$effect(() => {
+		loadSources();
 	});
 
 	async function loadSources() {

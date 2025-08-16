@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { EnhancedDocumentProcessor } from '$lib/services/enhancedDocumentProcessor';
 	import { validateFile, generateFilePreview } from '$lib/utils/fileValidation';
-	import type { UploadProgress, FileValidationResult } from '$lib/types/content';
+	import type { FileValidationResult, FilePreview } from '$lib/utils/fileValidation';
+	import type { UploadProgress } from '$lib/types/unified';
 	import { Button, Card, ProgressBar } from '$lib/components/ui';
 
 	interface Props {
@@ -31,7 +32,8 @@
 	let fileInput: HTMLInputElement;
 	let uploadQueue = $state<File[]>([]);
 	let uploadProgress = $state<Map<string, UploadProgress>>(new Map());
-	let validationResults = $state<Map<string, FileValidationResult>>(new Map());
+	type ValidationWithPreview = FileValidationResult & { preview?: FilePreview };
+	let validationResults = $state<Map<string, ValidationWithPreview>>(new Map());
 	let isProcessing = $state(false);
 	let abortController: AbortController | null = null;
 
@@ -144,7 +146,7 @@
 					const progress: UploadProgress = {
 						fileId: file.name,
 						fileName: file.name,
-						percentage: 0,
+						progress: 0,
 						status: 'processing',
 						message: 'Processing file...'
 					};
@@ -158,7 +160,7 @@
 
 					const result = await documentProcessor.processDocument(file);
 					
-					progress.percentage = 100;
+					progress.progress = 100;
 					progress.status = 'completed';
 					progress.message = 'Processing complete';
 					
@@ -169,8 +171,8 @@
 					const progress: UploadProgress = {
 						fileId: file.name,
 						fileName: file.name,
-						percentage: 0,
-						status: 'error',
+						progress: 0,
+						status: 'failed',
 						message: error instanceof Error ? error.message : 'Processing failed'
 					};
 
@@ -178,7 +180,6 @@
 				}
 			}
 
-			
 			if (onupload) {
 				onupload(new CustomEvent('upload', { detail: { files: results } }));
 			}
@@ -186,12 +187,12 @@
 		} catch (error) {
 			if (error instanceof Error && error.name !== 'AbortError') {
 				if (onerror) {
-						onerror(new CustomEvent('error', {
-							detail: {
-								message: `Upload failed: ${error.message}`, 
-									files: uploadQueue
-							}
-						}));
+					onerror(new CustomEvent('error', {
+						detail: {
+							message: `Upload failed: ${error.message}`, 
+							files: uploadQueue
+						}
+					}));
 				}
 			}
 		} finally {
@@ -227,7 +228,6 @@
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	}
 </script>
-
 
 <div class="document-upload-manager">
 	<div
@@ -292,7 +292,7 @@
 					{@const validation = validationResults.get(file.name)}
 					{@const progress = uploadProgress.get(file.name)}
 					
-					<Card class="file-item">
+					<Card>
 						<div class="file-info">
 							<div class="file-details">
 								<div class="file-name">{file.name}</div>
@@ -321,9 +321,9 @@
 							<div class="progress-section">
 								<div class="progress-info">
 									<span class="progress-status">{progress.status}</span>
-									<span class="progress-percent">{Math.round(progress.percentage)}%</span>
+									<span class="progress-percent">{Math.round(progress.progress)}%</span>
 								</div>
-								<ProgressBar value={progress.percentage} />
+								<ProgressBar value={progress.progress} />
 								{#if progress.message}
 									<div class="progress-message">{progress.message}</div>
 								{/if}
@@ -335,7 +335,6 @@
 								variant="ghost"
 								size="sm"
 								onclick={() => removeFile(file.name)}
-								class="remove-button"
 							>
 								Remove
 							</Button>

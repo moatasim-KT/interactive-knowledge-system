@@ -4,7 +4,8 @@
  */
 
 import { createLogger } from './logger.js';
-import type { Toast, ToastItem } from '../types/index.js';
+import type { Toast, ToastItem } from '$lib/types/unified';
+import type { EventEmitter } from '$lib/types/events';
 
 export interface ErrorContext {
     operation: string;
@@ -31,11 +32,12 @@ export interface AsyncOperationResult<T> {
     retryCount?: number;
 }
 
-export class ErrorHandler {
+export class ErrorHandler implements EventEmitter {
     private static instance: ErrorHandler;
     private logger = createLogger('error-handler');
     private toastQueue: Toast[] = [];
     private errorListeners: Array<(error: Error, context: ErrorContext) => void> = [];
+    private emitterMap: Map<string, Set<(payload: any) => void>> = new Map();
 
     private constructor() { }
 
@@ -44,6 +46,31 @@ export class ErrorHandler {
             ErrorHandler.instance = new ErrorHandler();
         }
         return ErrorHandler.instance;
+    }
+
+    // EventEmitter methods
+    on(event: string, handler: (payload: any) => void): void {
+        if (!this.emitterMap.has(event)) {
+            this.emitterMap.set(event, new Set());
+        }
+        this.emitterMap.get(event)!.add(handler);
+    }
+
+    off(event: string, handler: (payload: any) => void): void {
+        this.emitterMap.get(event)?.delete(handler);
+    }
+
+    emit(event: string, payload: any): void {
+        const listeners = this.emitterMap.get(event);
+        if (listeners && listeners.size > 0) {
+            for (const listener of listeners) {
+                try {
+                    listener(payload);
+                } catch (listenerError) {
+                    this.logger.error('Error in event listener', { event, listenerError });
+                }
+            }
+        }
     }
 
     /**
@@ -348,13 +375,14 @@ export class ErrorHandler {
             title: 'Error',
             message,
             duration: 5000,
-            timestamp: new Date(),
+            dismissible: true,
             actions: this.getErrorActions(error, context)
         };
 
         this.toastQueue.push(toast);
-
-        // Dispatch custom event for toast system
+        // Emit through internal emitter for app listeners
+        this.emit('show-toast', toast);
+        // Also dispatch a DOM event for non-integrated listeners
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('show-toast', { detail: toast }));
         }
@@ -371,7 +399,9 @@ export class ErrorHandler {
             actions.push({
                 label: 'Retry',
                 action: () => {
-                    // Emit retry event
+                    // Emit via internal emitter first
+                    this.emit('error-retry', { error, context });
+                    // And also dispatch a DOM event for compatibility
                     if (typeof window !== 'undefined') {
                         window.dispatchEvent(new CustomEvent('error-retry', {
                             detail: { error, context }
@@ -416,7 +446,8 @@ export class ErrorHandler {
      * Get queued toasts
      */
     getToastQueue(): ToastItem[] {
-        return [...this.toastQueue];
+        // Toast in unified has optional timestamp; ToastItem extends it.
+        return [...this.toastQueue] as ToastItem[];
     }
 
     /**

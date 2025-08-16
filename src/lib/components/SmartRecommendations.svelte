@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
-	import type { ContentModule } from '../types/content.js';
-	import type {
-		ContentRecommendation,
-		RecommendationReason
-	} from '../types/relationships.js';
-	import { relationshipService } from '../services/relationshipService.js';
-	import { similarityEngine } from '../utils/similarityEngine.js';
+    import { onMount } from 'svelte';
+    import type { ContentModule, ContentRecommendation, RecommendationReason } from '$lib/types/unified';
+    import { relationshipService } from '../services/relationshipService.js';
+    import { similarityEngine } from '../utils/similarityEngine.js';
+    import { difficultyToRank } from '$lib/types/unified';
 
-	const dispatch = createEventDispatcher();
+    function dispatch(name: string, detail: unknown) {
+        // @ts-ignore
+        dispatchEvent(new CustomEvent(name, { detail }));
+    }
 
 	interface Props {
 		currentContentId?: string | null;
@@ -107,10 +107,13 @@
 
 	let refreshTimer: NodeJS.Timeout | null = null;
 
-	onMount(async () => {
-		await loadRecommendations();
-		loadDismissedRecommendations();
+	$effect(() => {
+		(async () => {
+			await loadRecommendations();
+			loadDismissedRecommendations();
+		})();
 
+		let refreshTimer: ReturnType<typeof setInterval> | null = null;
 		if (autoRefresh && refreshInterval > 0) {
 			refreshTimer = setInterval(loadRecommendations, refreshInterval);
 		}
@@ -220,8 +223,8 @@
 			if (!module) return false;
 
 			// Difficulty filter
-			if (module.metadata.difficulty < difficultyFilter[0] ||
-				module.metadata.difficulty > difficultyFilter[1]) {
+            if (difficultyToRank(module.metadata.difficulty) < difficultyFilter[0] ||
+                difficultyToRank(module.metadata.difficulty) > difficultyFilter[1]) {
 				return false;
 			}
 
@@ -253,7 +256,7 @@
 				case 'difficulty':
 					const moduleA = modules.find(m => m.id === a.contentId);
 					const moduleB = modules.find(m => m.id === b.contentId);
-					comparison = (moduleA?.metadata.difficulty || 0) - (moduleB?.metadata.difficulty || 0);
+                    comparison = (moduleA && moduleA.metadata.difficulty ? difficultyToRank(moduleA.metadata.difficulty) : 0) - (moduleB && moduleB.metadata.difficulty ? difficultyToRank(moduleB.metadata.difficulty) : 0);
 					break;
 				case 'title':
 					const titleA = modules.find(m => m.id === a.contentId)?.title || '';
@@ -444,8 +447,9 @@
 	{#if enableFiltering && !loading && !error && recommendationGroups.length > 0}
 		<div class="filters">
 			<div class="filter-group">
-				<label>Difficulty Range:</label>
+				<label for="difficulty-range-min">Difficulty Range:</label>
 				<input
+					id="difficulty-range-min"
 					type="range"
 					min="1"
 					max="5"
@@ -454,6 +458,7 @@
 				/>
 				<span>{difficultyFilter[0]} - {difficultyFilter[1]}</span>
 				<input
+					id="difficulty-range-max"
 					type="range"
 					min="1"
 					max="5"
@@ -463,8 +468,9 @@
 			</div>
 
 			<div class="filter-group">
-				<label>Min Confidence:</label>
+				<label for="min-confidence">Min Confidence:</label>
 				<input
+					id="min-confidence"
 					type="range"
 					min="0"
 					max="1"
@@ -475,10 +481,10 @@
 			</div>
 
 			<div class="filter-group">
-				<label>Sort by:</label>
-				<select bind:value={sortBy}>
+				<label for="sort-by">Sort by:</label>
+				<select id="sort-by" bind:value={sortBy}>
 					<option value="confidence">Confidence</option>
-					<option value="difficulty">Difficulty</option>
+                    <option value="difficulty">Difficulty</option>
 					<option value="title">Title</option>
 				</select>
 				<select bind:value={sortOrder}>
@@ -488,8 +494,8 @@
 			</div>
 
 			<div class="filter-group">
-				<label>Types:</label>
-				<div class="type-filters">
+				<div class="filter-label" id="types-label">Types:</div>
+				<div class="type-filters" role="group" aria-labelledby="types-label">
 					{#each recommendationTypes as type}
 						<label class="type-filter">
 							<input
@@ -525,9 +531,11 @@
 				{#each recommendationGroups as group (group.type)}
 					{#if group.recommendations.length > 0}
 						<div class="recommendation-group">
-							<div
+							<button
+								type="button"
 								class="group-header"
 								onclick={() => selectedGroup = selectedGroup === group.type ? null : group.type}
+								onkeydown={(e) => e.key === 'Enter' && (selectedGroup = selectedGroup === group.type ? null : group.type)}
 							>
 								<div class="group-info">
 									<span class="group-icon" style="color: {group.color}">{group.icon}</span>
@@ -542,7 +550,7 @@
 										{selectedGroup === group.type ? '▼' : '▶'}
 									</span>
 								</div>
-							</div>
+							</button>
 
 							{#if selectedGroup === group.type || selectedGroup === null}
 								<div class="recommendations-list">
@@ -556,7 +564,7 @@
 														<p class="content-description">{module.description}</p>
 														<div class="content-meta">
 															<span class="difficulty">
-																Difficulty: {module.metadata.difficulty}/5
+                                                                Difficulty: {module.metadata.difficulty}
 															</span>
 															<span class="time">
 																⏱️ {module.metadata.estimatedTime}min

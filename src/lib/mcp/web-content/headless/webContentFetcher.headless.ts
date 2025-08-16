@@ -1,7 +1,9 @@
 // PDF extraction via pdfjs-dist (node-friendly)
 async function extractPdfText(buffer: Uint8Array): Promise<string> {
   try {
-    const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.js');
+    // Use dynamic string to avoid type-time module resolution when not installed
+    const pdfjsModulePath = 'pdfjs-dist/legacy/build/pdf';
+    const pdfjsLib: any = await import(pdfjsModulePath as string).catch(() => ({}));
     if (pdfjsLib.GlobalWorkerOptions) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = undefined;
     }

@@ -10,7 +10,7 @@ import type {
 	WebContent,
 	ContentProcessingResult,
 	SourceHealthCheck
-} from '$lib/types/web-content.js';
+} from '$lib/types/unified';
 
 // Define missing types locally since they're not in the web-content.js types
 type BatchJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -46,17 +46,18 @@ interface BatchJobResult {
 }
 
 // Extend the BatchProcessingJob type to include our custom options
-interface ExtendedBatchJob extends Omit<BatchProcessingJob, 'progress' | 'status' | 'options'>, BatchJobOptions {
+interface ExtendedBatchJob extends Omit<BatchProcessingJob, 'progress' | 'status'>, BatchJobOptions {
 	progress: BatchJobProgress;
 	results: ContentProcessingResult[];
 	errors: Error[];
 	status: BatchJobStatus;
 	updatedAt: Date;
-	// Add any missing required properties from BatchProcessingJob
 	id: string;
 	urls: string[];
 	createdAt: Date;
-	// Include options as a required property
+	totalItems: number;
+	processedItems: number;
+	metadata: Record<string, any>;
 	options: Required<BatchJobOptions>;
 }
 
@@ -101,12 +102,16 @@ export class BatchProcessingTools {
 				failed: 0,
 				skipped: 0,
 				percentage: 0,
-				completed: 0,
+				completed: 0
 			},
 			results: [],
 			errors: [],
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			totalItems: urls.length,
+			processedItems: 0,
+			metadata: {},
+			type: 'import',
 			// Include all job options
 			...job_options,
 			// Make sure to include the options object as a separate property
@@ -260,9 +265,9 @@ export class BatchProcessingTools {
 					const url = batch[index];
 					if (result.status === 'fulfilled') {
 						job.results.push(result.value);
-						job.progress.completed++;
+						job.processedItems++;
 					} else {
-						job.progress.failed++;
+						job.processedItems++;
 						this.logger.warn(`Failed to process URL in batch job ${jobId}:`, {
 							url,
 							error: result.reason
@@ -271,22 +276,24 @@ export class BatchProcessingTools {
 				});
 
 				// Update progress
-				this.logger.debug(`Batch job ${jobId} progress:`, {
-					completed: job.progress.completed,
-					failed: job.progress.failed,
-					total: job.progress.total
-				});
+				const percentage = Math.round((job.processedItems / job.totalItems) * 100);
+				job.progress = {
+					total: job.totalItems,
+					processed: job.processedItems,
+					successful: job.results.length,
+					failed: job.processedItems - job.results.length,
+					skipped: 0,
+					percentage: percentage,
+					completed: job.processedItems
+				};
+				this.logger.debug(`Batch job ${jobId} progress: ${percentage}%`);
 			}
 
 			// Mark job as completed
 			job.status = 'completed';
 			job.completedAt = new Date();
 
-			this.logger.info(`Batch job completed: ${jobId}`, {
-				completed: job.progress.completed,
-				failed: job.progress.failed,
-				total: job.progress.total
-			});
+			this.logger.info(`Batch job completed: ${jobId} (${job.progress}%)`);
 		} catch (error) {
 			job.status = 'failed';
 			job.completedAt = new Date();
@@ -343,37 +350,45 @@ export class BatchProcessingTools {
 			};
 
 			const result: ContentProcessingResult = {
-				id: mock_content.id,
-				sourceUrl: url,
-				processedAt: new Date().toISOString(),
-				success: true,
-				contentBlocks: [
-					{
-						id: `block_${Date.now()}`,
-						type: 'text',
-						content: mock_content.content.text,
-						metadata: {
-							created: new Date(),
-							modified: new Date(),
-							version: 1
-						}
+				contentId: mock_content.id,
+				contentType: 'web-content',
+				processingTime: Date.now() - start_time,
+				quality: 'medium',
+				extractedElements: {
+					text: [mock_content.content.text],
+					images: [],
+					links: [],
+					tables: [],
+					codeBlocks: []
+				}
+			} as ContentProcessingResult;
+
+			// Attach extra details for internal use
+			(result as any).metadata = mock_content.metadata;
+			(result as any).processingSteps = ['fetch', 'extract', 'analyze'];
+			(result as any).contentBlocks = [
+				{
+					id: `block_${Date.now()}`,
+					type: 'text',
+					content: mock_content.content.text,
+					metadata: {
+						created: new Date(),
+						modified: new Date(),
+						version: 1
 					}
-				],
-				interactiveOpportunities: [],
-				metadata: mock_content.metadata,
-				processingSteps: ['fetch', 'extract', 'analyze']
-			};
+				}
+			];
 
 			// Add interactive opportunities if requested
 			if (options.extractInteractive) {
-				result.interactiveOpportunities = [
+				(result as any).interactiveOpportunities = [
 					{
 						id: `mock_${Date.now()}`,
 						type: 'interactive-chart',
 						title: 'Mock Interactive Chart',
 						description: 'Mock interactive opportunity for testing',
 						confidence: 0.6,
-						reasoning: 'Mock interactive opportunity',
+						reasoning: ['Mock interactive opportunity'],
 						sourceElement: 'mock',
 						parameters: {},
 						suggestedInteraction: {
@@ -386,7 +401,7 @@ export class BatchProcessingTools {
 
 			// Add quizzes if requested
 			if (options.generateQuizzes) {
-				result.quizzes = [
+				(result as any).quizzes = [
 					{
 						id: `quiz_${Date.now()}`,
 						type: 'multiple-choice',
@@ -589,7 +604,7 @@ export class BatchProcessingTools {
 		};
 
 		return {
-			jobs: filtered_jobs,
+			jobs: filtered_jobs as unknown as BatchProcessingJob[],
 			summary
 		};
 	}
@@ -656,7 +671,7 @@ export class BatchProcessingTools {
 		let total_processing_time = 0;
 
 		for (const job of this.activeJobs.values()) {
-			total_processed += job.progress.completed;
+			total_processed += job.processedItems;
 			if (job.completedAt && job.createdAt) {
 				total_processing_time += job.completedAt.getTime() - job.createdAt.getTime();
 			}

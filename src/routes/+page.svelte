@@ -1,7 +1,7 @@
 <script lang="ts">
     import { appState, actions } from '$lib/stores/appState.svelte';
     import { ContentEditor, WebContentDashboard } from '$lib/components';
-	import type { ContentBlock } from '$lib/types/content';
+	import type { ContentBlock, DifficultyLevel } from '$lib/types/unified';
 
 	$effect(() => {
 		// Add the 'Bagging and Random Forests' article to the knowledge base if it doesn't exist
@@ -11,7 +11,7 @@
 				title: 'Bagging and Random Forests: Interactive Article',
 				type: 'module',
 				metadata: {
-					difficulty: 'advanced',
+					difficulty: 'advanced' as DifficultyLevel,
 					estimatedTime: 30,
 					prerequisites: [],
 					tags: ['machine-learning', 'random-forests', 'bagging', 'ensemble-learning', 'visualization']
@@ -67,7 +67,7 @@
 			title: `Sample Module ${appState.content.nodes.size + 1}`,
 			type: 'module' as const,
 			metadata: {
-				difficulty: (Math.floor(Math.random() * 5) + 1) as 1 | 2 | 3 | 4 | 5,
+                difficulty: 'intermediate' as DifficultyLevel,
 				estimatedTime: Math.floor(Math.random() * 60) + 15,
 				prerequisites: [],
 				tags: ['sample', 'demo']

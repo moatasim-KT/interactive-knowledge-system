@@ -3,15 +3,7 @@
  * Orchestrates the multi-stage content processing workflow
  */
 
-import type {
-	ProcessingStage,
-	ProcessingResult,
-	WebContent,
-	WebContentSource,
-	ContentProcessingResult,
-	BatchProcessingJob
-} from '../types/web-content.js';
-import type { ContentModule } from '../types/content.js';
+import type { BatchProcessingJob, ContentModule, ProcessingStage, ProcessingResult, TransformationContext, TransformationRule, UserTransformationPreferences } from '$lib/types/unified';
 import { sourceManager } from './sourceManager.js';
 import { storageService } from './storage.js';
 import { contentUpdateDetector } from './contentUpdateDetector.js';
@@ -961,7 +953,18 @@ export class ProcessingPipelineManager {
 			});
 		}
 
-		return base_stages;
+        return base_stages.map((s: any) => ({
+            name: s.name,
+            processor: s.processor,
+            config: s.config,
+            dependencies: s.dependencies,
+            outputs: s.outputs,
+            status: 'pending',
+            progress: 0,
+            startTime: undefined,
+            endTime: undefined,
+            error: undefined,
+        })) as unknown as ProcessingStage[];
 	}
 
 	/**

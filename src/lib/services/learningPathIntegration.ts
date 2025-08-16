@@ -2,10 +2,8 @@
  * Learning Path Integration Service
  * Handles prerequisite detection and learning path suggestions for imported content
  */
-import type { ContentModule } from '../types/content.js';
-import type { KnowledgeNode, LearningPath } from '../types/knowledge.js';
-import type { WebContentSource as ContentSource } from '../types/web-content.js';
-import type { ContentLink, RelationshipType } from '../types/relationships.js';
+import type { ContentModule, KnowledgeNode, LearningPath, PrerequisiteSuggestion, LearningPathSuggestion, LearningPathModule, ProgressionAnalysis, ContentLink, RelationshipType, WebContentSource as ContentSource } from '$lib/types/unified';
+import { difficultyToRank } from '$lib/types/unified';
 import { storage } from '../storage/indexeddb.js';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
 import { searchEngine } from '../utils/searchEngine.js';
@@ -13,51 +11,7 @@ import { searchEngine } from '../utils/searchEngine.js';
 /**
  * Prerequisite suggestion with confidence scoring
  */
-export interface PrerequisiteSuggestion {
-    contentId: string;
-    title: string;
-    confidence: number;
-    reasoning: string[];
-    difficulty: number;
-    estimatedTime: number;
-    tags: string[];
-}
 
-/**
- * Learning path suggestion for imported content
- */
-export interface LearningPathSuggestion {
-    id: string;
-    name: string;
-    description: string;
-    modules: LearningPathModule[];
-    totalDuration: number;
-    averageDifficulty: number;
-    confidence: number;
-    reasoning: string[];
-}
-
-export interface LearningPathModule {
-    id: string;
-    title: string;
-    position: number;
-    isImported: boolean;
-    sourceUrl?: string;
-    estimatedTime: number;
-    difficulty: number;
-}
-
-/**
- * Learning progression analysis
- */
-export interface ProgressionAnalysis {
-    contentId: string;
-    currentLevel: number;
-    suggestedNext: PrerequisiteSuggestion[];
-    suggestedPrevious: PrerequisiteSuggestion[];
-    relatedTopics: PrerequisiteSuggestion[];
-    skillGaps: string[];
-}
 
 /**
  * Learning Path Integration Service
@@ -84,7 +38,7 @@ export class LearningPathIntegration {
                 if (module.id === importedModule.id) {continue;}
 
                 const similarity = this.calculateTopicSimilarity(importedModule, module);
-                const difficulty_gap = importedModule.metadata.difficulty - module.metadata.difficulty;
+        const difficulty_gap = difficultyToRank(importedModule.metadata.difficulty) - difficultyToRank(module.metadata.difficulty);
 
                 // Suggest as prerequisite if:
                 // 1. Lower difficulty (1-2 levels)
@@ -239,7 +193,7 @@ export class LearningPathIntegration {
         prerequisites: string[];
     } {
         const concepts: string[] = [];
-        let complexity = module.metadata.difficulty;
+        let complexity = difficultyToRank(module.metadata.difficulty);
         const prerequisites: string[] = [];
 
         // Extract concepts from content blocks
@@ -468,21 +422,21 @@ export class LearningPathIntegration {
 
         if (prev_module && next_module) {
             // Check if difficulty fits between previous and next
-            const prev_diff = prev_module.metadata.difficulty;
-            const next_diff = next_module.metadata.difficulty;
-            const imported_diff = importedModule.metadata.difficulty;
+            const prev_diff = difficultyToRank(prev_module.metadata.difficulty);
+            const next_diff = difficultyToRank(next_module.metadata.difficulty);
+            const imported_diff = difficultyToRank(importedModule.metadata.difficulty);
 
             if (imported_diff >= prev_diff && imported_diff <= next_diff) {
                 confidence += 0.3;
             }
         } else if (prev_module) {
             // At the end - should be higher difficulty
-            if (importedModule.metadata.difficulty >= prev_module.metadata.difficulty) {
+            if (difficultyToRank(importedModule.metadata.difficulty) >= difficultyToRank(prev_module.metadata.difficulty)) {
                 confidence += 0.2;
             }
         } else if (next_module) {
             // At the beginning - should be lower difficulty
-            if (importedModule.metadata.difficulty <= next_module.metadata.difficulty) {
+            if (difficultyToRank(importedModule.metadata.difficulty) <= difficultyToRank(next_module.metadata.difficulty)) {
                 confidence += 0.2;
             }
         }
@@ -518,7 +472,10 @@ export class LearningPathIntegration {
                 position: i,
                 isImported: false,
                 estimatedTime: module.metadata.estimatedTime,
-                difficulty: module.metadata.difficulty
+                difficulty: module.metadata.difficulty,
+                sourceUrl: '',
+                tags: module.metadata.tags ?? [],
+                prerequisites: module.metadata.prerequisites ?? []
             });
         }
 
@@ -530,7 +487,9 @@ export class LearningPathIntegration {
             isImported: true,
             sourceUrl: source.url,
             estimatedTime: importedModule.metadata.estimatedTime,
-            difficulty: importedModule.metadata.difficulty
+            difficulty: importedModule.metadata.difficulty,
+            tags: importedModule.metadata.tags ?? [],
+            prerequisites: importedModule.metadata.prerequisites ?? []
         });
 
         // Add modules after insertion point
@@ -542,12 +501,15 @@ export class LearningPathIntegration {
                 position: i + 1,
                 isImported: false,
                 estimatedTime: module.metadata.estimatedTime,
-                difficulty: module.metadata.difficulty
+                difficulty: module.metadata.difficulty,
+                sourceUrl: '',
+                tags: module.metadata.tags ?? [],
+                prerequisites: module.metadata.prerequisites ?? []
             });
         }
 
         const total_duration = modules.reduce((sum, m) => sum + m.estimatedTime, 0);
-        const average_difficulty = modules.reduce((sum, m) => sum + m.difficulty, 0) / modules.length;
+        const average_difficulty = modules.reduce((sum, m) => sum + difficultyToRank(m.difficulty), 0) / modules.length;
 
         return {
             id: `enhanced-${originalPath.id}`,
@@ -579,7 +541,7 @@ export class LearningPathIntegration {
             const allModules = await storage.getAll('modules') as ContentModule[];
 
             // Find related modules
-            const related_module_ids = relationships.map(rel =>
+            const related_module_ids = relationships.all.map(rel =>
                 rel.sourceId === importedModule.id ? rel.targetId : rel.sourceId
             );
             const related_modules = allModules.filter((m: ContentModule) => related_module_ids.includes(m.id));
@@ -587,20 +549,22 @@ export class LearningPathIntegration {
             if (related_modules.length >= 2) {
                 // Create a learning path with imported content and related modules
                 const pathModules = [importedModule, ...related_modules]
-                    .sort((a, b) => a.metadata.difficulty - b.metadata.difficulty);
+                    .sort((a, b) => difficultyToRank(a.metadata.difficulty) - difficultyToRank(b.metadata.difficulty));
 
                 const modules: LearningPathModule[] = pathModules.map((module, index) => ({
                     id: module.id,
                     title: module.title,
                     position: index,
                     isImported: module.id === importedModule.id,
-                    sourceUrl: module.id === importedModule.id ? source.url : undefined,
+                    sourceUrl: module.id === importedModule.id ? source.url : '',
                     estimatedTime: module.metadata.estimatedTime,
-                    difficulty: module.metadata.difficulty
+                    difficulty: module.metadata.difficulty,
+                    tags: module.metadata.tags ?? [],
+                    prerequisites: module.metadata.prerequisites ?? []
                 }));
 
                 const total_duration = modules.reduce((sum, m) => sum + m.estimatedTime, 0);
-                const average_difficulty = modules.reduce((sum, m) => sum + m.difficulty, 0) / modules.length;
+                const average_difficulty = modules.reduce((sum, m) => sum + difficultyToRank(m.difficulty), 0) / modules.length;
 
                 suggestions.push({
                     id: `generated-${importedModule.id}`,
@@ -634,9 +598,9 @@ export class LearningPathIntegration {
         allModules: ContentModule[]
     ): Promise<ProgressionAnalysis> {
         const relationships = await relationshipStorage.getLinksForContent(module.id);
-
+        
         // Find prerequisites and check completion
-        const prerequisites = relationships
+        const prerequisites = relationships.all
             .filter(rel => rel.type === 'prerequisite' && rel.targetId === module.id)
             .map(rel => rel.sourceId);
 
@@ -678,7 +642,7 @@ export class LearningPathIntegration {
 
         // Find modules that have this module as a prerequisite
         const relationships = await relationshipStorage.getLinksForContent(module.id);
-        const next_module_ids = relationships
+        const next_module_ids = relationships.all
             .filter(rel => rel.type === 'prerequisite' && rel.sourceId === module.id)
             .map(rel => rel.targetId);
 
@@ -714,7 +678,7 @@ export class LearningPathIntegration {
 
         // Find prerequisite modules that aren't completed
         const relationships = await relationshipStorage.getLinksForContent(module.id);
-        const prereq_module_ids = relationships
+        const prereq_module_ids = relationships.all
             .filter(rel => rel.type === 'prerequisite' && rel.targetId === module.id)
             .map(rel => rel.sourceId);
 
@@ -752,7 +716,7 @@ export class LearningPathIntegration {
             if (other_module.id === module.id) {continue;}
 
             const similarity = this.calculateTopicSimilarity(module, other_module);
-            const difficulty_diff = Math.abs(module.metadata.difficulty - other_module.metadata.difficulty);
+            const difficulty_diff = Math.abs(difficultyToRank(module.metadata.difficulty) - difficultyToRank(other_module.metadata.difficulty));
 
             if (similarity.score > 0.4 && difficulty_diff <= 1) {
                 suggestions.push({

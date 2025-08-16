@@ -3,11 +3,11 @@
     KnowledgeNode, 
     ContentRelationship, 
     RelationshipStrength 
-  } from '../types/index.js';
-  import { Card } from './ui/Card.svelte';
-  import { Badge } from './ui/Badge.svelte';
-  import { Button } from './ui/Button.svelte';
-  import { LoadingSpinner } from './ui/LoadingSpinner.svelte';
+  } from '$lib/types/unified';
+  import Card from "./ui/Card.svelte";
+  import Badge from './ui/Badge.svelte';
+  import Button from './ui/Button.svelte';
+  import LoadingSpinner from './ui/LoadingSpinner.svelte';
   import { logger } from '../utils/logger.js';
 
   // Props
@@ -243,7 +243,10 @@
               stroke-width={getConnectionStrengthWidth(relationship.strength)}
               opacity="0.6"
               class="cursor-pointer hover:opacity-100 transition-opacity"
-              on:click={() => onRelationshipClick(relationship)}
+              role="button"
+              tabindex="0"
+              onclick={() => onRelationshipClick(relationship)}
+              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onRelationshipClick(relationship)}
             />
           {/if}
         {/each}
@@ -254,7 +257,7 @@
           {@const y = 100 + Math.floor(i / 7) * 80}
           {@const size = getNodeSize(node.connectionCount)}
           
-          <g class="cursor-pointer" on:click={() => handleNodeClick(node.id)}>
+          <g class="cursor-pointer" role="button" tabindex="0" onclick={() => handleNodeClick(node.id)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleNodeClick(node.id)}>
             <circle
               cx={x}
               cy={y}
@@ -304,9 +307,8 @@
           </h3>
           <div class="grid gap-3">
             {#each selectedNodeRelationships() as relationship}
-              <Card class="p-4 cursor-pointer hover:shadow-md transition-shadow" 
-                    on:click={() => onRelationshipClick(relationship)}>
-                <div class="flex items-center justify-between">
+              <Card class="p-4 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between cursor-pointer" role="button" tabindex="0" onclick={() => onRelationshipClick(relationship)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onRelationshipClick(relationship)}>
                   <div class="flex-1">
                     <div class="flex items-center gap-3 mb-2">
                       <span class="font-medium text-gray-900">
@@ -339,11 +341,8 @@
         <h3 class="text-lg font-medium text-gray-800 mb-3">All Nodes</h3>
         <div class="grid gap-3">
           {#each networkData().nodes as node}
-            <Card class="p-4 cursor-pointer hover:shadow-md transition-shadow"
-                  class:ring-2={node.isSelected}
-                  class:ring-blue-500={node.isSelected}
-                  on:click={() => handleNodeClick(node.id)}>
-              <div class="flex items-center justify-between">
+            <Card class={`p-4 hover:shadow-md transition-shadow ${node.isSelected ? 'ring-2 ring-blue-500' : ''}`}>
+              <div class="flex items-center justify-between cursor-pointer" role="button" tabindex="0" onclick={() => handleNodeClick(node.id)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleNodeClick(node.id)}>
                 <div class="flex-1">
                   <h4 class="font-medium text-gray-900 mb-1">{node.title}</h4>
                   <div class="flex items-center gap-4 text-sm text-gray-600">
@@ -353,9 +352,7 @@
                   </div>
                 </div>
                 <div class="text-right">
-                  <div class="text-sm text-gray-500">
-                    {node.created?.toLocaleDateString() || 'Unknown date'}
-                  </div>
+                  <div class="text-sm text-gray-500">Unknown date</div>
                 </div>
               </div>
             </Card>
@@ -394,7 +391,10 @@
                 class:bg-yellow-200={relationship?.strength === 'weak'}
                 class:bg-gray-200={relationship?.strength === 'very-weak'}
                 title={relationship ? `${relationship.type} (${relationship.strength})` : 'No relationship'}
-                on:click={() => relationship && onRelationshipClick(relationship)}
+                role="button"
+                tabindex="0"
+                onclick={() => relationship && onRelationshipClick(relationship)}
+                onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && relationship && onRelationshipClick(relationship)}
               >
                 {#if relationship}
                   <div class="w-full h-full flex items-center justify-center text-xs font-bold">

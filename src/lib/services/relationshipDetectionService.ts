@@ -1,4 +1,4 @@
-import type { ProcessedDocument, KnowledgeNode, ContentRelationship, RelationshipStrength } from '../types/index.js';
+import type { ProcessedDocument, KnowledgeNode, ContentRelationship, RelationshipStrength } from '$lib/types/unified';
 import { logger } from '../utils/logger.js';
 
 export interface RelationshipDetectionResult {
@@ -257,8 +257,9 @@ export class RelationshipDetectionService {
             title: node.title,
             content: [{ id: '1', type: 'text', content: text, metadata: { created: new Date(), modified: new Date(), version: 1 } }],
             metadata: { created: new Date(), modified: new Date(), version: 1 },
-            structure: { sections: [], toc: { items: [] }, metadata: {} },
-            assets: []
+            structure: { sections: [], toc: { items: [] }, metadata: { totalSections: 0, maxDepth: 0, hasImages: false, hasCode: false, hasTables: false } },
+            assets: [],
+            source: { type: 'text' }
         });
     }
 

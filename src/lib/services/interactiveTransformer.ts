@@ -4,8 +4,8 @@
  * embedded quizzes, related content suggestions, and enhanced code blocks
  */
 
-import type { ContentBlock, ProcessedDocument } from '../types/unified.js';
-import type { Question, QuizState } from '../types/interactive.js';
+import type { ProcessedDocument, ContentBlock, InteractiveContentBlock, InteractiveArticle, InteractivityConfig, InteractiveFeature, ExpandableConfig, ExecutableConfig, ContentEnhancement, InteractiveMetadata, InteractiveStructure, InteractiveSection, InteractiveAsset, ContentLink, DifficultyLevel } from '$lib/types/unified';
+import type { Question, QuizState } from '$lib/types/unified';
 
 // Interactive transformation interfaces
 
@@ -74,6 +74,7 @@ export class InteractiveTransformer {
                 id: this.generateId(),
                 title: document.title,
                 content: interactiveContent,
+                interactiveElements: [],
                 metadata: interactiveMetadata,
                 structure: interactiveStructure,
                 assets: interactiveAssets,
@@ -104,6 +105,7 @@ export class InteractiveTransformer {
     private async transformSingleBlock(block: ContentBlock): Promise<InteractiveContentBlock> {
         const interactiveBlock: InteractiveContentBlock = {
             ...block,
+            type: 'interactive-content',
             interactivity: await this.determineInteractivity(block),
             enhancements: await this.generateEnhancements(block)
         };
@@ -176,10 +178,10 @@ export class InteractiveTransformer {
             features.length <= 2 ? 'basic' : 'advanced';
 
         return {
-            level,
+            type: 'interactive',
+            level: typeof level === 'string' ? 1 : level,
             features,
-            expandable: features.find(f => f.type === 'expandable')?.config as ExpandableConfig,
-            executable: features.find(f => f.type === 'code-execution')?.config as ExecutableConfig
+            parameters: []
         };
     }
 
@@ -365,8 +367,8 @@ export class InteractiveTransformer {
     /**
      * Generate related content suggestions
      */
-    async generateRelatedContentSuggestions(content: InteractiveContentBlock[]): Promise<ContentRelationship[]> {
-        const relationships: ContentRelationship[] = [];
+    async generateRelatedContentSuggestions(content: InteractiveContentBlock[]): Promise<ContentLink[]> {
+        const relationships: ContentLink[] = [];
 
         for (const block of content) {
             const related = await this.findRelatedContent(block);
@@ -374,11 +376,16 @@ export class InteractiveTransformer {
             for (const relatedItem of related) {
                 relationships.push({
                     id: this.generateId(),
-                    type: 'related',
+                    sourceId: '',
                     targetId: relatedItem.id,
+                    type: 'related',
                     strength: relatedItem.similarity,
-                    description: relatedItem.reason,
-                    bidirectional: false
+                    metadata: {
+                        created: new Date(),
+                        createdBy: 'interactive-transformer',
+                        description: relatedItem.reason,
+                        automatic: true
+                    }
                 });
             }
         }
@@ -444,8 +451,8 @@ export class InteractiveTransformer {
     private async findContentRelationships(
         document: ProcessedDocument,
         content: InteractiveContentBlock[]
-    ): Promise<ContentRelationship[]> {
-        const relationships: ContentRelationship[] = [];
+    ): Promise<ContentLink[]> {
+        const relationships: ContentLink[] = [];
 
         // Find relationships based on content similarity and references
         for (const block of content) {
@@ -455,11 +462,16 @@ export class InteractiveTransformer {
                 if (relatedItem.similarity >= this.config.relatedContentThreshold) {
                     relationships.push({
                         id: this.generateId(),
-                        type: 'related',
+                        sourceId: document.id,
                         targetId: relatedItem.id,
+                        type: 'related',
                         strength: relatedItem.similarity,
-                        description: `Related content based on ${relatedItem.reason}`,
-                        bidirectional: false
+                        metadata: {
+                            created: new Date(),
+                            createdBy: 'interactive-transformer',
+                            description: `Related content based on ${relatedItem.reason}`,
+                            automatic: true
+                        }
                     });
                 }
             }
@@ -474,7 +486,10 @@ export class InteractiveTransformer {
             transformationDate: new Date(),
             interactivityLevel: this.calculateInteractivityLevel(document),
             estimatedReadingTime: this.estimateDocumentReadingTime(document),
-            difficultyLevel: this.assessDifficultyLevel(document),
+            difficultyLevel: (() => {
+                const level = this.assessDifficultyLevel(document);
+                return level === 'beginner' ? 1 : level === 'intermediate' ? 2 : 3;
+            })(),
             completionTracking: true,
             aiEnhanced: this.config.aiEnhancement
         };
@@ -555,10 +570,12 @@ export class InteractiveTransformer {
         return {
             id: this.generateId(),
             type: 'multiple-choice',
+            text: questionText + '?',
             question: questionText + '?',
             options: shuffledOptions,
             correctAnswer: keyWord,
-            explanation: `The correct answer is "${keyWord}" based on the context provided.`
+            explanation: `The correct answer is "${keyWord}" based on the context provided.`,
+            difficulty: 'medium'
         };
     }
 
@@ -605,7 +622,7 @@ export class InteractiveTransformer {
         let groupLevel = 1;
 
         for (const block of blocks) {
-            if (block.type === 'text' && block.content?.section) {
+            if (block.type === 'interactive-content' && block.content?.section) {
                 // Start new group
                 if (currentGroup.length > 0) {
                     groups.push({
@@ -670,15 +687,19 @@ export class InteractiveTransformer {
         return Math.ceil(wordCount / 200); // 200 words per minute
     }
 
-    private assessDifficultyLevel(document: ProcessedDocument): number {
+    private assessDifficultyLevel(document: ProcessedDocument): DifficultyLevel {
         // Simple difficulty assessment based on content characteristics
-        let difficulty = 1;
+        let score = 1;
 
-        if (document.structure.metadata.hasCodeBlocks) { difficulty += 2; }
-        if (document.structure.metadata.maxDepth > 3) { difficulty += 1; }
-        if (document.metadata.wordCount > 2000) { difficulty += 1; }
+        if (document.structure.metadata.hasCodeBlocks) { score += 2; }
+        if (document.structure.metadata.maxDepth > 3) { score += 1; }
+        if (document.metadata.wordCount > 2000) { score += 1; }
 
-        return Math.min(difficulty, 5);
+        const clamped = Math.min(score, 5);
+        // Map numeric score to string level
+        if (clamped <= 2) { return 'beginner'; }
+        if (clamped <= 3) { return 'intermediate'; }
+        return 'advanced';
     }
 
     private shuffleArray<T>(array: T[]): T[] {

@@ -102,7 +102,7 @@ if (isNodeRuntime) {
     }
 }
 import { storageService } from '../../services/storage';
-import type { ContentValidationResult } from '../../types/web-content';
+import type { ContentValidationResult } from '../../types/unified';
 
 /**
  * Web Content Sourcing MCP Server Class
@@ -562,18 +562,17 @@ export class WebContentMcpServer {
 
         try {
             // Create batch job in Svelte store
-            const batchJob: import('../../types/web-content').BatchProcessingJob = {
+            const batchJob: any = {
                 id: `batch_${Date.now()}`,
                 urls,
                 options,
                 status: 'processing',
-                progress: {
-                    total: urls.length,
-                    completed: 0,
-                    failed: 0
-                },
+                progress: 0,
+                totalItems: urls.length,
+                processedItems: 0,
                 results: [],
-                createdAt: new Date()
+                createdAt: new Date(),
+                metadata: {}
             };
 
             webContentActions.addBatchJob(batchJob);
@@ -596,12 +595,9 @@ export class WebContentMcpServer {
                         const result = await this.handleFetchWebContent({ url, options });
 
                         // Update batch job progress (increment counters)
-                        const newProgress = {
-                            ...batchJob.progress,
-                            completed: batchJob.progress.completed + 1
-                        };
-                        batchJob.progress = newProgress;
-                        webContentActions.updateBatchJob(batchJob.id, { progress: newProgress });
+                        batchJob.processedItems = (batchJob.processedItems ?? 0) + 1;
+                        batchJob.progress = Math.round((batchJob.processedItems / batchJob.totalItems) * 100);
+                        webContentActions.updateBatchJob(batchJob.id, { progress: batchJob.progress, processedItems: batchJob.processedItems });
 
                         return { url, success: true, result };
                     } catch (error) {
@@ -613,12 +609,9 @@ export class WebContentMcpServer {
                         errors.push(error_result);
 
                         // Update batch job progress (increment failed)
-                        const newProgress = {
-                            ...batchJob.progress,
-                            failed: batchJob.progress.failed + 1
-                        };
-                        batchJob.progress = newProgress;
-                        webContentActions.updateBatchJob(batchJob.id, { progress: newProgress });
+                        batchJob.processedItems = (batchJob.processedItems ?? 0) + 1;
+                        batchJob.progress = Math.round((batchJob.processedItems / batchJob.totalItems) * 100);
+                        webContentActions.updateBatchJob(batchJob.id, { progress: batchJob.progress, processedItems: batchJob.processedItems });
 
                         return error_result;
                     }
@@ -876,29 +869,26 @@ export class WebContentMcpServer {
             ) || readability
         } as ContentValidationResult['scores'];
 
-        const issues: string[] = [];
+        const issues: Array<{ type: string; message: string; severity: 'low' | 'medium' | 'high' }> = [];
         const suggestions: string[] = [];
         if (included('readability') && wordCount < 300) {
-            issues.push('Content is short; may lack depth.');
+            issues.push({ type: 'readability', message: 'Content is short; may lack depth.', severity: 'low' });
             suggestions.push('Add more explanatory text and examples.');
         }
         if (included('accessibility') && hasImages && imagesWithAlt < content.content.images.length) {
-            issues.push('Some images are missing alt text.');
+            issues.push({ type: 'accessibility', message: 'Some images are missing alt text.', severity: 'medium' });
             suggestions.push('Add descriptive alt text to all images.');
         }
         if (included('interactivity') && !hasTables && !hasCode && !(content?.content?.charts?.length > 0)) {
-            issues.push('No obvious interactive elements detected.');
+            issues.push({ type: 'interactivity', message: 'No obvious interactive elements detected.', severity: 'low' });
             suggestions.push('Consider adding charts, code playgrounds, or interactive widgets.');
         }
 
         const validation: ContentValidationResult = {
-            id: content.id,
-            validatedAt: new Date().toISOString(),
-            success: true,
+            passed: true,
             scores,
-            issues,
-            suggestions,
-            validationSteps: checks
+            checks,
+            issues
         };
 
         return validation;

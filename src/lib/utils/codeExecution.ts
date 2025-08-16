@@ -2,7 +2,7 @@
  * Code execution utilities for supported languages
  */
 
-import type { CodeExecutionResult, CodeExecutionEnvironment } from '../types/code.js';
+import type { CodeExecutionResult, CodeExecutionEnvironment } from '$lib/types/code';
 
 export class CodeExecutionService {
 	private static instance: CodeExecutionService;

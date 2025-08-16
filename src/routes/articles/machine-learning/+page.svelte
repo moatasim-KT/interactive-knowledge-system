@@ -3,8 +3,7 @@
 	import { AdvancedInteractiveChart, DataExplorer, SimulationBlock } from '$lib/components/index.js';
 	import NeuralNetworkVisualizer from '$lib/components/NeuralNetworkVisualizer.svelte';
 	import Quiz from '$lib/components/Quiz.svelte';
-	import type { SimulationBlock as SimBlock } from '$lib/types/web-content.js';
-	import type { DataFilter } from '$lib/types/web-content.js';
+	import type { SimulationBlock as SimBlock, DataFilter } from '$lib/types/unified';
 
 	// Enhanced dataset for machine learning exploration
 	const mlDataset = [
@@ -20,20 +19,16 @@
 		{ x: 10, y: 21.1, category: 'Class A', feature1: 0.4, feature2: 0.8, prediction: 0.87 }
 	];
 
-	const chartData = { 
-		id: 'ml-chart', 
-		type: 'line', 
-		detected: true, 
-		data: mlDataset.map((d) => ({ 
-			x: d.x, 
-			y: d.y, 
-			label: `Point ${d.x}`,
-			category: d.category,
-			feature1: d.feature1,
-			feature2: d.feature2,
-			prediction: d.prediction
-		}))
-	};
+    const chartData = { 
+        labels: mlDataset.map(d => d.x),
+        datasets: [
+            {
+                label: 'Prediction',
+                data: mlDataset.map(d => ({ x: d.x, y: d.y, category: d.category, feature1: d.feature1, feature2: d.feature2, prediction: d.prediction })),
+                backgroundColor: '#3b82f6'
+            }
+        ]
+    };
 
 	// Advanced filters for data exploration
 	const dataFilters: DataFilter[] = [

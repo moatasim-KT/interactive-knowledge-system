@@ -2,22 +2,39 @@
  * Cloud synchronization service
  */
 
-import type {
-	SyncOperation,
-	SyncResult,
-	SyncConflict,
-	SyncError,
-	CloudSyncConfig
-} from '../types/sync.js';
+import type { SyncOperation } from './offlineQueue';
 import { networkService } from './networkService.js';
 import { offlineQueue } from './offlineQueue.js';
+import type { SyncConflict } from '$lib/types/unified';
+
+type SyncError = {
+    operationId: string;
+    error: string;
+    retryable: boolean;
+    timestamp: Date;
+};
+
+type SyncResult = {
+    success: boolean;
+    operationsProcessed: number;
+    conflicts: SyncConflict[];
+    errors: SyncError[];
+};
+
+type CloudSyncRuntimeConfig = {
+    endpoint: string;
+    apiKey?: string;
+    userId: string;
+    syncInterval: number;
+    batchSize: number;
+};
 import { conflictResolver } from './conflictResolver.js';
 import { optimisticUpdateManager } from './optimisticUpdates.js';
 import { appState, actions } from '../stores/appState.svelte.js';
 
 export class CloudSyncService {
 	private static instance: CloudSyncService;
-	private config: CloudSyncConfig | null = null;
+    private config: CloudSyncRuntimeConfig | null = null;
 	private syncInterval: number | null = null;
 	private isSyncing = false;
 	private lastSyncAttempt: Date | null = null;
@@ -36,7 +53,7 @@ export class CloudSyncService {
 	/**
 	 * Initialize cloud sync with configuration
 	 */
-	initialize(config: CloudSyncConfig): void {
+    initialize(config: CloudSyncRuntimeConfig): void {
 		this.config = config;
 		this.startPeriodicSync();
 	}

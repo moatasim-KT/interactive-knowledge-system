@@ -6,12 +6,11 @@
 
 import { createLogger } from '$lib/utils/logger.js';
 import type {
-	WebContent,
-	InteractiveOpportunity,
-	InteractionSpec,
-	VisualizationConfig,
-	SimulationParameter
-} from '$lib/types/web-content.js';
+    WebContent,
+    InteractiveOpportunity,
+    VisualizationConfig,
+    SimulationParameter
+} from '$lib/types/unified';
 
 export class InteractiveContentTools {
 	private logger = createLogger('mcp:interactive-content-tools');
@@ -404,78 +403,40 @@ export class InteractiveContentTools {
 
 		// Check for charts and data visualizations
 		if (content.content.charts && content.content.charts.length > 0) {
-			opportunities.push({
+            opportunities.push({
 				id: `chart_${Date.now()}`,
 				type: 'interactive-chart',
 				title: 'Interactive Chart',
 				description: 'Make static charts interactive with zoom and filtering',
 				confidence: 0.9,
-				reasoning: 'Static charts detected that can be made interactive',
-				sourceElement: 'charts',
-				parameters: {
-					zoom: { type: 'toggle', value: true },
-					filter: { type: 'dropdown', value: 'All' }
-				},
-				suggestedInteraction: {
-					type: 'chart-explorer',
-					parameters: {
-						zoom: { type: 'toggle', default: true, description: 'Enable zoom functionality' },
-						filter: {
-							type: 'dropdown',
-							options: ['All', 'Category A', 'Category B'],
-							default: 'All',
-							description: 'Filter data by category'
-						}
-					}
-				}
+				reasoning: ['Static charts detected that can be made interactive'],
+                sourceElement: 'charts'
 			});
 		}
 
 		// Check for code blocks
 		if (content.content.codeBlocks && content.content.codeBlocks.length > 0) {
-			opportunities.push({
+            opportunities.push({
 				id: `code_${Date.now()}`,
 				type: 'interactive-code',
 				title: 'Interactive Code Editor',
 				description: 'Make code blocks executable and editable',
 				confidence: 0.8,
-				reasoning: 'Code blocks detected that can be made executable',
-				sourceElement: 'codeBlocks',
-				parameters: {
-					editable: { type: 'toggle', value: true },
-					runnable: { type: 'toggle', value: true }
-				},
-				suggestedInteraction: {
-					type: 'code-editor',
-					parameters: {
-						editable: { type: 'toggle', default: true, description: 'Allow code editing' },
-						runnable: { type: 'toggle', default: true, description: 'Allow code execution' }
-					}
-				}
+				reasoning: ['Code blocks detected that can be made executable'],
+                sourceElement: 'codeBlocks'
 			});
 		}
 
 		// Check for tables
 		if (content.content.tables && content.content.tables.length > 0) {
-			opportunities.push({
+            opportunities.push({
 				id: `table_${Date.now()}`,
 				type: 'interactive-table',
 				title: 'Interactive Data Table',
 				description: 'Add sorting and filtering to data tables',
 				confidence: 0.7,
-				reasoning: 'Data tables detected that can be made interactive',
-				sourceElement: 'tables',
-				parameters: {
-					sortable: { type: 'toggle', value: true },
-					filterable: { type: 'toggle', value: true }
-				},
-				suggestedInteraction: {
-					type: 'data-table',
-					parameters: {
-						sortable: { type: 'toggle', default: true, description: 'Enable column sorting' },
-						filterable: { type: 'toggle', default: true, description: 'Enable data filtering' }
-					}
-				}
+				reasoning: ['Data tables detected that can be made interactive'],
+                sourceElement: 'tables'
 			});
 		}
 
@@ -486,35 +447,14 @@ export class InteractiveContentTools {
 			text_content.includes('neural network') ||
 			text_content.includes('machine learning')
 		) {
-			opportunities.push({
+            opportunities.push({
 				id: `simulation_${Date.now()}`,
 				type: 'simulation',
 				title: 'Algorithm Simulation',
 				description: 'Create interactive simulation of the described algorithm',
 				confidence: 0.6,
-				reasoning: 'Algorithmic or ML content detected that can be simulated',
-				sourceElement: 'text_content',
-				parameters: {
-					learningRate: { type: 'slider', value: 0.01 },
-					epochs: { type: 'slider', value: 100 }
-				},
-				suggestedInteraction: {
-					type: 'parameter-simulation',
-					parameters: {
-						learningRate: {
-							type: 'slider',
-							range: [0.001, 1],
-							default: 0.01,
-							description: 'Learning rate parameter'
-						},
-						epochs: {
-							type: 'slider',
-							range: [1, 1000],
-							default: 100,
-							description: 'Number of training epochs'
-						}
-					}
-				}
+				reasoning: ['Algorithmic or ML content detected that can be simulated'],
+                sourceElement: 'text_content'
 			});
 		}
 
@@ -651,7 +591,7 @@ export class InteractiveContentTools {
 						filters: [],
 						sourceReference: {
 							originalUrl: content.url,
-							originalContent: chart.selector || 'chart detected',
+                            originalContent: 'chart detected',
 							transformationReasoning: 'Static chart converted to interactive',
 							extractionMethod: 'chart-detection',
 							confidence: 0.9

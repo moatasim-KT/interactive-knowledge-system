@@ -2,8 +2,7 @@
  * Content-specific storage operations
  */
 import { storage } from './indexeddb.js';
-import type { ContentModule } from '../types/content.js';
-import type { LearningPath } from '../types/knowledge.js';
+import type { ContentModule, LearningPath, DifficultyLevel } from '$lib/types/unified';
 
 /**
  * Content module storage operations
@@ -21,7 +20,14 @@ export class ContentStorage {
 				created: now,
 				modified: now,
 				version: 1,
-				difficulty: module.metadata?.difficulty || 1,
+                difficulty: ((): DifficultyLevel => {
+                    const d = module.metadata?.difficulty as any;
+                    if (d === 'beginner' || d === 'intermediate' || d === 'advanced') {return d;}
+                    const n = typeof d === 'number' ? d : 2;
+                    if (n <= 2) {return 'beginner';}
+                    if (n <= 3) {return 'intermediate';}
+                    return 'advanced';
+                })(),
 				estimatedTime: module.metadata?.estimatedTime || 0,
 				prerequisites: module.metadata?.prerequisites || [],
 				tags: module.metadata?.tags || [],

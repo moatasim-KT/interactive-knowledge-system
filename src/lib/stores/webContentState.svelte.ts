@@ -8,7 +8,7 @@ import type {
     WebContentSource,
     BatchProcessingJob,
     ContentProcessingResult
-} from '../types/web-content.js';
+} from '$lib/types/unified';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('web-content-state');

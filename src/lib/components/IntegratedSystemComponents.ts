@@ -38,7 +38,7 @@ export type {
     IntegrationPipeline,
     IntegrationStep,
     DocumentTransformationResult
-} from '../services/systemIntegrationService.js';
+} from '$lib/types/unified';
 
 export type {
     ErrorContext,
@@ -52,14 +52,14 @@ export type {
 export type {
     DocumentStructure,
     MediaAsset
-} from '../services/enhancedDocumentProcessor.js';
+} from '$lib/types/unified';
 
 export type {
     InteractiveArticle,
     InteractiveContentBlock,
     InteractivityConfig,
     ContentEnhancement
-} from '../services/interactiveTransformer.js';
+} from '$lib/types/unified';
 
 /**
  * Integrated System Configuration

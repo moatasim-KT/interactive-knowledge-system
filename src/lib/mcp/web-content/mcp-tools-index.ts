@@ -26,7 +26,7 @@ export type {
 	SourceHealthCheck,
 	SourceUpdateResult,
 	DuplicateDetectionResult
-} from '../../types/web-content.js';
+} from '../../types/unified';
 
 // Export tool configurations
 export const MCP_TOOL_CATEGORIES = {

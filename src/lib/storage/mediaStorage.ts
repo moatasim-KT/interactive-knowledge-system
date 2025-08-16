@@ -2,7 +2,14 @@
  * Media storage management using IndexedDB
  */
 
-import type { MediaFile, MediaStorageQuota } from '../types/media.js';
+import type { MediaFile } from '$lib/types/unified';
+
+export interface MediaStorageQuota {
+    used: number;
+    total: number;
+    available: number;
+    remaining: number;
+}
 
 const DB_NAME = 'InteractiveKnowledgeMedia';
 const DB_VERSION = 1;
@@ -163,16 +170,18 @@ class MediaStorage {
 			return {
 				used: estimate.usage || 0,
 				total: estimate.quota || 0,
-				available: (estimate.quota || 0) - (estimate.usage || 0)
-			};
+				available: (estimate.quota || 0) - (estimate.usage || 0),
+				remaining: (estimate.quota || 0) - (estimate.usage || 0)
+			} as any;
 		}
 
 		// Fallback for browsers without storage API
 		return {
 			used: 0,
 			total: 0,
-			available: 0
-		};
+			available: 0,
+			remaining: 0
+		} as any;
 	}
 
 	/**

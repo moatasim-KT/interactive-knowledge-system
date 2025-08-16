@@ -8,7 +8,7 @@ import type {
 	LearningPath,
 	KnowledgeNode,
 	UserSettings
-} from '../types/index.js';
+} from '$lib/types/unified';
 
 /**
  * Export data structure containing all user data
@@ -86,7 +86,7 @@ export function exportToMarkdown(data: ExportData): string {
 	for (const module of data.modules) {
 		markdown += `### ${module.title}\n\n`;
 		markdown += `**Description:** ${module.description}\n`;
-		markdown += `**Difficulty:** ${module.metadata.difficulty}/5\n`;
+    markdown += `**Difficulty:** ${module.metadata.difficulty}\n`;
 		markdown += `**Estimated Time:** ${module.metadata.estimatedTime} minutes\n`;
 		markdown += `**Tags:** ${module.metadata.tags.join(', ')}\n\n`;
 
@@ -124,7 +124,7 @@ export function exportToMarkdown(data: ExportData): string {
 		for (const path of data.paths) {
 			markdown += `### ${path.name}\n\n`;
 			markdown += `**Description:** ${path.description}\n`;
-			markdown += `**Difficulty:** ${path.difficulty}/5\n`;
+            markdown += `**Difficulty:** ${path.difficulty}\n`;
 			markdown += `**Estimated Duration:** ${path.estimatedDuration} minutes\n`;
 			markdown += `**Modules:** ${path.modules.length}\n\n`;
 		}
@@ -187,7 +187,7 @@ export function exportToSCORM(data: ExportData): SCORMPackage {
 <body>
     <h1>${module.title}</h1>
     <p><strong>Description:</strong> ${module.description}</p>
-    <p><strong>Difficulty:</strong> ${module.metadata.difficulty}/5</p>
+    <p><strong>Difficulty:</strong> ${module.metadata.difficulty}</p>
     <p><strong>Estimated Time:</strong> ${module.metadata.estimatedTime} minutes</p>
     <p><strong>Tags:</strong> ${module.metadata.tags.join(', ')}</p>
     <hr>

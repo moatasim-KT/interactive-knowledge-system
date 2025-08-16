@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { WebContentSource, BatchProcessingJob } from '$lib/types/web-content.ts';
+	import type { WebContentSource, BatchProcessingJob } from '$lib/types/unified';
 	import { processingPipeline } from '$lib/services/processingPipeline.ts';
 	import { webContentActions } from '$lib/stores/webContentState.svelte.ts';
 	import { Button, Input, LoadingSpinner } from '$lib/components/ui/index.ts';

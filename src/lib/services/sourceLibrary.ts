@@ -3,7 +3,7 @@
  * Provides comprehensive search, filtering, and categorization capabilities for web content sources
  */
 
-import type { WebContentSource, WebContentMetadata } from '../types/web-content.js';
+import type { WebContentSource, WebContentMetadata } from '$lib/types/unified';
 import { sourceManager } from './sourceManager.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -99,7 +99,7 @@ export class SourceLibrary {
 	 * Build search indices for fast searching
 	 */
 	async buildIndices(): Promise<void> {
-		if (this.isIndexed) {return;}
+		if (this.isIndexed) { return; }
 
 		this.logger.info('Building search indices...');
 
@@ -125,20 +125,24 @@ export class SourceLibrary {
 	}
 
 	private indexSource(source: WebContentSource): void {
-		if (!source?.id) {return;}
+		if (!source?.id) { return; }
 
-		const metadata: WebContentMetadata = source.metadata || {
-			domain: source.domain,
-			contentType: 'text/html',
-			language: 'en',
-			readingTime: 0,
-			wordCount: 0,
-			keywords: [],
-			description: source.title || '',
-			tags: [],
-			category: 'uncategorized',
-			attribution: ''
-		};
+		const metadata = {
+			site_name: source.metadata?.domain || source.domain,
+			content_type: source.metadata?.contentType || 'text/html',
+			language: source.metadata?.language || 'en',
+			reading_time: source.metadata?.readingTime || 0,
+			word_count: source.metadata?.wordCount || 0,
+			description: source.metadata?.description || source.title || '',
+			categories: source.metadata?.category ? [source.metadata.category] : ['uncategorized'],
+			url: source.url || '',
+			fetched_at: new Date().toISOString(),
+			title: source.title,
+			author: source.metadata?.author,
+			published_date: source.metadata?.publishDate?.toISOString(),
+			modified_date: source.metadata?.lastModified?.toISOString(),
+			tags: source.metadata?.tags || []
+		} as WebContentMetadata;
 
 		const searchableText = [
 			source.title,
@@ -347,14 +351,14 @@ export class SourceLibrary {
 
 		// Check title matches
 		queryWords.forEach((word) => {
-			if (title.includes(word)) {score += 10;}
-			if (description.includes(word)) {score += 5;}
-			if (keywords.includes(word)) {score += 3;}
+			if (title.includes(word)) { score += 10; }
+			if (description.includes(word)) { score += 5; }
+			if (keywords.includes(word)) { score += 3; }
 		});
 
 		// Boost score for exact matches
-		if (title.includes(query.toLowerCase())) {score += 20;}
-		if (description.includes(query.toLowerCase())) {score += 10;}
+		if (title.includes(query.toLowerCase())) { score += 20; }
+		if (description.includes(query.toLowerCase())) { score += 10; }
 
 		return score;
 	}
@@ -372,10 +376,10 @@ export class SourceLibrary {
 		const tags = (source.metadata.tags || []).join(' ').toLowerCase();
 
 		queryWords.forEach((word) => {
-			if (title.includes(word) && !fields.includes('title')) {fields.push('title');}
-			if (description.includes(word) && !fields.includes('description')) {fields.push('description');}
-			if (keywords.includes(word) && !fields.includes('keywords')) {fields.push('keywords');}
-			if (tags.includes(word) && !fields.includes('tags')) {fields.push('tags');}
+			if (title.includes(word) && !fields.includes('title')) { fields.push('title'); }
+			if (description.includes(word) && !fields.includes('description')) { fields.push('description'); }
+			if (keywords.includes(word) && !fields.includes('keywords')) { fields.push('keywords'); }
+			if (tags.includes(word) && !fields.includes('tags')) { fields.push('tags'); }
 		});
 
 		return fields;
@@ -385,7 +389,7 @@ export class SourceLibrary {
 	 * Generate highlights for search results
 	 */
 	private generateHighlights(source: WebContentSource, query: string): { [field: string]: string } {
-		if (!query.trim()) {return {};}
+		if (!query.trim()) { return {}; }
 
 		const highlights: { [field: string]: string } = {};
 		const queryWords = this.tokenizeText(query.toLowerCase());
@@ -524,7 +528,7 @@ export class SourceLibrary {
 	 * Remove source from indices
 	 */
 	removeSourceFromIndex(sourceId: string): void {
-		if (!this.isIndexed) {return;}
+		if (!this.isIndexed) { return; }
 
 		// Remove from search index
 		this.searchIndex.forEach((sourceIds, word) => {

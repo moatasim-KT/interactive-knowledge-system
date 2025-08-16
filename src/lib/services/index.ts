@@ -50,9 +50,9 @@ export type {
 	RelationshipDetectionConfig,
 	RelationshipDetectionResult,
 	SuggestedRelationship,
-	LearningPathSuggestion,
 	IntegrationMetrics
 } from './knowledgeSystemIntegration.js';
+export type { LearningPathSuggestion } from '$lib/types/unified.js';
 
 // Learning path integration
 export { learningPathIntegration, LearningPathIntegration } from './learningPathIntegration.js';
@@ -60,7 +60,7 @@ export type {
 	PrerequisiteSuggestion,
 	LearningPathModule,
 	ProgressionAnalysis
-} from './learningPathIntegration.js';
+} from '$lib/types/unified.js';
 
 // Unified web content knowledge integration
 export { webContentKnowledgeIntegration, WebContentKnowledgeIntegration } from './webContentKnowledgeIntegration.js';
@@ -68,38 +68,39 @@ export { webContentKnowledgeIntegration, WebContentKnowledgeIntegration } from '
 // Enhanced document processor
 export { enhancedDocumentProcessor, EnhancedDocumentProcessor } from './enhancedDocumentProcessor.js';
 export type {
+	ProcessingConfig
+} from './enhancedDocumentProcessor.js';
+export type {
 	DocumentStructure,
-	Section,
 	TableOfContents,
 	TocEntry,
 	StructureMetadata,
-	MediaAsset,
-	ProcessingConfig
-} from './enhancedDocumentProcessor.js';
+	MediaAsset
+} from '$lib/types/unified.js';
 
 // Interactive content transformer
 export { InteractiveTransformer, transformationUtils } from './interactiveTransformer.js';
+export type { TransformationConfig } from './interactiveTransformer.js';
 export type {
 	InteractiveArticle,
 	InteractiveContentBlock,
+	InteractiveMetadata,
+	InteractiveStructure,
+	InteractiveSection,
+	InteractiveAsset,
 	InteractivityConfig,
 	InteractiveFeature,
 	ExpandableConfig,
 	ExecutableConfig,
 	ContentEnhancement,
-	InteractiveMetadata,
-	InteractiveStructure,
-	InteractiveSection,
 	NavigationConfig,
 	ProgressConfig,
-	InteractiveAsset,
 	AssetInteractivity,
 	AssetOverlay,
 	ContentRelationship,
 	UserProgress,
-	UserAnnotation,
-	TransformationConfig
-} from './interactiveTransformer.js';
+	UserAnnotation
+} from '$lib/types/unified.js';
 
 // Knowledge base integration services
 export { relationshipDetectionService, RelationshipDetectionService } from './relationshipDetectionService.js';

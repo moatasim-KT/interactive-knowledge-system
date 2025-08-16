@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { appState, actions } from './appState.svelte.ts';
+	import type { UserSettings } from '$lib/types/unified';
+	import  {appState, actions} from './appState.svelte';
 
 	// Auto-save effect when content changes
 	$effect(() => {

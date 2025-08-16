@@ -4,7 +4,7 @@ import type {
 	SimulationParameter,
 	DiagramElement,
 	DiagramConnection
-} from '../types/web-content.js';
+} from '../types/unified';
 
 /**
  * Simulation template definitions for different domains
@@ -885,12 +885,15 @@ export function createDiagramFromTemplate(
 			parameters: template.parameters,
 			initialState: template.initialState,
 			updateFunction: template.updateFunction,
-			layout: {
-				width: 600,
-				height: 400,
-				padding: 20,
-				grid: false
-			},
+            layout: {
+                type: 'grid',
+                spacing: 20,
+                direction: 'horizontal',
+                width: 600,
+                height: 400,
+                padding: 20,
+                grid: false
+            },
 			sourceReference: {
 				originalUrl: '',
 				originalContent: `Template: ${template.name}`,

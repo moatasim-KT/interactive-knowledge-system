@@ -2,8 +2,13 @@
  * Sync conflict resolution service
  */
 
-import type { SyncConflict, SyncOperation } from '../types/sync.js';
-import type { ContentModule, UserProgress, UserSettings } from '../types/index.js';
+import type {
+  ContentModule,
+  UserProgress,
+  UserSettings,
+  SyncConflict,
+  SyncOperation
+} from '$lib/types/unified';
 
 export interface ConflictResolutionStrategy {
 	resolve(conflict: SyncConflict): Promise<any>;
@@ -40,49 +45,61 @@ export class ConflictResolver {
 	/**
 	 * Detect conflicts between local and remote data
 	 */
-	detectConflicts(operation: SyncOperation, remoteData: any): SyncConflict[] {
+    detectConflicts(operation: SyncOperation, remoteData: any): SyncConflict[] {
 		const conflicts: SyncConflict[] = [];
 
 		if (!remoteData) {
 			// Remote data doesn't exist
 			if (operation.type === 'update' || operation.type === 'delete') {
-				conflicts.push({
-					id: crypto.randomUUID(),
-					operationId: operation.id,
-					localData: operation.data,
-					remoteData: null,
-					conflictType: 'deleted_remotely',
-					timestamp: new Date(),
-					resolved: false
-				});
+                conflicts.push({
+                    id: crypto.randomUUID(),
+                    type: 'content',
+                    conflictType: 'deleted_remotely',
+                    operationId: operation.id,
+                    localVersion: operation.data?.metadata?.version,
+                    remoteVersion: undefined,
+                    localData: operation.data,
+                    remoteData: null,
+                    resolution: 'unresolved',
+                    resolved: false,
+                    timestamp: new Date()
+                });
 			}
 			return conflicts;
 		}
 
 		// Check for version conflicts
 		if (this.hasVersionConflict(operation.data, remoteData)) {
-			conflicts.push({
-				id: crypto.randomUUID(),
-				operationId: operation.id,
-				localData: operation.data,
-				remoteData,
-				conflictType: 'version',
-				timestamp: new Date(),
-				resolved: false
-			});
+            conflicts.push({
+                id: crypto.randomUUID(),
+                type: 'content',
+                conflictType: 'version',
+                operationId: operation.id,
+                localVersion: operation.data?.metadata?.version,
+                remoteVersion: remoteData?.metadata?.version,
+                localData: operation.data,
+                remoteData,
+                resolution: 'unresolved',
+                resolved: false,
+                timestamp: new Date()
+            });
 		}
 
 		// Check for concurrent edits
 		if (this.hasConcurrentEdit(operation.data, remoteData)) {
-			conflicts.push({
-				id: crypto.randomUUID(),
-				operationId: operation.id,
-				localData: operation.data,
-				remoteData,
-				conflictType: 'concurrent_edit',
-				timestamp: new Date(),
-				resolved: false
-			});
+            conflicts.push({
+                id: crypto.randomUUID(),
+                type: 'content',
+                conflictType: 'concurrent_edit',
+                operationId: operation.id,
+                localVersion: operation.data?.metadata?.version,
+                remoteVersion: remoteData?.metadata?.version,
+                localData: operation.data,
+                remoteData,
+                resolution: 'unresolved',
+                resolved: false,
+                timestamp: new Date()
+            });
 		}
 
 		return conflicts;

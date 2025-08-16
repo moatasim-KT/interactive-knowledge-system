@@ -1,41 +1,24 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+    let {
+        maxWidth = 'full',
+        padding = 'md',
+        center = true,
+        className = '',
+        children
+    }: {
+        maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+        padding?: 'none' | 'sm' | 'md' | 'lg';
+        center?: boolean;
+        className?: string;
+        children?: import('svelte').Snippet;
+    } = $props();
 
-	interface Props {
-		maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
-		padding?: 'none' | 'sm' | 'md' | 'lg';
-		center?: boolean;
-		class?: string;
-		children?: any;
-	}
-
-	let {
-		maxWidth = 'full',
-		padding = 'md',
-		center = true,
-		class: className = '',
-		children
-	}: Props = $props();
-
-	let screenSize = $state<'mobile' | 'tablet' | 'desktop'>('desktop');
-	let windowWidth = $state(0);
-
-	function updateScreenSize() {
-		windowWidth = window.innerWidth;
-		if (windowWidth < 640) {
-			screenSize = 'mobile';
-		} else if (windowWidth < 1024) {
-			screenSize = 'tablet';
-		} else {
-			screenSize = 'desktop';
-		}
-	}
-
-	$effect(() => {
-		updateScreenSize();
-		window.addEventListener('resize', updateScreenSize);
-		return () => window.removeEventListener('resize', updateScreenSize);
-	});
+  let windowWidth = $state(0);
+  const screenSize = $derived((): 'mobile' | 'tablet' | 'desktop' => {
+    if (windowWidth < 640) { return 'mobile'; }
+    if (windowWidth < 1024) { return 'tablet'; }
+    return 'desktop';
+  });
 
 	const maxWidthClasses = {
 		sm: 'max-w-sm',
@@ -53,23 +36,23 @@
 		lg: 'px-6 mobile:px-4'
 	};
 
-	const containerClasses = $derived(() =>
-		[
-			'w-full',
-			maxWidthClasses[maxWidth],
-			paddingClasses[padding],
-			center ? 'mx-auto' : '',
-			className
-		]
-			.filter(Boolean)
-			.join(' ')
-	);
+  const containerClasses = $derived((): string => [
+		'w-full',
+		maxWidthClasses[maxWidth],
+		paddingClasses[padding],
+		center ? 'mx-auto' : '',
+		(className ?? '')
+  ]
+    .filter(Boolean)
+    .join(' '));
 </script>
 
 <svelte:window bind:innerWidth={windowWidth} />
 
 <div class={containerClasses} data-screen-size={screenSize}>
-	{@render children?.()}
+    {#if children}
+        {@render children()}
+    {/if}
 </div>
 
 <style>

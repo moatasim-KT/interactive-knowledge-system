@@ -1,38 +1,26 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import type { ComponentProps } from 'svelte';
-
-	interface Props {
-		children?: any;
-		breakpoints?: {
-			mobile: number;
-			tablet: number;
-			desktop: number;
-		};
-		enableTouchOptimization?: boolean;
-		enableGestures?: boolean;
-		adaptiveLayout?: boolean;
-	}
-
-	let {
-		children,
-		breakpoints = {
-			mobile: 768,
-			tablet: 1024,
-			desktop: 1200
-		},
-		enableTouchOptimization = true,
-		enableGestures = true,
-		adaptiveLayout = true
-	}: Props = $props();
+    import type { Snippet } from 'svelte';
+    let {
+        breakpoints = { mobile: 768, tablet: 1024, desktop: 1200 },
+        enableTouchOptimization = true,
+        enableGestures = true,
+        adaptiveLayout = true,
+        children
+    }: {
+        breakpoints?: { mobile: number; tablet: number; desktop: number };
+        enableTouchOptimization?: boolean;
+        enableGestures?: boolean;
+        adaptiveLayout?: boolean;
+        children?: Snippet;
+    } = $props();
 
 	// Reactive screen size detection
 	let screenWidth = $state(0);
 	let screenHeight = $state(0);
-	let isMobile = $state(false);
-	let isTablet = $state(false);
-	let isDesktop = $state(false);
-	let orientation = $state<'portrait' | 'landscape'>('portrait');
+	let orientation: 'portrait' | 'landscape' = $derived(screenWidth > screenHeight ? 'landscape' : 'portrait');
+	let isMobile = $derived(screenWidth < breakpoints.mobile);
+	let isTablet = $derived(screenWidth >= breakpoints.mobile && screenWidth < breakpoints.desktop);
+	let isDesktop = $derived(screenWidth >= breakpoints.desktop);
 	let touchDevice = $state(false);
 
 	// Touch and gesture state
@@ -70,11 +58,8 @@
 		return () => {
 			window.removeEventListener('resize', updateScreenSize);
 			window.removeEventListener('orientationchange', handleOrientationChange);
-			
-			if (enableGestures) {
-				document.removeEventListener('touchstart', handleTouchStart);
-				document.removeEventListener('touchend', handleTouchEnd);
-			}
+			document.removeEventListener('touchstart', handleTouchStart as any);
+			document.removeEventListener('touchend', handleTouchEnd as any);
 		};
 	});
 
@@ -82,23 +67,17 @@
 		screenWidth = window.innerWidth;
 		screenHeight = window.innerHeight;
 		viewportHeight = window.visualViewport?.height || window.innerHeight;
+	}
 
-		// Update device type flags
-		isMobile = screenWidth < breakpoints.mobile;
-		isTablet = screenWidth >= breakpoints.mobile && screenWidth < breakpoints.desktop;
-		isDesktop = screenWidth >= breakpoints.desktop;
-
-		// Update orientation
-		orientation = screenWidth > screenHeight ? 'landscape' : 'portrait';
-
-		// Update CSS custom properties for responsive design
+	// Sync CSS custom properties when state changes
+	$effect(() => {
 		document.documentElement.style.setProperty('--screen-width', `${screenWidth}px`);
 		document.documentElement.style.setProperty('--screen-height', `${screenHeight}px`);
 		document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
 		document.documentElement.style.setProperty('--is-mobile', isMobile ? '1' : '0');
 		document.documentElement.style.setProperty('--is-tablet', isTablet ? '1' : '0');
 		document.documentElement.style.setProperty('--is-desktop', isDesktop ? '1' : '0');
-	}
+	});
 
 	function detectTouchDevice() {
 		touchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -220,22 +199,22 @@
 
 	// Export reactive values and utilities for child components
 	export const responsiveContext = {
-		// Screen information
-		screenWidth,
-		screenHeight,
-		viewportHeight,
-		isMobile,
-		isTablet,
-		isDesktop,
-		orientation,
-		touchDevice,
+		// Screen information (use getters for reactivity)
+		get screenWidth() { return screenWidth; },
+		get screenHeight() { return screenHeight; },
+		get viewportHeight() { return viewportHeight; },
+		get isMobile() { return isMobile; },
+		get isTablet() { return isTablet; },
+		get isDesktop() { return isDesktop; },
+		get orientation() { return orientation; },
+		get touchDevice() { return touchDevice; },
 		
 		// Safe area insets
-		safeAreaInsets,
+		get safeAreaInsets() { return safeAreaInsets; },
 		
 		// Gesture information
-		isSwipeGesture,
-		swipeDirection,
+		get isSwipeGesture() { return isSwipeGesture; },
+		get swipeDirection() { return swipeDirection; },
 		
 		// Utility functions
 		getResponsiveValue,
@@ -403,12 +382,6 @@
 		.mobile-responsive-system {
 			--animation-duration: 0.01ms;
 			--transition-duration: 0.01ms;
-		}
-		
-		.mobile-responsive-system * {
-			animation-duration: 0.01ms !important;
-			animation-iteration-count: 1 !important;
-			transition-duration: 0.01ms !important;
 		}
 	}
 

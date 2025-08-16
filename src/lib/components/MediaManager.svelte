@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { MediaFile, MediaStorageQuota } from '$lib/types/media.js';
+    import type { MediaFile } from '$lib/types/unified';
+    import type { MediaStorageQuota } from '$lib/storage/mediaStorage';
 	import { mediaStorage } from '$lib/storage/mediaStorage.js';
 	import { formatFileSize } from '$lib/utils/mediaOptimization.js';
 	import MediaUpload from './MediaUpload.svelte';
@@ -31,7 +32,7 @@
 	let media_files = $state<MediaFile[]>([]);
 	let filtered_files = $state<MediaFile[]>([]);
 	let selected_file = $state<MediaFile | null>(null);
-	let storage_quota = $state<MediaStorageQuota>({ used: 0, available: 0, total: 0 });
+    let storage_quota = $state<MediaStorageQuota>({ used: 0, available: 0, total: 0, remaining: 0 } as any);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let search_query = $state('');

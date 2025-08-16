@@ -2,7 +2,13 @@
  * Network monitoring and offline detection service
  */
 
-import type { NetworkStatus } from '../types/sync.js';
+export type NetworkStatus = {
+    isOnline: boolean;
+    connectionType?: string;
+    effectiveType?: string;
+    downlink?: number;
+    rtt?: number;
+};
 import { appState, actions } from '../stores/appState.svelte.js';
 
 export class NetworkService {

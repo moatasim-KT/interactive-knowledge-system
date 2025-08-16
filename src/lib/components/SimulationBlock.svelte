@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SimulationBlock } from '$lib/types/web-content.js';
+	import type { SimulationBlock } from '$lib/types/unified';
 	import ParameterControls from './ParameterControls.svelte';
 	import {
 		exportSimulationResults,
@@ -46,29 +46,18 @@
 	let simulation_results = $state<SimulationResult[]>([]);
 
 	// Convert parameters to the format expected by ParameterControls
-	const parameters = $derived<Array<{
-		name: string;
-		type: string;
-		default: any;
-		description?: string;
-		constraints?: {
-			min?: number;
-			max?: number;
-			step?: number;
-			options?: string[];
-		};
-	}>>(() => block.content.parameters.map((param) => ({
-		name: param.name,
-		type: param.type,
-		default: param.default,
-		description: param.description,
-		constraints: {
-			min: param.min,
-			max: param.max,
-			step: param.step,
-			options: param.options
-		}
-	})));
+    const parameters = $derived(() => block.content.parameters.map((param) => ({
+        name: param.name,
+        type: (['number','boolean','string','select','slider','dropdown','toggle','text'].includes(param.type) ? param.type : 'text') as 'number'|'boolean'|'string'|'select'|'slider'|'dropdown'|'toggle'|'text',
+        default: param.default,
+        description: param.description,
+        constraints: {
+            min: param.min,
+            max: param.max,
+            step: param.step,
+            options: param.options
+        }
+    })) as unknown as import('$lib/types/unified').Parameter[]);
 
 	// Handle parameter changes
 	function handle_parameter_change(event: CustomEvent) {
@@ -286,9 +275,9 @@
 
 	<div class="simulation-content">
 		<!-- Parameter Controls -->
-		{#if parameters().length > 0}
+        {#if parameters().length > 0}
 			<div class="parameters-section">
-				<ParameterControls parameters={parameters()} onParameterChange={(p) => handle_parameter_change(new CustomEvent('parameterchange', { detail: p }))} />
+                <ParameterControls parameters={parameters()} onParameterChange={(p) => handle_parameter_change(new CustomEvent('parameterchange', { detail: p }))} />
 			</div>
 		{/if}
 

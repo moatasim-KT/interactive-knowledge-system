@@ -1,42 +1,23 @@
 /**
  * Enhanced relationship service with graph algorithms and visual layout
  */
-import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentRecommendation, SimilarityScore, ContentModule, GraphLayout, VisualNode, RelationshipAnalysis } from '../types/unified.js';
+import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentRecommendation, SimilarityScore, ContentModule, GraphLayout } from '$lib/types/unified';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
 import { similarityEngine } from '../utils/similarityEngine.js';
+import { difficultyToRank } from '$lib/types/unified';
 
-export interface GraphLayout {
-	type: 'hierarchical' | 'force-directed' | 'circular' | 'grid' | 'tree';
-	width: number;
-	height: number;
-	nodeSpacing: number;
-	levelSpacing: number;
-}
 
-export interface VisualNode extends ContentGraphNode {
-	position: { x: number; y: number };
-	velocity?: { x: number; y: number };
-	force?: { x: number; y: number };
-	level?: number; // For hierarchical layout
-	cluster?: string; // For clustering
-	fixed?: boolean; // For user-positioned nodes
-}
-
-export interface RelationshipAnalysis {
-	strongestConnections: Array<{ link: ContentLink; strength: number }>;
-	clusters: Array<{ id: string; nodes: string[]; centroid: ContentModule }>;
-	criticalPath: string[]; // Most important learning path
-	isolatedNodes: string[]; // Content with no relationships
-	circularDependencies: string[][];
-	recommendedLinks: ContentLink[];
-}
 
 /**
  * Enhanced relationship service
  */
+
+type VisualNode = { id: string; label: string; type: string; tags: string[]; difficulty: any; incomingLinks: string[]; outgoingLinks: string[]; position: { x: number; y: number }; velocity?: { x: number; y: number }; force?: { x: number; y: number }; level?: number; size: number; color: string; cluster?: string };
+type RelationshipAnalysis = any;
+
 export class RelationshipService {
-	private layoutCache = new Map<string, VisualNode[]>();
-	private analysisCache = new Map<string, RelationshipAnalysis>();
+    private layoutCache = new Map<string, VisualNode[]>();
+    private analysisCache = new Map<string, RelationshipAnalysis>();
 
 	/**
 	 * Build enhanced content graph with visual layout
@@ -87,12 +68,9 @@ export class RelationshipService {
 			highlightPath?: boolean;
 		} = {}
 	): Promise<KnowledgeMap> {
-		const layout = options.layout || {
+		const layout: GraphLayout = options.layout || {
 			type: 'force-directed',
-			width: 1000,
-			height: 800,
-			nodeSpacing: 80,
-			levelSpacing: 120
+			options: { nodeSpacing: 80, levelSpacing: 120 }
 		};
 
 		const { nodes: visualNodes, edges } = await this.buildVisualGraph(modules, layout, completedContent);
@@ -101,7 +79,7 @@ export class RelationshipService {
 		const mapNodes: KnowledgeMapNode[] = visualNodes.map(node => ({
 			id: node.id,
 			contentId: node.id,
-			title: node.title,
+			title: (node as any).title || (node as any).label || '',
 			type: this.getNodeType(node, modules),
 			status: this.getNodeStatus(node.id, completedContent, currentContent),
 			position: node.position,
@@ -125,20 +103,20 @@ export class RelationshipService {
 			this.highlightPath(mapNodes, mapConnections, path);
 		}
 
-		return {
-			id: `map-${Date.now()}`,
-			title: 'Knowledge Map',
-			description: 'Interactive visualization of content relationships',
-			nodes: mapNodes,
-			connections: mapConnections,
-			layout: layout.type,
-			filters: {
-				showCompleted: true,
-				showPrerequisites: true,
-				difficultyRange: [1, 5],
-				tags: []
-			}
-		};
+        return {
+            id: `map-${Date.now()}`,
+            title: 'Knowledge Map',
+            description: '',
+            nodes: mapNodes,
+            connections: mapConnections,
+            layout: (['force-directed','hierarchical','circular','grid','radial'] as const).includes(layout.type as any) ? (layout.type as any) : 'force-directed',
+            filters: {
+                showCompleted: true,
+                showPrerequisites: true,
+                difficultyRange: [0, 10],
+                tags: []
+            }
+        };
 	}
 
 	/**
@@ -179,11 +157,22 @@ export class RelationshipService {
 		const recommendedLinks = await this.generateRecommendedLinks(modules, links);
 
 		const analysis: RelationshipAnalysis = {
+			totalLinks: links.length,
+			linksByType: links.reduce((acc, l) => {
+				acc[l.type as RelationshipType] = (acc[l.type as RelationshipType] || 0) + 1 as any;
+				return acc;
+			}, {} as Record<RelationshipType, number>),
+			averageStrength: links.reduce((sum, l) => sum + l.strength, 0) / Math.max(links.length, 1),
+			automaticCount: links.filter(l => l.metadata.automatic).length,
+			manualCount: links.filter(l => !l.metadata.automatic).length,
+			mostConnectedNodes: Array.from(new Set(links.flatMap(l => [l.sourceId, l.targetId]))).map(id => ({ nodeId: id, count: links.filter(l => l.sourceId === id || l.targetId === id).length })),
+			weakestLinks: [...links].sort((a, b) => a.strength - b.strength).slice(0, 5),
+			strongestLinks: [...links].sort((a, b) => b.strength - a.strength).slice(0, 5),
+			circularDependencies,
 			strongestConnections,
 			clusters,
 			criticalPath,
 			isolatedNodes,
-			circularDependencies,
 			recommendedLinks
 		};
 
@@ -264,7 +253,7 @@ export class RelationshipService {
 		}
 
 		const allModules = []; // This would come from content storage in real implementation
-		const missingPrereqs = dependencyChain.prerequisites.filter(id => !completedContent.has(id));
+		const missingPrereqs = Array.from(dependencyChain.prerequisites).filter(id => !completedContent.has(id));
 
 		// Generate suggestions for next steps
 		const suggestions = await similarityEngine.generateRecommendations(
@@ -346,7 +335,7 @@ export class RelationshipService {
 			// Filter by difficulty range
 			if (filters.difficultyRange) {
 				const [min, max] = filters.difficultyRange;
-				if (module.metadata.difficulty < min || module.metadata.difficulty > max) {
+                if (difficultyToRank(module.metadata.difficulty) < min || difficultyToRank(module.metadata.difficulty) > max) {
 					return false;
 				}
 			}
@@ -370,15 +359,17 @@ export class RelationshipService {
 			const graphNode = graph.nodes.get(module.id);
 			return {
 				id: module.id,
-				title: module.title,
+				label: module.title,
 				type: 'module',
 				tags: module.metadata.tags,
-				difficulty: module.metadata.difficulty,
+                difficulty: module.metadata.difficulty,
 				incomingLinks: graphNode?.incomingLinks || [],
 				outgoingLinks: graphNode?.outgoingLinks || [],
-				position: { x: 0, y: 0 }, // Will be set by layout algorithm
+				position: { x: 0, y: 0 },
 				velocity: { x: 0, y: 0 },
-				force: { x: 0, y: 0 }
+				force: { x: 0, y: 0 },
+				size: 20,
+				color: '#888'
 			};
 		});
 	}
@@ -564,13 +555,13 @@ export class RelationshipService {
 
 		// Arrange nodes within levels
 		Array.from(nodesByLevel.entries()).forEach(([level, levelNodes]) => {
-			const y = 50 + level * layout.levelSpacing;
-			const totalWidth = (levelNodes.length - 1) * layout.nodeSpacing;
+			const y = 50 + level * layout.options.levelSpacing;
+			const totalWidth = (levelNodes.length - 1) * layout.options.nodeSpacing;
 			const startX = (layout.width - totalWidth) / 2;
 
 			levelNodes.forEach((node, index) => {
 				node.position = {
-					x: startX + index * layout.nodeSpacing,
+					x: startX + index * layout.options.nodeSpacing,
 					y
 				};
 			});
@@ -778,7 +769,7 @@ export class RelationshipService {
 		// Base size + complexity factor
 		const baseSize = 20;
 		const complexityFactor = module.blocks.length * 2;
-		const difficultyFactor = module.metadata.difficulty * 3;
+        const difficultyFactor = difficultyToRank(module.metadata.difficulty) * 3;
 
 		return Math.min(50, baseSize + complexityFactor + difficultyFactor);
 	}
@@ -868,7 +859,7 @@ export class RelationshipService {
 
 	private calculateLearningValue(module: ContentModule): number {
 		// Calculate learning value based on various factors
-		const difficultyWeight = module.metadata.difficulty / 5; // Normalize to 0-1
+        const difficultyWeight = difficultyToRank(module.metadata.difficulty) / 3; // Normalize to 0-1
 		const contentWeight = Math.min(module.blocks.length / 10, 1); // More content = higher value
 		const tagsWeight = Math.min(module.metadata.tags.length / 5, 1); // More specific = higher value
 
@@ -915,9 +906,12 @@ export class RelationshipService {
 
 			if (dependencyChain.canAccess) {
 				recommendations.push({
+					id: `rec-next-${currentModule.id}-${targetModule.id}`,
+					title: targetModule.title,
 					contentId: targetModule.id,
 					score: 0.9 * link.strength,
 					type: 'next-in-sequence',
+                    difficulty: targetModule.metadata.difficulty,
 					reasons: [{
 						type: 'prerequisite-completed',
 						weight: 1.0,
@@ -957,9 +951,12 @@ export class RelationshipService {
 			}
 
 			recommendations.push({
+				id: `rec-related-${currentModule.id}-${targetModule.id}`,
+				title: targetModule.title,
 				contentId: similar.contentId,
 				score: similar.score * 0.7 * interestBoost,
 				type: 'related-topic',
+                difficulty: targetModule.metadata.difficulty,
 				reasons: [{
 					type: 'similar-content',
 					weight: similar.score,
@@ -989,9 +986,12 @@ export class RelationshipService {
 				if (!module) {continue;}
 
 				recommendations.push({
+					id: `rec-practice-${completedId}-${module.id}`,
+					title: module.title,
 					contentId: module.id,
 					score: 0.6,
 					type: 'practice',
+                    difficulty: module.metadata.difficulty,
 					reasons: [{
 						type: 'difficulty-match',
 						weight: 0.8,
@@ -1015,14 +1015,17 @@ export class RelationshipService {
 
 		// Sort by difficulty (review harder content more often)
 		const reviewCandidates = completedModules
-			.sort((a, b) => b.metadata.difficulty - a.metadata.difficulty)
+            .sort((a, b) => difficultyToRank(b.metadata.difficulty) - difficultyToRank(a.metadata.difficulty))
 			.slice(0, 3);
 
 		for (const module of reviewCandidates) {
 			recommendations.push({
+				id: `rec-review-${module.id}`,
+				title: module.title,
 				contentId: module.id,
-				score: 0.4 + (module.metadata.difficulty * 0.1),
+                score: 0.4 + (difficultyToRank(module.metadata.difficulty) * 0.1),
 				type: 'review',
+				difficulty: module.metadata.difficulty,
 				reasons: [{
 					type: 'topic-continuation',
 					weight: 0.6,

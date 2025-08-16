@@ -9,7 +9,7 @@ import { syncService } from './syncService.js';
 import { networkService } from './networkService.js';
 import { optimisticUpdateManager } from './optimisticUpdates.js';
 import { appState, actions } from '../stores/appState.svelte.js';
-import type { SyncOperation, NetworkStatus } from '../types/sync.js';
+import type { SyncOperation, NetworkStatus } from '$lib/types/unified';
 
 export interface OfflineManagerConfig {
     enableAutoSync: boolean;

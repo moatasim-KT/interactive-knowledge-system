@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DataFilter } from '$lib/types/web-content.js';
+	import type { DataFilter } from '$lib/types/unified';
 
 	interface Props {
 		data: any[] | Record<string, any>;
@@ -21,10 +21,10 @@
 	let show_advanced_filters = $state<boolean>(false);
 
 	// Processed data based on current filters and sorting
-	const processed_data = $derived<any[]>(() => process_data(data, active_filters, sort_field, sort_direction, search_query));
+    const processed_data: any[] = ($derived(() => process_data(data, active_filters, sort_field, sort_direction, search_query)) as unknown) as any[];
 
 	// Available fields for filtering and sorting (auto-detected from data)
-	const available_fields = $derived<string[]>(() => detect_fields(data));
+    const available_fields: string[] = ($derived(() => detect_fields(data)) as unknown) as string[];
 
 	function detect_fields(raw_data: any): string[] {
 		if (!raw_data) return [];
@@ -130,8 +130,8 @@
 	}
 
 	function add_filter() {
-		const new_filter: DataFilter = {
-			field: available_fields()[0] ?? 'value',
+        const new_filter: DataFilter = {
+            field: available_fields[0] ?? 'value',
 			type: 'text',
 			operator: 'equals',
 			value: '',
@@ -169,8 +169,8 @@
 	}
 
 	function emit_data_change() {
-		onDataChange?.({
-			data: processed_data(),
+        onDataChange?.({
+            data: processed_data,
 			filters: active_filters,
 			sort: { field: sort_field, direction: sort_direction },
 			search: search_query
@@ -178,11 +178,11 @@
 	}
 
 	// Emit data changes when processed data changes
-	$effect(() => {
-		if (processed_data()) {
-			emit_data_change();
-		}
-	});
+    $effect(() => {
+        if (processed_data) {
+            emit_data_change();
+        }
+    });
 </script>
 
 <div class="data-manipulator">
@@ -225,9 +225,9 @@
 	<div class="sort-section">
 		<span class="sort-label">Sort by:</span>
 		<div class="sort-controls">
-			<select bind:value={sort_field} onchange={emit_data_change} class="sort-select">
+            <select bind:value={sort_field} onchange={emit_data_change} class="sort-select">
 				<option value="">No sorting</option>
-				{#each available_fields() as field (field)}
+                {#each available_fields as field (field)}
 					<option value={field}>{field}</option>
 				{/each}
 			</select>
@@ -261,7 +261,7 @@
 							onchange={(e) => update_filter(index, { field: e.currentTarget.value })}
 							class="filter-field-select"
 						>
-							{#each available_fields() as field (field)}
+                            {#each available_fields as field (field)}
 								<option value={field}>{field}</option>
 							{/each}
 						</select>

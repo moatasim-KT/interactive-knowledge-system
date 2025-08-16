@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { UploadProgress, ProcessedDocument } from '$lib/types/content.js';
-	import { processDocumentBatch } from '$lib/services/enhancedDocumentProcessor.js';
+	import type { UploadProgress, ProcessedDocument } from '$lib/types/unified';
+	import { processDocumentBatch } from '$lib/services/enhancedDocumentProcessor';
 	import DocumentUploadManager from './DocumentUploadManager.svelte';
 	import Button from './ui/Button.svelte';
 	import ProgressBar from './ui/ProgressBar.svelte';
@@ -8,7 +8,7 @@
 
 	type Props = {
 		maxConcurrentUploads?: number;
-		allowedTypes?: string[];
+		acceptedTypes?: string[];
 		maxFileSize?: number;
 		maxTotalFiles?: number;
 		batchComplete?: (event: CustomEvent<{ results: ProcessedDocument[]; errors: string[] }>) => void;
@@ -18,7 +18,7 @@
 
 	let {
 		maxConcurrentUploads = 3,
-		allowedTypes = ['.pdf', '.md', '.markdown'],
+		acceptedTypes = ['.pdf', '.md', '.markdown'],
 		maxFileSize = 50 * 1024 * 1024, // 50MB
 		maxTotalFiles = 50,
 		batchComplete,
@@ -36,6 +36,13 @@
 	let overallProgress = $state(0);
 	let currentFileName = $state('');
 	let abortController: AbortController | null = null;
+
+	function getProgressByFileName(name: string): UploadProgress | undefined {
+		for (const p of currentProgress.values()) {
+			if (p.fileName === name) return p;
+		}
+		return undefined;
+	}
 
 	// Statistics
 	const totalFiles = $derived(uploadQueue.length + processingQueue.length + completedFiles.length + failedFiles.length);
@@ -83,7 +90,7 @@
 
 						// Update overall progress
 						const progressValues = Array.from(currentProgress.values());
-						const totalProgress = progressValues.reduce((sum, p) => sum + p.percentage, 0);
+						const totalProgress = progressValues.reduce((sum, p) => sum + p.progress, 0);
 						overallProgress = Math.round(totalProgress / Math.max(progressValues.length, 1));
 						currentFileName = progress.fileName;
 
@@ -146,19 +153,27 @@
 	}
 
 	function clearCompleted() {
-		completedFiles = [];
-		// Remove completed file progress entries
+		// Remove progress entries for completed files by matching fileName
 		for (const doc of completedFiles) {
-			currentProgress.delete(`${doc.metadata.originalFileName}_${Date.now()}`);
+			for (const [key, val] of currentProgress.entries()) {
+				if (val.fileName === doc.metadata.originalFileName) {
+					currentProgress.delete(key);
+				}
+			}
 		}
+		completedFiles = [];
 	}
 
 	function clearFailed() {
-		failedFiles = [];
-		// Remove failed file progress entries
+		// Remove progress entries for failed files by matching fileName
 		for (const failed of failedFiles) {
-			currentProgress.delete(`${failed.file.name}_${Date.now()}`);
+			for (const [key, val] of currentProgress.entries()) {
+				if (val.fileName === failed.file.name) {
+					currentProgress.delete(key);
+				}
+			}
 		}
+		failedFiles = [];
 	}
 
 	function retryFailed() {
@@ -193,7 +208,7 @@
 <div class="bulk-upload-manager">
 	<div class="upload-section">
 		<DocumentUploadManager
-			{allowedTypes}
+			acceptedTypes={acceptedTypes}
 			{maxFileSize}
 			maxFiles={maxTotalFiles}
 			allowBulkUpload={true}
@@ -204,166 +219,177 @@
 
 	{#if totalFiles > 0}
 		<div class="batch-controls">
-			<Card class="batch-stats">
-				<h3>Batch Processing Status</h3>
-				<div class="stats-grid">
-					<div class="stat-item">
-						<div class="stat-value">{totalFiles}</div>
-						<div class="stat-label">Total Files</div>
-					</div>
-					<div class="stat-item">
-						<div class="stat-value">{remainingCount}</div>
-						<div class="stat-label">Pending</div>
-					</div>
-					<div class="stat-item">
-						<div class="stat-value">{completedCount}</div>
-						<div class="stat-label">Completed</div>
-					</div>
-					<div class="stat-item">
-						<div class="stat-value">{failedCount}</div>
-						<div class="stat-label">Failed</div>
-					</div>
-				</div>
-
-				{#if isBatchProcessing}
-					<div class="processing-status">
-						<div class="status-header">
-							<span>Processing: {currentFileName}</span>
-							<span>{overallProgress}%</span>
+			<div class="batch-stats">
+				<Card>
+					<h3>Batch Processing Status</h3>
+					<div class="stats-grid">
+						<div class="stat-item">
+							<div class="stat-value">{totalFiles}</div>
+							<div class="stat-label">Total Files</div>
 						</div>
-						<ProgressBar value={overallProgress} class="overall-progress" />
+						<div class="stat-item">
+							<div class="stat-value">{remainingCount}</div>
+							<div class="stat-label">Pending</div>
+						</div>
+						<div class="stat-item">
+							<div class="stat-value">{completedCount}</div>
+							<div class="stat-label">Completed</div>
+						</div>
+						<div class="stat-item">
+							<div class="stat-value">{failedCount}</div>
+							<div class="stat-label">Failed</div>
+						</div>
 					</div>
-				{/if}
 
-				<div class="batch-actions">
-					{#if !isBatchProcessing}
-						{#if uploadQueue.length > 0}
-							<Button variant="primary" onclick={startBatchProcessing}>
-								Process {uploadQueue.length} Files
-							</Button>
-						{/if}
-						{#if failedFiles.length > 0}
-							<Button variant="secondary" onclick={retryFailed}>
-								Retry Failed ({failedFiles.length})
-							</Button>
-						{/if}
-						{#if totalFiles > 0}
-							<Button variant="ghost" onclick={clearAll}>
-								Clear All
-							</Button>
-						{/if}
-					{:else}
-						<Button variant="secondary" onclick={cancelBatchProcessing}>
-							Cancel Processing
-						</Button>
+					{#if isBatchProcessing}
+						<div class="processing-status">
+							<div class="status-header">
+								<span>Processing: {currentFileName}</span>
+								<span>{overallProgress}%</span>
+							</div>
+							<ProgressBar value={overallProgress} class="overall-progress" />
+						</div>
 					{/if}
-				</div>
-			</Card>
+
+					<div class="batch-actions">
+						{#if !isBatchProcessing}
+							{#if uploadQueue.length > 0}
+								<Button variant="primary" onclick={startBatchProcessing}>
+									Process {uploadQueue.length} Files
+								</Button>
+							{/if}
+							{#if failedFiles.length > 0}
+								<Button variant="secondary" onclick={retryFailed}>
+									Retry Failed ({failedFiles.length})
+								</Button>
+							{/if}
+							{#if totalFiles > 0}
+								<Button variant="ghost" onclick={clearAll}>
+									Clear All
+								</Button>
+							{/if}
+						{:else}
+							<Button variant="secondary" onclick={cancelBatchProcessing}>
+								Cancel Processing
+							</Button>
+						{/if}
+					</div>
+				</Card>
+			</div>
 		</div>
 
 		<div class="file-sections">
 			{#if uploadQueue.length > 0}
-				<Card class="file-section">
-					<div class="section-header">
-						<h4>Pending Upload ({uploadQueue.length})</h4>
-					</div>
-					<div class="file-list">
-						{#each uploadQueue as file (file.name)}
-							<div class="file-item">
-								<div class="file-info">
-									<div class="file-name">{file.name}</div>
-									<div class="file-size">{formatFileSize(file.size)}</div>
+				<div class="file-section">
+					<Card>
+						<div class="section-header">
+							<h4>Pending Upload ({uploadQueue.length})</h4>
+						</div>
+						<div class="file-list">
+							{#each uploadQueue as file (file.name)}
+								<div class="file-item">
+									<div class="file-info">
+										<div class="file-name">{file.name}</div>
+										<div class="file-size">{formatFileSize(file.size)}</div>
+									</div>
+									{#if !isBatchProcessing}
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => removeFromQueue(file.name)}
+										>
+											Remove
+										</Button>
+									{/if}
 								</div>
-								{#if !isBatchProcessing}
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => removeFromQueue(file.name)}
-									>
-										Remove
-									</Button>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				</Card>
+							{/each}
+						</div>
+					</Card>
+				</div>
 			{/if}
 
 			{#if processingQueue.length > 0}
-				<Card class="file-section">
-					<div class="section-header">
-						<h4>Currently Processing ({processingQueue.length})</h4>
-					</div>
-					<div class="file-list">
-						{#each processingQueue as file (file.name)}
-							{@const progress = currentProgress.get(`${file.name}_${Date.now()}`)}
-							<div class="file-item processing">
-								<div class="file-info">
-									<div class="file-name">{file.name}</div>
-									<div class="file-size">{formatFileSize(file.size)}</div>
+				<div class="file-section">
+					<Card>
+						<div class="section-header">
+							<h4>Currently Processing ({processingQueue.length})</h4>
+						</div>
+						<div class="file-list">
+							{#each processingQueue as file (file.name)}
+								{@const progress = getProgressByFileName(file.name)}
+								<div class="file-item processing">
+									<div class="file-info">
+										<div class="file-name">{file.name}</div>
+										<div class="file-size">{formatFileSize(file.size)}</div>
+										{#if progress}
+											<div class="file-progress">
+												<span class="progress-status">{progress.status}</span>
+												<span class="progress-percent">{Math.round(progress.progress)}%</span>
+											</div>
+										{/if}
+									</div>
 									{#if progress}
-										<div class="file-progress">
-											<span class="progress-status">{progress.status}</span>
-											<span class="progress-percent">{Math.round(progress.percentage)}%</span>
-										</div>
+										<ProgressBar value={progress.progress} size="sm" />
 									{/if}
 								</div>
-								{#if progress}
-									<ProgressBar value={progress.percentage} size="sm" />
-								{/if}
-							</div>
-						{/each}
-					</div>
-				</Card>
+							{/each}
+						</div>
+					</Card>
+				</div>
 			{/if}
 
 			{#if completedFiles.length > 0}
-				<Card class="file-section success">
-					<div class="section-header">
-						<h4>Completed ({completedFiles.length})</h4>
-						<Button variant="ghost" size="sm" onclick={clearCompleted}>
-							Clear
-						</Button>
-					</div>
-					<div class="file-list">
-						{#each completedFiles as doc (doc.id)}
-							<div class="file-item completed">
-								<div class="file-info">
-									<div class="file-name">{doc.title}</div>
-									<div class="file-meta">
-										{doc.metadata.wordCount} words • {doc.content.length} blocks
+				<div class="file-section success">
+					<Card>
+						<div class="section-header">
+							<h4>Completed ({completedFiles.length})</h4>
+							<Button variant="ghost" size="sm" onclick={clearCompleted}>
+								Clear
+							</Button>
+						</div>
+						<div class="file-list">
+							{#each completedFiles as doc (doc.id)}
+								<div class="file-item completed">
+									<div class="file-info">
+										<div class="file-name">{doc.title}</div>
+										<div class="file-meta">
+											{doc.metadata.wordCount} words • {doc.content.length} blocks
+										</div>
 									</div>
+									<div class="success-icon">✓</div>
 								</div>
-								<div class="success-icon">✓</div>
-							</div>
-						{/each}
-					</div>
-				</Card>
+							{/each}
+						</div>
+					</Card>
+				</div>
 			{/if}
 
 			{#if failedFiles.length > 0}
-				<Card class="file-section error">
-					<div class="section-header">
-						<h4>Failed ({failedFiles.length})</h4>
-						<Button variant="ghost" size="sm" onclick={clearFailed}>
-							Clear
-						</Button>
-					</div>
-					<div class="file-list">
-						{#each failedFiles as failed (failed.file.name)}
-							<div class="file-item failed">
-								<div class="file-info">
-									<div class="file-name">{failed.file.name}</div>
-									<div class="file-error">{failed.error}</div>
+				<div class="file-section error">
+					<Card>
+						<div class="section-header">
+							<h4>Failed ({failedFiles.length})</h4>
+							<Button variant="ghost" size="sm" onclick={clearFailed}>
+								Clear
+							</Button>
+						</div>
+						<div class="file-list">
+							{#each failedFiles as failed (failed.file.name)}
+								<div class="file-item failed">
+									<div class="file-info">
+										<div class="file-name">{failed.file.name}</div>
+										<div class="file-error">{failed.error}</div>
+									</div>
+									<div class="error-icon">✗</div>
 								</div>
-								<div class="error-icon">✗</div>
-							</div>
-						{/each}
-					</div>
-				</Card>
+							{/each}
+						</div>
+					</Card>
+				</div>
 			{/if}
 		</div>
 	{/if}
+
 </div>
 
 <style>

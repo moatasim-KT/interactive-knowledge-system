@@ -4,7 +4,7 @@
 		AnimationConfig,
 		StyleConfig,
 		LayoutConfig
-	} from '$lib/types/web-content.js';
+	} from '$lib/types/unified';
 
 	type Props = {
 		config: VisualizationConfig;

@@ -1,7 +1,7 @@
 <script lang="ts">
 
-	import { systemIntegrationService, type IntegrationPipeline, type DocumentTransformationResult } from '$lib/services/systemIntegrationService.js';
-	import { webContentState, webContentActions } from '$lib/stores/webContentState.svelte.js';
+	import { systemIntegrationService } from '$lib/services/systemIntegrationService.js';
+	import type { IntegrationPipeline, DocumentTransformationResult } from '$lib/types/unified';
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
 	import { 
 		Button, 
@@ -217,19 +217,19 @@
 	}
 
 	// Handle file upload from DocumentUploadManager
-	function handleFileUpload(files: any[]) {
+	function handleFileUpload(event: CustomEvent<{ files: any[] }>) {
 		// Convert the processed documents back to files for our processing
 		// In a real implementation, you'd want to process the already-processed documents
 		actions.addNotification({
 			type: 'info',
-			message: `Received ${files.length} files for processing`
+			message: `Received ${event.detail.files.length} files for processing`
 		});
 	}
 
-	function handleFileError(detail: { message: string; files: File[] }) {
+	function handleFileError(event: CustomEvent<{ message: string; files: File[] }>) {
 		actions.addNotification({
 			type: 'error',
-			message: detail.message
+			message: event.detail.message
 		});
 	}
 </script>
@@ -751,14 +751,14 @@
 		gap: 1rem;
 	}
 
-	.pipeline-card,
-	.result-card {
+	:global(.pipeline-card),
+	:global(.result-card) {
 		border: 1px solid var(--color-border, #eee);
 		transition: all 0.2s ease;
 	}
 
-	.pipeline-card:hover,
-	.result-card:hover {
+	:global(.pipeline-card:hover),
+	:global(.result-card:hover) {
 		border-color: var(--color-primary-300, #93c5fd);
 		box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
 	}
@@ -854,11 +854,11 @@
 	}
 
 	/* Result Styles */
-	.result-card.success {
+	:global(.result-card.success) {
 		border-left: 4px solid var(--color-success, #28a745);
 	}
 
-	.result-card.error {
+	:global(.result-card.error) {
 		border-left: 4px solid var(--color-error, #dc3545);
 	}
 
@@ -1009,8 +1009,8 @@
 			border: 2px solid rgba(255, 255, 255, 0.5);
 		}
 
-		.pipeline-card,
-		.result-card {
+		:global(.pipeline-card),
+		:global(.result-card) {
 			border-width: 2px;
 		}
 	}
@@ -1018,8 +1018,8 @@
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
 		.stat-card,
-		.pipeline-card,
-		.result-card,
+		:global(.pipeline-card),
+		:global(.result-card),
 		.step-item {
 			transition: none;
 		}

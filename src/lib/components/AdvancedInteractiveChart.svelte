@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ChartData, DataFilter, ChartInteraction } from '$lib/types/web-content.js';
+	import type { ChartData, DataFilter, ChartInteraction } from '$lib/types/unified';
     import { onMount } from 'svelte';
 
     interface Props {
@@ -299,7 +299,7 @@
         onExport?.({ format: 'png' });
 	}
 
-    onMount(() => {
+    $effect(() => {
         onReady?.({ config, chartType: current_chart_type });
     });
 </script>

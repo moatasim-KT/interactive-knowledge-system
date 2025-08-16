@@ -1,4 +1,4 @@
-import type { ContentBlock } from '../types/content';
+import type { ContentBlock } from '../types/unified';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('interactive-document-generator');

@@ -1,259 +1,256 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { EditorView, basicSetup } from 'codemirror';
-	import { EditorState } from '@codemirror/state';
-	import { javascript } from '@codemirror/lang-javascript';
-	import { python } from '@codemirror/lang-python';
-	import { html } from '@codemirror/lang-html';
-	import { css } from '@codemirror/lang-css';
-	import { json } from '@codemirror/lang-json';
-	import { markdown } from '@codemirror/lang-markdown';
-	import { oneDark } from '@codemirror/theme-one-dark';
-	import { linter, lintGutter } from '@codemirror/lint';
-	import type { CodeBlockContent, CodeExecutionResult } from '$lib/types/code';
-	import { SUPPORTED_LANGUAGES } from '$lib/types/code';
-	import { codeExecutionService } from '$lib/utils/codeExecution.js';
-	import { codeVersioningService } from '$lib/utils/codeVersioning.js';
+    import { EditorView, basicSetup } from 'codemirror';
+    import { EditorState } from '@codemirror/state';
+    import { javascript } from '@codemirror/lang-javascript';
+    import { python } from '@codemirror/lang-python';
+    import { html } from '@codemirror/lang-html';
+    import { css } from '@codemirror/lang-css';
+    import { json } from '@codemirror/lang-json';
+    import { markdown } from '@codemirror/lang-markdown';
+    import { oneDark } from '@codemirror/theme-one-dark';
+    import { linter, lintGutter } from '@codemirror/lint';
+    import type { CodeBlockContent, CodeExecutionResult } from '$lib/types/code';
+    import { SUPPORTED_LANGUAGES } from '$lib/types/code';
+    import { codeExecutionService } from '$lib/utils/codeExecution.js';
+    import { codeVersioningService } from '$lib/utils/codeVersioning.js';
 
-	// Props
-	interface Props {
-		content: CodeBlockContent;
-		readonly?: boolean;
-		theme?: 'light' | 'dark';
-		showLineNumbers?: boolean;
-		showExecuteButton?: boolean;
-		showVersionHistory?: boolean;
-		height?: string;
-	}
+    // Props
+    interface Props {
+        content: CodeBlockContent;
+        readonly?: boolean;
+        theme?: 'light' | 'dark';
+        showLineNumbers?: boolean;
+        showExecuteButton?: boolean;
+        showVersionHistory?: boolean;
+        height?: string;
+        onExecute?: (result: CodeExecutionResult) => void;
+        onVersionCreated?: (content: CodeBlockContent) => void;
+        onContentChange?: (content: CodeBlockContent) => void;
+    }
 
-	let {
-		content = $bindable(),
-		readonly = false,
-		theme = 'light',
-		showLineNumbers = true,
-		showExecuteButton = true,
-		showVersionHistory = true,
-		height = '300px'
-	}: Props = $props();
+    let {
+        content = $bindable(),
+        readonly = false,
+        theme = 'light',
+        showLineNumbers = true,
+        showExecuteButton = true,
+        showVersionHistory = true,
+        height = '300px',
+        onExecute,
+        onVersionCreated,
+        onContentChange
+    }: Props = $props();
 
-	// Event dispatcher
-	const dispatch = createEventDispatcher<{ 
-		execute: CodeExecutionResult;
-		save: CodeBlockContent;
-		versionCreated: CodeBlockContent;
-		contentchange: CodeBlockContent; // Added this line
-	}>();
+    // Component state
+    let editorContainer;
+    let editorView = null;
+    let isExecuting = $state(false);
+    let executionResult = $state<CodeExecutionResult | null>(null);
+    let showVersionPanel = $state(false);
+    let versionHistory = $state(codeVersioningService.getVersionHistory(content));
 
-	// Component state
-	let editorContainer;
-	let editorView = null;
-	let isExecuting = $state(false);
-	let executionResult = $state<CodeExecutionResult | null>(null);
-	let showVersionPanel = $state(false);
-	let versionHistory = $state(codeVersioningService.getVersionHistory(content));
+    // Language support mapping
+    const languageSupport = {
+        javascript: javascript(),
+        typescript: javascript({ typescript: true }),
+        python: python(),
+        html: html(),
+        css: css(),
+        json: json(),
+        markdown: markdown()
+    };
 
-	// Language support mapping
-	const languageSupport = {
-		javascript: javascript(),
-		typescript: javascript({ typescript: true }),
-		python: python(),
-		html: html(),
-		css: css(),
-		json: json(),
-		markdown: markdown()
-	};
+    // Initialize editor on mount
+    $effect(() => {
+        createEditor();
+        return () => {
+            if (editorView) {
+                editorView.destroy();
+            }
+        };
+    });
 
-	// Initialize editor on mount
-	$effect(() => {
-		createEditor();
-		return () => {
-			if (editorView) {
-				editorView.destroy();
-			}
-		};
-	});
+    // Recreate editor when language changes
+    $effect(() => {
+        if (editorView && content.language) {
+            createEditor();
+        }
+    });
 
-	// Recreate editor when language changes
-	$effect(() => {
-		if (editorView && content.language) {
-			createEditor();
-		}
-	});
+    function createEditor() {
+        if (editorView) {
+            editorView.destroy();
+        }
 
-	function createEditor() {
-		if (editorView) {
-			editorView.destroy();
-		}
+        const extensions = [
+            basicSetup,
+            EditorView.theme({
+                '&': { height: height },
+                '.cm-scroller': { fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' },
+                '.cm-focused': { outline: 'none' }
+            }),
+            EditorView.updateListener.of((update) => {
+                if (update.docChanged && !readonly) {
+                    const newCode = update.state.doc.toString();
+                    updateContent({ code: newCode });
+                }
+            })
+        ];
 
-		const extensions = [
-			basicSetup,
-			EditorView.theme({
-				'&': { height: height },
-				'.cm-scroller': { fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' },
-				'.cm-focused': { outline: 'none' }
-			}),
-			EditorView.updateListener.of((update) => {
-				if (update.docChanged && !readonly) {
-					const newCode = update.state.doc.toString();
-					updateContent({ code: newCode });
-				}
-			})
-		];
+        // Add language support
+        const langSupport = languageSupport[content.language as keyof typeof languageSupport];
+        if (langSupport) {
+            extensions.push(langSupport);
+        }
 
-		// Add language support
-		const langSupport = languageSupport[content.language as keyof typeof languageSupport];
-		if (langSupport) {
-			extensions.push(langSupport);
-		}
+        // Add theme
+        if (theme === 'dark') {
+            extensions.push(oneDark);
+        }
 
-		// Add theme
-		if (theme === 'dark') {
-			extensions.push(oneDark);
-		}
+        // Add linting for supported languages
+        if (content.language === 'javascript' || content.language === 'typescript') {
+            extensions.push(linter(jsLinter), lintGutter());
+        }
 
-		// Add linting for supported languages
-		if (content.language === 'javascript' || content.language === 'typescript') {
-			extensions.push(linter(jsLinter), lintGutter());
-		}
+        // Create editor state
+        const state = EditorState.create({
+            doc: content.code || '',
+            extensions
+        });
 
-		// Create editor state
-		const state = EditorState.create({
-			doc: content.code || '',
-			extensions
-		});
+        // Create editor view
+        editorView = new EditorView({
+            state,
+            parent: editorContainer
+        });
 
-		// Create editor view
-		editorView = new EditorView({
-			state,
-			parent: editorContainer
-		});
+        // Set readonly if needed
+        if (readonly) {
+            editorView.dispatch({
+                effects: EditorView.editable.of(false)
+            });
+        }
+    }
 
-		// Set readonly if needed
-		if (readonly) {
-			editorView.dispatch({
-				effects: EditorView.editable.of(false)
-			});
-		}
-	}
+    // Simple JavaScript linter
+    function jsLinter(view: EditorView) {
+        const diagnostics = [];
+        const code = view.state.doc.toString();
 
-	// Simple JavaScript linter
-	function jsLinter(view: EditorView) {
-		const diagnostics = [];
-		const code = view.state.doc.toString();
+        try {
+            // Basic syntax check using Function constructor
+            new Function(code);
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                // Try to extract line number from error message
+                const lineMatch = error.message.match(/line (\d+)/);
+                const line = lineMatch ? parseInt(lineMatch[1]) - 1 : 0;
+                const pos = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from;
 
-		try {
-			// Basic syntax check using Function constructor
-			new Function(code);
-		} catch (error) {
-			if (error instanceof SyntaxError) {
-				// Try to extract line number from error message
-				const lineMatch = error.message.match(/line (\d+)/);
-				const line = lineMatch ? parseInt(lineMatch[1]) - 1 : 0;
-				const pos = view.state.doc.line(Math.min(line + 1, view.state.doc.lines)).from;
+                diagnostics.push({
+                    from: pos,
+                    to: pos + 1,
+                    severity: 'error',
+                    message: error.message
+                });
+            }
+        }
 
-				diagnostics.push({
-					from: pos,
-					to: pos + 1,
-					severity: 'error',
-					message: error.message
-				});
-			}
-		}
+        return diagnostics;
+    }
 
-		return diagnostics;
-	}
+    function updateContent(updates: Partial<CodeBlockContent>) {
+        content = { ...content, ...updates };
+        onContentChange?.(content);
+    }
 
-	function updateContent(updates: Partial<CodeBlockContent>) {
-		content = { ...content, ...updates };
-		dispatch('contentchange', content);
-	}
+    async function executeCode() {
+        if (!codeExecutionService.isLanguageExecutable(content.language)) {
+            executionResult = {
+                success: false,
+                error: `Execution not supported for ${content.language}`,
+                executionTime: 0,
+                timestamp: new Date()
+            };
+            return;
+        }
 
-	async function executeCode() {
-		if (!codeExecutionService.isLanguageExecutable(content.language)) {
-			executionResult = {
-				success: false,
-				error: `Execution not supported for ${content.language}`,
-				executionTime: 0,
-				timestamp: new Date()
-			};
-			return;
-		}
+        isExecuting = true;
+        executionResult = null;
 
-		isExecuting = true;
-		executionResult = null;
+        try {
+            const result = await codeExecutionService.executeCode(content.code, content.language);
+            executionResult = result;
 
-		try {
-			const result = await codeExecutionService.executeCode(content.code, content.language);
-			executionResult = result;
+            updateContent({
+                output: result.output,
+                error: result.error,
+                lastExecuted: result.timestamp
+            });
 
-			updateContent({
-				output: result.output,
-				error: result.error,
-				lastExecuted: result.timestamp
-			});
+            onExecute?.(result);
+        } catch (error) {
+            executionResult = {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown execution error',
+                executionTime: 0,
+                timestamp: new Date()
+            };
+        } finally {
+            isExecuting = false;
+        }
+    }
 
-			dispatch('execute', result);
-		} catch (error) {
-			executionResult = {
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown execution error',
-				executionTime: 0,
-				timestamp: new Date()
-			};
-		} finally {
-			isExecuting = false;
-		}
-	}
+    function saveVersion(description?: string) {
+        const newContent = codeVersioningService.createVersion(
+            content,
+            content.code,
+            description,
+            'User'
+        );
 
-	function saveVersion(description?: string) {
-		const newContent = codeVersioningService.createVersion(
-			content,
-			content.code,
-			description,
-			'User'
-		);
+        content = newContent;
+        versionHistory = codeVersioningService.getVersionHistory(content);
 
-		content = newContent;
-		versionHistory = codeVersioningService.getVersionHistory(content);
+        onVersionCreated?.(newContent);
+        onContentChange?.(newContent);
+    }
 
-		dispatch('versionCreated', newContent);
-		dispatch('contentchange', newContent);
-	}
+    function restoreVersion(versionId) {
+        const restoredContent = codeVersioningService.restoreToVersion(content, versionId);
+        if (restoredContent) {
+            content = restoredContent;
+            versionHistory = codeVersioningService.getVersionHistory(content);
 
-	function restoreVersion(versionId) {
-		const restoredContent = codeVersioningService.restoreToVersion(content, versionId);
-		if (restoredContent) {
-			content = restoredContent;
-			versionHistory = codeVersioningService.getVersionHistory(content);
+            // Update editor content
+            if (editorView) {
+                editorView.dispatch({
+                    changes: {
+                        from: 0,
+                        to: editorView.state.doc.length,
+                        insert: content.code
+                    }
+                });
+            }
 
-			// Update editor content
-			if (editorView) {
-				editorView.dispatch({
-					changes: {
-						from: 0,
-						to: editorView.state.doc.length,
-						insert: content.code
-					}
-				});
-			}
+            onContentChange?.(content);
+        }
+    }
 
-			dispatch('contentchange', content);
-		}
-	}
+    function exportVersionHistory() {
+        const exportData = codeVersioningService.exportVersionHistory(content);
+        const blob = new Blob([exportData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
 
-	function exportVersionHistory() {
-		const exportData = codeVersioningService.exportVersionHistory(content);
-		const blob = new Blob([exportData], { type: 'application/json' });
-		const url = URL.createObjectURL(blob);
-
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `code-history-${content.title || 'untitled'}.json`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-	}
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `code-history-${content.title || 'untitled'}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 
 	function formatCode() {
 		// Basic code formatting (could be enhanced with prettier or similar)

@@ -1,9 +1,7 @@
 /**
  * Search engine implementation with full-text indexing and relevance scoring
  */
-import type { ContentModule } from '../types/content.js';
-import type { KnowledgeNode } from '../types/knowledge.js';
-import type { SearchResult, SearchIndex } from '../types/interactive.js';
+import type { KnowledgeNode, ContentModule, SearchResult } from '$lib/types/unified';
 
 /**
  * Search filter options
@@ -24,11 +22,15 @@ export interface SearchFilters {
  * Search engine class for indexing and searching content
  */
 export class SearchEngine {
-	private searchIndex: SearchIndex = {
-		content: new Map(),
-		tags: new Map(),
-		links: new Map()
-	};
+    private searchIndex: {
+        content: Map<string, string[]>;
+        tags: Map<string, string[]>;
+        links: Map<string, string[]>;
+    } = {
+        content: new Map<string, string[]>(),
+        tags: new Map<string, string[]>(),
+        links: new Map<string, string[]>()
+    };
 
 	private stopWords = new Set([
 		'a',
@@ -332,9 +334,9 @@ export class SearchEngine {
 			}
 
 			// Difficulty filter
-			if (filters.difficulty && filters.difficulty.length > 0) {
-				const itemDifficulty = module?.metadata.difficulty || node?.metadata.difficulty;
-				if (itemDifficulty && !filters.difficulty.includes(itemDifficulty)) {
+            if (filters.difficulty && filters.difficulty.length > 0) {
+                const itemDifficulty = module?.metadata.difficulty || node?.metadata.difficulty;
+                if (itemDifficulty && !filters.difficulty.includes(itemDifficulty as any)) {
 					return false;
 				}
 			}
@@ -435,13 +437,14 @@ export class SearchEngine {
 				const tags = module?.metadata.tags || node?.metadata.tags || [];
 				const type = module ? 'module' : node?.type || 'unknown';
 
-				results.push({
+                results.push({
 					id: contentId,
 					title,
 					snippet,
 					relevance,
 					type,
-					tags
+                    tags,
+                    metadata: {}
 				});
 			}
 		}
@@ -491,7 +494,8 @@ export class SearchEngine {
                     snippet,
                     relevance: 100, // High relevance for exact tag matches
                     type,
-                    tags: itemTags
+                    tags: itemTags,
+                    metadata: {}
                 });
             }
         }
@@ -536,7 +540,8 @@ getRelatedContent(
                 snippet,
                 relevance: 90, // High relevance for direct links
                 type,
-                tags
+                tags,
+                metadata: {}
             });
         }
     }
@@ -566,7 +571,8 @@ getRelatedContent(
                     snippet,
                     relevance: 70, // Medium relevance for tag similarity
                     type,
-                    tags
+                    tags,
+                    metadata: {}
                 });
             }
         }

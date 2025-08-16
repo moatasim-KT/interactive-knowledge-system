@@ -3,7 +3,7 @@
  * Defines custom events, event handlers, and event data structures
  */
 
-import type { ContentBlock, ContentModule, KnowledgeNode, UserProgress } from './index.js';
+import type { ContentBlock, ContentModule, KnowledgeNode, UserProgress } from './index';
 import type {
 	WebContent,
 	WebContentSource,
@@ -14,9 +14,9 @@ import type {
 	ChartData,
 	DataFilter,
 	SimulationParameter
-} from './web-content.js';
-import type { MediaFile } from './media.js';
-import type { CodeBlockContent, CodeExecutionResult, CodeSnippetShare } from './code.js';
+} from './web-content';
+import type { MediaFile, GraphVisualizationOptions } from './unified';
+import type { CodeBlockContent, CodeExecutionResult, CodeSnippetShare } from './code';
 
 /**
  * Base event interface for all custom events
@@ -105,7 +105,7 @@ export interface KnowledgeMapEvents {
 	};
 	'connection-delete': string;
 	'layout-change': {
-		layout: 'hierarchical' | 'force-directed' | 'circular' | 'grid';
+		layout: GraphVisualizationOptions['layout'];
 	};
 	'filter-change': {
 		filters: Record<string, any>;

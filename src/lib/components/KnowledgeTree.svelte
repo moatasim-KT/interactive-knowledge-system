@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { appState, actions } from '$lib/stores/appState.svelte.js';
-	import type { KnowledgeNode } from '$lib/types/unified';
+	import type { KnowledgeNode, LearningPath } from '$lib/types/unified';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
@@ -94,8 +94,8 @@
 			title: 'New ' + type.charAt(0).toUpperCase() + type.slice(1),
 			type,
 			parent: parent_id || undefined,
-			metadata: {
-				difficulty: 1, // Changed to 1 to match the literal type '1 | 2 | 3 | 4 | 5'
+            metadata: {
+                difficulty: 'beginner',
 				estimatedTime: 15,
 				prerequisites: [],
 				tags: []
@@ -203,7 +203,7 @@
 		}
 
 		// Call custom handler if provided
-		onNodeMove({ nodeId: dragged_node.id, newParentId: new_parent || null });
+		onNodeMove(dragged_node.id, new_parent || null);
 
 		dragged_node = null;
 		drop_target = null;
@@ -354,7 +354,7 @@
 		</div>
 
 		<div class="node-meta">
-			<span class="difficulty">Difficulty: {node.metadata.difficulty}/5</span>
+            <span class="difficulty">Difficulty: {node.metadata.difficulty}</span>
 			<span class="time">~{node.metadata.estimatedTime}min</span>
 			{#if node.metadata.tags.length > 0}
 				<span class="tags">{node.metadata.tags.slice(0, 2).join(', ')}</span>

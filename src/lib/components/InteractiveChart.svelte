@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { VisualizationConfig } from '$lib/types/web-content.js';
+	import type { VisualizationConfig } from '$lib/types/unified';
 
 	type Props = {
 		data: any;
@@ -16,16 +16,18 @@
 	let tooltip = $state<{ x: number; y: number; content: string } | null>(null);
 
 	// Chart dimensions
-	const width = $derived(() => config.layout?.width || 600);
-	const height = $derived(() => config.layout?.height || 400);
-	const margin = $derived(() => config.layout?.margin || { top: 20, right: 20, bottom: 40, left: 40 });
+    const width: number = ($derived(() => config.layout?.width || 600) as unknown) as number;
+    const height: number = ($derived(() => config.layout?.height || 400) as unknown) as number;
+    const margin: { top: number; right: number; bottom: number; left: number } = ($derived(
+        () => config.layout?.margin || { top: 20, right: 20, bottom: 40, left: 40 }
+    ) as unknown) as { top: number; right: number; bottom: number; left: number };
 
 	// Calculate inner dimensions
-	const inner_width = $derived(() => width - margin.left - margin.right);
-	const inner_height = $derived(() => height - margin.top - margin.bottom);
+    const inner_width: number = ($derived(() => width - margin.left - margin.right) as unknown) as number;
+    const inner_height: number = ($derived(() => height - margin.top - margin.bottom) as unknown) as number;
 
 	// Sample data processing (this would be more sophisticated in a real implementation)
-	const processed_data = $derived(() => process_chart_data(data));
+    const processed_data: any[] = ($derived(() => process_chart_data(data)) as unknown) as any[];
 
 	function process_chart_data(raw_data) {
 		if (!raw_data) return [];
@@ -78,8 +80,8 @@
 		return (y: number) => inner_height - ((y - min) / (max - min)) * inner_height;
 	}
 
-	const x_scale = $derived(() => create_xscale(processed_data));
-	const y_scale = $derived(() => create_yscale(processed_data));
+    const x_scale = ($derived(() => create_xscale(processed_data)) as unknown) as (x: any, index?: number) => number;
+    const y_scale = ($derived(() => create_yscale(processed_data)) as unknown) as (y: any) => number;
 
 	// Handle mouse events
 	function handle_mouse_move(event: MouseEvent) {

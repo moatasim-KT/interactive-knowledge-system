@@ -1,6 +1,6 @@
 <script lang="ts">
 
-	import type { LazyLoadOptions } from '$lib/types/media';
+	import type { LazyLoadOptions } from '$lib/types/unified';
 
 	interface Props {
 		src: string;

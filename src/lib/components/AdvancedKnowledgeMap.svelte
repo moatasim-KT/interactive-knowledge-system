@@ -1,12 +1,7 @@
 <script lang="ts">
-	import type { ContentModule } from '../types/content.js';
-	import type {
-		KnowledgeMap,
-		KnowledgeMapNode,
-		KnowledgeMapConnection,
-		RelationshipType
-	} from '../types/relationships.js';
-	import { relationshipService, type GraphLayout } from '../services/relationshipService.js';
+    import type { ContentModule, KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, RelationshipType, GraphLayout } from '../types/unified';
+    import { difficultyToRank } from '$lib/types/unified';
+	import { relationshipService } from '../services/relationshipService.js';
 
 	type Props = {
 		modules: ContentModule[];
@@ -78,13 +73,25 @@
 	let svgElement: SVGSVGElement = $state();
 	let containerElement: HTMLDivElement = $state();
 
+	// A11y: ids for form controls
+	const layoutSelectId = 'layout-select';
+	const searchInputId = 'search-input';
+	const diffMinId = 'difficulty-min';
+	const diffMaxId = 'difficulty-max';
+	const showCompletedId = 'filter-completed';
+	const showLockedId = 'filter-locked';
+	const showConnLabelsId = 'filter-conn-labels';
+	function connectionTypeId(value: string) {
+		return `conn-type-${value}`;
+	}
+
 	// Available layouts
-	const layouts: Array<{ value: GraphLayout['type']; label: string; description: string }> = [
+    const layouts: Array<{ value: GraphLayout['type']; label: string; description: string }> = [
 		{ value: 'force-directed', label: 'Force Directed', description: 'Organic, physics-based layout' },
 		{ value: 'hierarchical', label: 'Hierarchical', description: 'Level-based prerequisite structure' },
 		{ value: 'circular', label: 'Circular', description: 'Nodes arranged in a circle' },
-		{ value: 'grid', label: 'Grid', description: 'Uniform grid arrangement' },
-		{ value: 'tree', label: 'Tree', description: 'Tree-like hierarchical structure' }
+        { value: 'grid', label: 'Grid', description: 'Uniform grid arrangement' },
+        { value: 'tree', label: 'Tree', description: 'Tree structure' },
 	];
 
 	// Connection types for filtering
@@ -112,11 +119,11 @@
 
 		try {
 			const layoutConfig: GraphLayout = {
+				name: currentLayout,
 				type: currentLayout,
 				width,
 				height,
-				nodeSpacing: 80,
-				levelSpacing: 120
+				options: { nodeSpacing: 80, levelSpacing: 120 }
 			};
 
 			knowledgeMap = await relationshipService.generateKnowledgeMap(
@@ -158,8 +165,8 @@
 			if (!showLocked && node.status === 'locked') return false;
 
 			// Difficulty filter
-			if (module.metadata.difficulty < difficultyFilter[0] ||
-				module.metadata.difficulty > difficultyFilter[1]) return false;
+            if (difficultyToRank(module.metadata.difficulty) < difficultyFilter[0] ||
+                difficultyToRank(module.metadata.difficulty) > difficultyFilter[1]) return false;
 
 			// Tag filter
 			if (tagFilter.length > 0 &&
@@ -499,12 +506,18 @@
 			node.title;
 	}
 
+	function getNodeTitleById(id: string): string {
+		if (!knowledgeMap) return id;
+		const node = knowledgeMap.nodes.find((n) => n.id === id);
+		return node ? node.title : id;
+	}
+
 	function getNodeDescription(node: KnowledgeMapNode): string {
 		const module = modules.find(m => m.id === node.contentId);
 		if (!module) return node.title;
 
 		return `${module.description}
-Difficulty: ${module.metadata.difficulty}/5
+                        Difficulty: ${module.metadata.difficulty}
 Tags: ${module.metadata.tags.join(', ')}
 Estimated time: ${module.metadata.estimatedTime} min`;
 	}
@@ -519,6 +532,28 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 	$effect(() => {
 		applyFilters();
 	});
+
+	// A11y: keyboard activation helper and non-mouse activators
+	function onKeyActivate(e: KeyboardEvent, action: () => void) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			action();
+		}
+	}
+
+	function handleNodeActivate(nodeId: string) {
+		if (selectedNode === nodeId) {
+			onNodeOpen?.(nodeId);
+		} else {
+			selectedNode = nodeId;
+			onNodeSelect?.(nodeId);
+		}
+	}
+
+	function handleConnectionActivate(connectionId: string) {
+		selectedConnection = connectionId;
+		onConnectionSelect?.(connectionId);
+	}
 </script>
 
 <div class="knowledge-map-container" bind:this={containerElement}>
@@ -547,8 +582,8 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 	{#if showControls && !loading && !error}
 		<div class="controls-panel">
 			<div class="control-group">
-				<label>Layout:</label>
-				<select bind:value={currentLayout} onchange={() => changeLayout(currentLayout)}>
+				<label for={layoutSelectId}>Layout:</label>
+				<select id={layoutSelectId} bind:value={currentLayout} onchange={() => changeLayout(currentLayout)}>
 					{#each layouts as layout}
 						<option value={layout.value}>{layout.label}</option>
 					{/each}
@@ -556,8 +591,9 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 			</div>
 
 			<div class="control-group">
-				<label>Search:</label>
+				<label for={searchInputId}>Search:</label>
 				<input
+					id={searchInputId}
 					type="text"
 					placeholder="Search content..."
 					bind:value={searchQuery}
@@ -565,48 +601,53 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 			</div>
 
 			<div class="control-group">
-				<label>Difficulty Range:</label>
+				<span class="group-label">Difficulty Range:</span>
 				<input
+					id={diffMinId}
 					type="range"
 					min="1"
 					max="5"
 					bind:value={difficultyFilter[0]}
 					class="range-input"
+					aria-label="Minimum difficulty"
 				/>
 				<span>{difficultyFilter[0]} - {difficultyFilter[1]}</span>
 				<input
+					id={diffMaxId}
 					type="range"
 					min="1"
 					max="5"
 					bind:value={difficultyFilter[1]}
 					class="range-input"
+					aria-label="Maximum difficulty"
 				/>
 			</div>
 
 			<div class="control-group">
-				<label>
-					<input type="checkbox" bind:checked={showCompleted} />
+				<label for={showCompletedId}>
+					<input id={showCompletedId} type="checkbox" bind:checked={showCompleted} />
 					Show Completed
 				</label>
-				<label>
-					<input type="checkbox" bind:checked={showLocked} />
+				<label for={showLockedId}>
+					<input id={showLockedId} type="checkbox" bind:checked={showLocked} />
 					Show Locked
 				</label>
-				<label>
-					<input type="checkbox" bind:checked={showConnectionLabels} />
+				<label for={showConnLabelsId}>
+					<input id={showConnLabelsId} type="checkbox" bind:checked={showConnectionLabels} />
 					Connection Labels
 				</label>
 			</div>
 
 			<div class="control-group">
-				<label>Connection Types:</label>
+				<span class="group-label">Connection Types:</span>
 				{#each connectionTypes as connType}
-					<label class="connection-filter">
+					<label class="connection-filter" for={connectionTypeId(connType.value)}>
 						<input
+							id={connectionTypeId(connType.value)}
 							type="checkbox"
 							checked={connectionTypeFilter.includes(connType.value)}
 							onchange={(e) => {
-								if (e.currentTarget.checked) {
+								if ((e.currentTarget as HTMLInputElement).checked) {
 									connectionTypeFilter = [...connectionTypeFilter, connType.value];
 								} else {
 									connectionTypeFilter = connectionTypeFilter.filter(t => t !== connType.value);
@@ -640,6 +681,8 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 
 	<!-- Main SVG Canvas -->
 	{#if knowledgeMap && !loading && !error}
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<svg
 			bind:this={svgElement}
 			{width}
@@ -648,6 +691,10 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 			onmousedown={handleCanvasMouseDown}
 			onclick={handleCanvasClick}
 			onwheel={handleWheel}
+			role="application"
+			aria-label="Knowledge map canvas"
+			tabindex="0"
+			onkeydown={(e) => onKeyActivate(e, () => onBackgroundClick?.())}
 		>
 			<!-- Definitions -->
 			<defs>
@@ -669,15 +716,18 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 				{#each knowledgeMap.connections as connection (connection.id)}
 					<g class="connection-group">
 						<path
-							d={getConnectionPath(connection)}
-							stroke={connection.color}
-							stroke-width={2 * connection.strength}
-							stroke-dasharray={connection.style === 'dashed' ? '5,5' : connection.style === 'dotted' ? '2,2' : 'none'}
+							stroke={connection.type === 'prerequisite' ? '#ef4444' : connection.type === 'sequence' ? '#3b82f6' : connection.type === 'related' ? '#6b7280' : connection.type === 'similar' ? '#a855f7' : '#f97316'}
+							stroke-width={selectedConnection === connection.id ? 3 : 2}
 							fill="none"
+							d={getConnectionPath(connection)}
 							marker-end={['prerequisite', 'sequence'].includes(connection.type) ? 'url(#arrowhead)' : 'none'}
 							class="connection-line"
 							class:selected={selectedConnection === connection.id}
 							onclick={(e) => handleConnectionClick(connection.id, e)}
+							onkeydown={(e) => onKeyActivate(e, () => handleConnectionActivate(connection.id))}
+							tabindex="0"
+							role="button"
+							aria-label={`Select connection ${getNodeTitleById(connection.sourceId)} to ${getNodeTitleById(connection.targetId)}`}
 							opacity={hoveredNode && (hoveredNode === connection.sourceId || hoveredNode === connection.targetId) ? 1 : 0.7}
 						/>
 
@@ -713,6 +763,10 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 							class:completed={node.status === 'completed'}
 							class:locked={node.status === 'locked'}
 							onclick={(e) => handleNodeClick(node.id, e)}
+							onkeydown={(e) => onKeyActivate(e, () => handleNodeActivate(node.id))}
+							tabindex="0"
+							role="button"
+							aria-label={`Node ${getNodeTitle(node)}. ${selectedNode === node.id ? 'Press Enter to open' : 'Press Enter to select'}`}
 							onmouseenter={() => handleNodeMouseEnter(node.id)}
 							onmouseleave={() => handleNodeMouseLeave()}
 							onmousedown={(e) => handleNodeDragStart(node.id, e)}
@@ -816,7 +870,7 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 	<!-- Minimap -->
 	{#if showMinimap && knowledgeMap && !loading && !error}
 		<div class="minimap">
-			<svg width="150" height="120" class="minimap-svg">
+			<svg width="150" height="120" class="minimap-svg" role="img" aria-label="Knowledge map minimap">
 				<rect width="150" height="120" fill="#f3f4f6" stroke="#d1d5db" />
 				<!-- Simplified nodes -->
 				{#each knowledgeMap.nodes as node}
@@ -826,6 +880,10 @@ Estimated time: ${module.metadata.estimatedTime} min`;
 						r="2"
 						fill={node.color}
 						onclick={() => centerOnNode(node.id)}
+						onkeydown={(e) => onKeyActivate(e, () => centerOnNode(node.id))}
+						tabindex="0"
+						role="button"
+						aria-label={`Center view on ${getNodeTitle(node)}`}
 						style="cursor: pointer"
 					/>
 				{/each}

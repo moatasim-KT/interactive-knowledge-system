@@ -2,7 +2,24 @@
  * Offline operation queue management
  */
 
-import type { SyncOperation, OfflineQueueItem } from '../types/sync.js';
+export type SyncOperation = {
+    id: string;
+    type: 'create' | 'update' | 'delete';
+    entity: 'content' | 'progress' | 'settings' | 'relationships';
+    entityId: string;
+    data: any;
+    timestamp: Date;
+    retryCount: number;
+    maxRetries: number;
+};
+
+export type OfflineQueueItem = {
+    id: string;
+    operation: SyncOperation;
+    priority: 'high' | 'medium' | 'low';
+    enqueuedAt: Date;
+    dependencies: string[];
+};
 import { storage } from '../storage/indexeddb.js';
 import type { OfflineQueueRecord } from '../storage/database.js';
 
@@ -31,9 +48,11 @@ export class OfflineQueue {
 		priority: 'high' | 'medium' | 'low' = 'medium',
 		dependencies: string[] = []
 	): Promise<void> {
-		const queue_item = {
+		const queue_item: OfflineQueueItem = {
+			id: operation.id,
 			operation,
 			priority,
+			enqueuedAt: new Date(),
 			dependencies
 		};
 

@@ -1,35 +1,40 @@
 <script lang="ts">
   import WebContentAnalyzer from './WebContentAnalyzer.svelte';
-  import { EnhancedUrlFetcher } from '$lib/services/EnhancedUrlFetcher';
+  import type { InteractiveVisualizationBlock } from '$lib/types/unified';
   import ProgressIndicator from './ProgressIndicator.svelte';
+  import { EnhancedUrlFetcher } from '$lib/services/EnhancedUrlFetcher';
+  import type { UserProgress } from '$lib/types/unified';
 
-  // Define a simple UserProgress type for this component's use
-  interface SimpleUserProgress {
-    status: 'not-started' | 'in-progress' | 'completed';
-    score?: number; // Using score to represent percentage for linear progress
-    timeSpent?: number;
-    attempts?: number;
-    lastAccessed?: Date;
-  }
+  // Use standardized UserProgress
 
   let urlInput = $state('');
   let analysisResults = $state<any>(null);
   let isLoading = $state(false);
   let currentMessage = $state('');
-  let progressState = $state<SimpleUserProgress>({ status: 'not-started', score: 0 });
+  let progressState = $state<UserProgress>({
+    userId: 'demo-user',
+    moduleId: 'web-content-analysis',
+    status: 'not-started',
+    score: 0,
+    timeSpent: 0,
+    lastAccessed: new Date(),
+    attempts: 0,
+    bookmarked: false,
+    notes: ''
+  });
   let isDragging = $state(false); // New state for drag-and-drop visual feedback
 
   async function analyzeUrl() {
     if (!urlInput) return;
     isLoading = true;
     currentMessage = 'Fetching and analyzing content...';
-    progressState = { status: 'in-progress', score: 0 };
+    progressState = { ...progressState, status: 'in-progress', score: 0, lastAccessed: new Date() };
 
     try {
       let currentProgress = 0;
       const interval = setInterval(() => {
         currentProgress = Math.min(currentProgress + 10, 90);
-        progressState = { ...progressState, score: currentProgress };
+        progressState = { ...progressState, score: currentProgress, timeSpent: (progressState.timeSpent || 0) + 1 };
       }, 200);
 
       const fetcher = new EnhancedUrlFetcher();
@@ -37,13 +42,13 @@
       clearInterval(interval);
 
       currentMessage = 'Analysis complete!';
-      progressState = { status: 'completed', score: 100 };
+      progressState = { ...progressState, status: 'completed', score: 100, lastAccessed: new Date() };
 
       analysisResults = { url: urlInput, content: fetchedContent };
       // In a real scenario, WebContentAnalyzer would process fetchedContent
     } catch (error: any) {
       currentMessage = `Error: ${error.message}`;
-      progressState = { status: 'not-started', score: 0 }; // Reset on error
+      progressState = { ...progressState, status: 'not-started', score: 0 }; // Reset on error
       console.error('Error analyzing URL:', error);
     } finally {
       isLoading = false;
@@ -108,7 +113,7 @@
     <h3>Analysis Results for: {analysisResults.url}</h3>
     <div class="analysis-display">
       <!-- WebContentAnalyzer would go here to display detailed analysis -->
-      <WebContentAnalyzer content={analysisResults.content} />
+      <WebContentAnalyzer />
     </div>
   {/if}
 </div>

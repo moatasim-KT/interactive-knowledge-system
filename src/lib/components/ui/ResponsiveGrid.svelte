@@ -1,23 +1,17 @@
 <script lang="ts">
-	type Props = {
-		columns?: {
-			mobile?: number;
-			tablet?: number;
-			desktop?: number;
-		};
-		gap?: 'sm' | 'md' | 'lg' | 'xl';
-		minItemWidth?: string;
-		class?: string;
-		children?: any;
-	}
-
-	let {
-		columns = { mobile: 1, tablet: 2, desktop: 3 },
-		gap = 'md',
-		minItemWidth = '300px',
-		class: className = '',
-		children
-	}: Props = $props();
+    let {
+        columns = { mobile: 1, tablet: 2, desktop: 3 },
+        gap = 'md',
+        minItemWidth = '300px',
+        className = '',
+        children
+    }: {
+        columns?: { mobile?: number; tablet?: number; desktop?: number };
+        gap?: 'sm' | 'md' | 'lg' | 'xl';
+        minItemWidth?: string;
+        className?: string;
+        children?: import('svelte').Snippet;
+    } = $props();
 
 	const gapClasses = {
 		sm: 'gap-2',
@@ -26,32 +20,34 @@
 		xl: 'gap-8'
 	};
 
-	const gridClasses = $derived(() =>
-		[
-			'responsive-grid',
-			gapClasses[gap],
-			className
-		]
-			.filter(Boolean)
-			.join(' ')
-	);
+    // compute plain reactive values for bindings
+    let _gridClasses = $state('');
+    let _gridStyle = $state('');
+    $effect(() => {
+        _gridClasses = [
+            'responsive-grid',
+            gapClasses[gap],
+            (className ?? '')
+        ]
+            .filter(Boolean)
+            .join(' ');
 
-	const gridStyle = $derived(() => {
-		if (minItemWidth) {
-			return `grid-template-columns: repeat(auto-fill, minmax(${minItemWidth}, 1fr));`;
-		}
-		return '';
-	});
+        _gridStyle = minItemWidth
+            ? `grid-template-columns: repeat(auto-fill, minmax(${minItemWidth}, 1fr));`
+            : '';
+    });
 </script>
 
 <div 
-	class={gridClasses} 
-	style={gridStyle}
+    class={_gridClasses} 
+    style={_gridStyle}
 	data-columns-mobile={columns.mobile}
 	data-columns-tablet={columns.tablet}
 	data-columns-desktop={columns.desktop}
 >
-	{@render children?.()}
+	{#if children}
+        {@render children()}
+    {/if}
 </div>
 
 <style>

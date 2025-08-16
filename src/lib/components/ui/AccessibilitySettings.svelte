@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { accessibilityPreferences } from '$lib/utils/accessibility.js';
 	import Button from './Button.svelte';
-	import Modal from './Modal.svelte';
+import { Modal } from './index.ts';
 
 	interface Props {
 		open?: boolean;
@@ -137,8 +137,6 @@
 	bind:open
 	title="Accessibility Settings"
 	size="md"
-	onclose={handle_close}
-	aria-describedby="accessibility-settings-description"
 >
 	<div id="accessibility-settings-description" class="accessibility-settings">
 		<p class="accessibility-settings__description">

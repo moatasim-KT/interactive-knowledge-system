@@ -6,8 +6,7 @@
 import { createLogger } from '../utils/logger.js';
 import { appState, actions } from '../stores/appState.svelte.js';
 import { webContentState, webContentActions } from '../stores/webContentState.svelte.js';
-import type { WebContent, WebContentSource } from '../types/web-content.js';
-import type { KnowledgeNode, ContentBlock } from '../types/index.js';
+import type { WebContent, WebContentSource, KnowledgeNode, ContentBlock } from '$lib/types/unified';
 import webContent from '../mcp/web-content/index.js';
 
 const logger = createLogger('web-content-knowledge-integration');
@@ -231,7 +230,7 @@ export class WebContentKnowledgeIntegration {
      * Estimate content difficulty
      */
     private estimateDifficulty(webContent: WebContent): number {
-        let difficulty = 3; // Default medium difficulty
+        let difficulty = 3; // Default medium difficulty (numeric scoring used internally)
         const content = webContent.content.text || '';
         const title = webContent.title.toLowerCase();
 

@@ -8,10 +8,9 @@ import { storageService } from './storage.js';
 import type {
     WebContent,
     InteractiveOpportunity,
-    InteractionSpec,
     VisualizationConfig,
     SimulationParameter
-} from '../types/web-content.js';
+} from '$lib/types/unified';
 
 export class InteractiveAnalyzer {
     private logger = createLogger('interactive-analyzer');
@@ -310,12 +309,8 @@ export class InteractiveAnalyzer {
                     title: `Interactive Code: ${codeBlock.language}`,
                     description: `Make this ${codeBlock.language} code block interactive`,
                     confidence: 0.8,
-                    reasoning: `Code block contains ${codeBlock.language} code that could be made executable`,
-                    sourceElement: `code_block_${index}`,
-                    parameters: {
-                        language: { type: 'text', value: codeBlock.language },
-                        executable: { type: 'boolean', value: true }
-                    }
+                    reasoning: [`Code block contains ${codeBlock.language} code that could be made executable`],
+                    sourceElement: `code_block_${index}`
                 });
             }
         });
@@ -329,12 +324,8 @@ export class InteractiveAnalyzer {
                     title: `Interactive Data Table`,
                     description: `Add filtering and sorting to this data table`,
                     confidence: 0.7,
-                    reasoning: `Table has ${table.rows.length} rows and could benefit from interactive features`,
-                    sourceElement: `table_${index}`,
-                    parameters: {
-                        sortable: { type: 'boolean', value: true },
-                        filterable: { type: 'boolean', value: true }
-                    }
+                    reasoning: [`Table has ${table.rows.length} rows and could benefit from interactive features`],
+                    sourceElement: `table_${index}`
                 });
             }
         });
@@ -347,12 +338,8 @@ export class InteractiveAnalyzer {
                 title: `Interactive ${chart.type} Chart`,
                 description: `Make this ${chart.type} chart interactive with hover and zoom`,
                 confidence: 0.9,
-                reasoning: `Chart detected and can be enhanced with interactivity`,
-                sourceElement: `chart_${index}`,
-                parameters: {
-                    chartType: { type: 'text', value: chart.type },
-                    interactive: { type: 'boolean', value: true }
-                }
+                reasoning: [`Chart detected and can be enhanced with interactivity`],
+                sourceElement: `chart_${index}`
             });
         });
 
@@ -365,12 +352,8 @@ export class InteractiveAnalyzer {
                 title: 'Process Simulation',
                 description: 'Create an interactive simulation of the described process',
                 confidence: 0.6,
-                reasoning: 'Content describes processes or algorithms that could be simulated',
-                sourceElement: 'main_content',
-                parameters: {
-                    simulationType: { type: 'text', value: 'process' },
-                    interactive: { type: 'boolean', value: true }
-                }
+                reasoning: ['Content describes processes or algorithms that could be simulated'],
+                sourceElement: 'main_content'
             });
         }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SystemDiagramBlock } from '$lib/types/web-content.js';
+	import type { SystemDiagramBlock } from '$lib/types/unified';
 	import ParameterControls from './ParameterControls.svelte';
 
 	interface Props {

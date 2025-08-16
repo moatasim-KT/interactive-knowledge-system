@@ -3,8 +3,8 @@
 	import { KnowledgeTree } from '$lib/components';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-
+	import type { DifficultyLevel } from '$lib/types/unified';
+	
 	interface Props {
 		children: any;
 	}
@@ -12,7 +12,7 @@
 	let { children }: Props = $props();
 
 	// Initialize with some sample data if empty
-	onMount(() => {
+	$effect(() => {
 		if (appState.content.nodes.size === 0) {
 			// Create sample knowledge structure
 			const sample_nodes = [
@@ -20,8 +20,8 @@
 					id: 'programming-basics',
 					title: 'Programming Basics',
 					type: 'folder' as const,
-					metadata: {
-						difficulty: 1 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'beginner' as DifficultyLevel,
 						estimatedTime: 0,
 						prerequisites: [],
 						tags: ['programming', 'basics']
@@ -32,8 +32,8 @@
 					title: 'JavaScript Fundamentals',
 					type: 'module' as const,
 					parent: 'programming-basics',
-					metadata: {
-						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'intermediate' as DifficultyLevel,
 						estimatedTime: 45,
 						prerequisites: [],
 						tags: ['javascript', 'fundamentals']
@@ -44,8 +44,8 @@
 					title: 'Variables and Data Types',
 					type: 'lesson' as const,
 					parent: 'javascript-fundamentals',
-					metadata: {
-						difficulty: 1 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'beginner' as DifficultyLevel,
 						estimatedTime: 15,
 						prerequisites: [],
 						tags: ['javascript', 'variables', 'types']
@@ -56,8 +56,8 @@
 					title: 'Functions Basics',
 					type: 'lesson' as const,
 					parent: 'javascript-fundamentals',
-					metadata: {
-						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'intermediate' as DifficultyLevel,
 						estimatedTime: 20,
 						prerequisites: ['variables-and-types'],
 						tags: ['javascript', 'functions']
@@ -67,8 +67,8 @@
 					id: 'web-development',
 					title: 'Web Development',
 					type: 'folder' as const,
-					metadata: {
-						difficulty: 3 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'advanced' as DifficultyLevel,
 						estimatedTime: 0,
 						prerequisites: ['programming-basics'],
 						tags: ['web', 'development']
@@ -79,8 +79,8 @@
 					title: 'HTML & CSS Basics',
 					type: 'module' as const,
 					parent: 'web-development',
-					metadata: {
-						difficulty: 2 as 1 | 2 | 3 | 4 | 5,
+                    metadata: {
+                        difficulty: 'intermediate' as DifficultyLevel,
 						estimatedTime: 60,
 						prerequisites: [],
 						tags: ['html', 'css', 'web']

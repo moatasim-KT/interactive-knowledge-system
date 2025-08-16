@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { InteractiveChartBlock } from '$lib/types/web-content.js';
+	import type { InteractiveChartBlock } from '$lib/types/unified';
 	import InteractiveChart from './InteractiveChart.svelte';
 	import DataManipulator from './DataManipulator.svelte';
+	import type { DataFilter } from '$lib/types/unified';
 	interface Props {
 		block: InteractiveChartBlock;
 		editable?: boolean;
@@ -27,28 +28,7 @@
 	let active_filters = $state<DataFilter[]>(block.content.filters || []);
 	
 	// Create proper chart config with all required properties
-	const chart_config = $derived<{
-		title: string;
-		description: string;
-		parameters: any[];
-		layout: {
-			width: number;
-			height: number;
-			margin: { top: number; right: number; bottom: number; left: number };
-			responsive: boolean;
-		};
-		styling: {
-			theme: 'light';
-			colors: string[];
-			fonts: { family: string; size: number };
-		};
-		animations: {
-			enabled: boolean;
-			duration: number;
-			easing: string;
-			transitions: string[];
-		};
-	}>(() => ({
+	const chart_config = $derived(() => ({
 		title: block.content.title || 'Untitled Chart',
 		description: block.content.description || '',
 		parameters: [], // Added parameters property for compatibility
@@ -117,7 +97,7 @@
 			heatmap: 'Heat Map',
 			network: 'Network Diagram'
 		};
-		return type_names[type] || type;
+		return (type_names as any)[type] || type;
 	}
 </script>
 

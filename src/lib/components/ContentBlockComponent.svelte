@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ContentBlock } from '$lib/types/unified.js';
-	import type { MediaFile } from '$lib/types/media';
+	import type { MediaFile } from '$lib/types/unified';
 	import ResponsiveImage from './ResponsiveImage.svelte';
 	import LazyMedia from './LazyMedia.svelte';
 	import MediaUpload from './MediaUpload.svelte';

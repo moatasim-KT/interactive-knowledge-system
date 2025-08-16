@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { UserProgress } from '../types/user.js';
+	import type { UserProgress } from '../types/unified';
 
 	interface Props {
 		progress?: UserProgress;

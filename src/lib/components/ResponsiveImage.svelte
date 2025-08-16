@@ -1,6 +1,7 @@
 <script lang="ts">
-	import LazyMedia from './LazyMedia.svelte';
-	import type { ResponsiveImageSizes, LazyLoadOptions } from '$lib/types/media';
+    import LazyMedia from './LazyMedia.svelte';
+    import type { LazyLoadOptions } from '$lib/types/unified';
+    import type { ResponsiveImageSizes } from '$lib/utils/mediaOptimization';
 
 	interface Props {
 		src: string;

@@ -9,7 +9,7 @@ import type {
 	WebContent,
 	VisualizationConfig,
 	SimulationParameter
-} from '../../types/web-content';
+} from '../../types/unified';
 
 export interface ContentTemplate {
 	id: string;

@@ -8,7 +8,7 @@ import type {
 	LearningPath,
 	KnowledgeNode,
 	UserSettings
-} from '../types/index.js';
+} from '$lib/types/unified';
 import { createBackup, type ExportData } from './exportUtils.js';
 import { importFromJSON, type ImportResult } from './importUtils.js';
 import { storage } from '../storage/index.js';
@@ -510,8 +510,8 @@ export class BackupManager {
 			id: 'default',
 			preferences: {
 				theme: 'light',
-				learningStyle: 'visual',
-				difficulty: 3,
+                learningStyle: 'visual',
+                difficulty: 'intermediate',
 				language: 'en',
 				notifications: true,
 				autoSave: true

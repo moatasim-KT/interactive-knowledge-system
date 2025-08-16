@@ -3,7 +3,7 @@
  */
 import { progressStorage } from '../storage/userStorage.js';
 import { appState, actions } from './appState.svelte.js';
-import type { UserProgress } from '../types/user.js';
+import type { UserProgress } from '$lib/types/unified';
 
 class ProgressPersistenceService {
 	private saveQueue = new Set<string>();

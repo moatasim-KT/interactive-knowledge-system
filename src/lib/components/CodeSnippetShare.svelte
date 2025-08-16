@@ -22,7 +22,33 @@
 	}: Props = $props();
 
 	let copied = $state(false);
-
+	
+	// Share data state
+	let share_data = $state({
+		title: '',
+		description: '',
+		tags: '',
+		isPublic: false
+	});
+	
+	// Existing share data (if updating)
+	let existingShare = $state<any>(null);
+	
+		// Share URL
+	let share_url = $state<string | null>(null);
+	
+	// Additional state variables
+    let codeContent = $state({ code, language });
+	let is_submitting = $state(false);
+	let error = $state<string | null>(null);
+	let is_valid = $state(true);
+	
+	// Function to generate shareable link
+	function generate_shareable_link() {
+		// TODO: Implement link generation
+		return 'https://example.com/share/123';
+	}
+	
 	async function copy_code() {
 		try {
 			await navigator.clipboard.writeText(code);
@@ -51,6 +77,21 @@
 			alert('Web Share API is not supported in your browser. You can copy the code instead.');
 			onShare({ code, url: 'unsupported' });
 		}
+	}
+
+	
+	
+	// Handle form submission
+	function handle_submit(event: Event) {
+		event.preventDefault();
+		// TODO: Implement share logic
+		console.log('Share data:', share_data);
+	}
+	
+	// Handle cancel/close
+	function handle_cancel() {
+		// TODO: Implement cancel logic
+		console.log('Cancel clicked');
 	}
 </script>
 
@@ -131,10 +172,10 @@
 			<!-- Code Preview -->
 			<div class="code-preview">
 				<div class="preview-header">
-					<span class="preview-label">Code Preview</span>
-					<span class="language-badge">{codeContent.language}</span>
+                    <span class="preview-label">Code Preview</span>
+                    <span class="language-badge">{codeContent.language}</span>
 				</div>
-				<pre class="preview-code"><code>{codeContent.code}</code></pre>
+                <pre class="preview-code"><code>{codeContent.code}</code></pre>
 			</div>
 
 			{#if error}
@@ -198,7 +239,7 @@
                     <label for="share-url-input">Share URL:</label>
                     <div class="url-input-group">
                         <input id="share-url-input" type="text" value={share_url} readonly class="url-input" />
-                        <button type="button" onclick={copy_share_url} class="copy-btn" title="Copy URL">
+                        <button type="button" onclick={() => navigator.clipboard.writeText(share_url)} class="copy-btn" title="Copy URL">
                             📋
                         </button>
                     </div>

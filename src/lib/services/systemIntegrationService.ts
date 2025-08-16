@@ -4,14 +4,14 @@
  */
 
 import { EnhancedDocumentProcessor } from './enhancedDocumentProcessor.js';
-import type { ProcessedDocument } from '../types/unified.js';
-import { InteractiveTransformer, type InteractiveArticle } from './interactiveTransformer.js';
-import { knowledgeBaseIntegrationService, type IntegrationResult } from './knowledgeBaseIntegrationService.js';
+import type { ProcessedDocument, SystemIntegrationOptions, IntegrationPipeline, DocumentTransformationResult, IntegrationResult, WebContent, WebContentMetadata, InteractiveArticle } from '$lib/types/unified';
+import { InteractiveTransformer } from './interactiveTransformer.js';
+import { knowledgeBaseIntegrationService } from './knowledgeBaseIntegrationService.js';
 import { WebContentFetcher, type FetchOptions } from './webContentFetcher.js';
 import { webContentState, webContentActions } from '../stores/webContentState.svelte.js';
 import { appState, actions } from '../stores/appState.svelte.js';
 import { logger } from '../utils/logger.js';
-import type { KnowledgeNode, WebContent, WebContentSource } from '../types/index.js';
+import type { KnowledgeNode, WebContentSource, ContentBlock, IntegrationStep } from '$lib/types/unified';
 
 
 
@@ -25,8 +25,13 @@ export class SystemIntegrationService {
     private activePipelines: Map<string, IntegrationPipeline> = new Map();
     private options: Required<SystemIntegrationOptions>;
 
-    constructor(options: SystemIntegrationOptions = {}) {
+    constructor(options: Partial<SystemIntegrationOptions> = {}) {
         this.options = {
+            enableAutoDiscovery: true,
+            enableConflictResolution: true,
+            enableOptimisticUpdates: true,
+            maxRetries: 3,
+            timeout: 30000,
             enableProgressTracking: true,
             enableErrorRecovery: true,
             enableCaching: true,
@@ -365,7 +370,7 @@ export class SystemIntegrationService {
         // Get existing nodes from app state
         const existingNodes = Array.from(appState.content.nodes.values());
 
-        return await knowledgeBaseIntegrationService.integrateDocument(
+        const result = await knowledgeBaseIntegrationService.integrateDocument(
             document,
             existingNodes,
             {
@@ -375,18 +380,26 @@ export class SystemIntegrationService {
                 assignToCollections: true
             }
         );
+        return {
+            node: result.node,
+            relationships: result.relationships as any,
+            metrics: {
+                suggestions: result.suggestions,
+                metadata: result.metadata
+            }
+        } as any;
     }
 
     private async convertWebContentToDocument(webContent: WebContent): Promise<ProcessedDocument> {
         // Convert WebContent to ProcessedDocument format
-        const contentBlocks = [
+        const contentBlocks: ContentBlock[] = [
             {
                 id: `block_${Date.now()}`,
-                type: 'text' as const,
+                type: 'text',
                 content: {
                     text: webContent.content.text,
-                    html: webContent.content.html,
-                    format: 'html'
+                    format: 'html',
+                    originalHtml: webContent.content.html
                 },
                 metadata: {
                     created: new Date(),
@@ -401,18 +414,18 @@ export class SystemIntegrationService {
             webContent.content.codeBlocks.forEach(codeBlock => {
                 contentBlocks.push({
                     id: codeBlock.id,
-                    type: 'code' as const,
+                    type: 'code',
                     content: {
                         code: codeBlock.code,
                         language: codeBlock.language,
-                        executable: codeBlock.executable
-                    },
+                        executable: !!codeBlock.executable
+                    } as any,
                     metadata: {
                         created: new Date(),
                         modified: new Date(),
                         version: 1
                     }
-                });
+                } as ContentBlock);
             });
         }
 
@@ -433,30 +446,44 @@ export class SystemIntegrationService {
             },
             structure: {
                 sections: [],
-                toc: { entries: [] },
+                toc: { items: [] },
                 metadata: {
+                    totalSections: 1,
                     maxDepth: 1,
-                    sectionCount: 1,
                     hasImages: webContent.content.images.length > 0,
-                    hasCodeBlocks: webContent.content.codeBlocks.length > 0,
+                    hasCode: webContent.content.codeBlocks.length > 0,
                     hasTables: webContent.content.tables.length > 0
                 }
             },
             assets: webContent.content.images.map(img => ({
                 id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
                 type: 'image' as const,
-                url: img.src,
+                name: img.alt || 'image',
+                path: img.url || '',
+                url: img.url,
                 filename: img.alt || 'image',
                 size: 0,
                 mimeType: 'image/jpeg',
-                extractedFrom: 'web'
-            }))
+                extractedFrom: 'web',
+                metadata: {
+                    alt: img.alt || 'image'
+                }
+            })),
+            source: {
+                type: 'url',
+                originalUrl: webContent.url,
+                uploadedAt: new Date(webContent.fetchedAt)
+            }
         };
     }
 
     private createPipeline(id: string, name: string, stepConfigs: Array<{ id: string; name: string; description: string }>): IntegrationPipeline {
-        const steps: IntegrationStep[] = stepConfigs.map(config => ({
-            ...config,
+        const steps: IntegrationStep[] = stepConfigs.map((config, index) => ({
+            id: config.id,
+            name: config.name,
+            type: 'integrate' as const,
+            order: index,
+            config: {},
             status: 'pending',
             progress: 0
         }));
@@ -464,14 +491,17 @@ export class SystemIntegrationService {
         return {
             id,
             name,
+            description: 'Pipeline for processing content',
             steps,
             status: 'idle',
             progress: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
             startTime: new Date()
         };
     }
 
-    private async updatePipelineStep(pipelineId: string, stepId: string, status: IntegrationStep['status'], result?: any): Promise<void> {
+    private async updatePipelineStep(pipelineId: string, stepId: string, status: 'pending' | 'running' | 'completed' | 'failed', result?: any): Promise<void> {
         const pipeline = this.activePipelines.get(pipelineId);
         if (!pipeline) { return; }
 
@@ -486,7 +516,7 @@ export class SystemIntegrationService {
             pipeline.status = 'running';
         } else if (status === 'completed') {
             step.progress = 100;
-        } else if (status === 'error') {
+        } else if (status === 'failed') {
             step.progress = 0;
             pipeline.status = 'error';
         }
@@ -516,6 +546,7 @@ export class SystemIntegrationService {
         // Create web content source
         const source: WebContentSource = {
             id: webContent.id,
+            type: 'url',
             url: webContent.url,
             title: webContent.title,
             domain: webContent.metadata.domain,
@@ -526,11 +557,19 @@ export class SystemIntegrationService {
                 category: webContent.metadata.category,
                 tags: webContent.metadata.tags,
                 readingTime: webContent.metadata.readingTime,
-                wordCount: webContent.metadata.wordCount
+                wordCount: webContent.metadata.wordCount,
+                domain: webContent.metadata.domain,
+                contentType: webContent.metadata.contentType,
+                language: webContent.metadata.language,
+                keywords: webContent.metadata.keywords,
+                description: webContent.metadata.description,
+                attribution: webContent.metadata.attribution
             },
             usage: {
                 timesReferenced: 0,
-                lastAccessed: new Date()
+                referenceCount: 0,
+                lastAccessed: new Date(),
+                generatedModules: []
             }
         };
 

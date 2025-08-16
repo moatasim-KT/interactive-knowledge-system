@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger';
-import type { WebContentSource } from '../types/web-content';
+import type { WebContentSource } from '$lib/types/unified';
 
 const logger = createLogger('enhanced-url-fetcher');
 

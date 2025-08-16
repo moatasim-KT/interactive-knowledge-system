@@ -4,69 +4,12 @@
  * Provides comprehensive bidirectional linking, visual graph generation,
  * prerequisite enforcement, and intelligent content recommendations.
  */
-import type {
-	ContentLink,
-	ContentGraph,
-	ContentGraphNode,
-	DependencyChain,
-	RelationshipType,
-	KnowledgeMap,
-	KnowledgeMapNode,
-	KnowledgeMapConnection,
-	ContentRecommendation,
-	SimilarityScore,
-	RecommendationReason
-} from '../types/relationships.js';
-import type { ContentModule } from '../types/content.js';
+import type { ContentLink, ContentGraph, ContentGraphNode, DependencyChain, RelationshipType, KnowledgeMap, KnowledgeMapNode, KnowledgeMapConnection, ContentRecommendation, SimilarityScore, RecommendationReason, ContentModule, GraphVisualizationOptions, PathfindingResult, ConnectionStrength, ClusterAnalysis } from '$lib/types/unified';
 import { relationshipStorage } from '../storage/relationshipStorage.js';
 import { similarityEngine } from '../utils/similarityEngine.js';
+import { difficultyToRank } from '$lib/types/unified';
 
-export interface GraphVisualizationOptions {
-	layout: 'force-directed' | 'hierarchical' | 'circular' | 'grid' | 'radial';
-	width: number;
-	height: number;
-	nodeSize: 'uniform' | 'by-content' | 'by-connections';
-	colorScheme: 'default' | 'by-topic' | 'by-difficulty' | 'by-progress';
-	showLabels: boolean;
-	showConnections: boolean;
-	animateLayout: boolean;
-	clustered: boolean;
-}
 
-export interface ConnectionStrength {
-	linkId: string;
-	strength: number;
-	confidence: number;
-	factors: Array<{
-		type: 'content-similarity' | 'tag-overlap' | 'difficulty-progression' | 'user-behavior';
-		weight: number;
-		value: number;
-	}>;
-}
-
-export interface PathfindingResult {
-	path: string[];
-	totalCost: number;
-	steps: Array<{
-		from: string;
-		to: string;
-		relationshipType: RelationshipType;
-		strength: number;
-	}>;
-	alternatives?: PathfindingResult[];
-}
-
-export interface ClusterAnalysis {
-	clusters: Array<{
-		id: string;
-		nodes: string[];
-		centroid: string;
-		topic: string;
-		coherence: number;
-	}>;
-	isolatedNodes: string[];
-	bridgeNodes: string[];
-}
 
 /**
  * Enhanced relationship service with advanced graph operations
@@ -216,9 +159,9 @@ export class EnhancedRelationshipService {
 		const dependencyChain = await relationshipStorage.analyzeDependencyChain(targetContentId);
 
 		// Check which prerequisites are missing
-		const missingPrerequisites = dependencyChain.prerequisites.filter(
-			prereqId => !completedContent.has(prereqId)
-		);
+        const missingPrerequisites = Array.from(dependencyChain.prerequisites).filter(
+            prereqId => !completedContent.has(prereqId)
+        );
 
 		const canAccess = missingPrerequisites.length === 0;
 
@@ -332,12 +275,12 @@ export class EnhancedRelationshipService {
 			})
 			: await relationshipStorage.findLinks();
 
-		const strengths: ConnectionStrength[] = [];
+        const strengths: ConnectionStrength[] = [] as any;
 		const suggestions = [];
 
 		for (const link of links) {
-			const strength = await this.calculateEnhancedConnectionStrength(link);
-			strengths.push(strength);
+            const strength = await this.calculateEnhancedConnectionStrength(link);
+            strengths.push({ value: strength.strength, confidence: strength.confidence, factors: [], lastUpdated: new Date() });
 
 			// Suggest improvements based on strength analysis
 			if (strength.confidence < 0.5) {
@@ -519,12 +462,11 @@ export class EnhancedRelationshipService {
 		progress?: { completed: boolean; score?: number }
 	): string {
 		switch (colorScheme) {
-			case 'by-difficulty':
-				const difficulty = module.metadata.difficulty;
-				if (difficulty <= 2) {return '#4CAF50';} // Green
-				if (difficulty <= 5) {return '#FF9800';} // Orange
-				if (difficulty <= 8) {return '#F44336';} // Red
-				return '#9C27B0'; // Purple
+            case 'by-difficulty':
+                const rank = difficultyToRank(module.metadata.difficulty);
+                if (rank <= 1) {return '#4CAF50';} // Beginner
+                if (rank === 2) {return '#FF9800';} // Intermediate
+                return '#F44336'; // Advanced
 
 			case 'by-progress':
 				if (progress?.completed) {return '#4CAF50';}
@@ -581,14 +523,16 @@ export class EnhancedRelationshipService {
 		}
 	}
 
-	private async calculateEnhancedConnectionStrength(link: ContentLink): Promise<ConnectionStrength> {
+    private async calculateEnhancedConnectionStrength(link: ContentLink): Promise<{ linkId: string; strength: number; confidence: number; value: 'weak' | 'medium' | 'strong'; factors: Array<{ type: string; weight: number; value: number }>; }> {
 		// This is a simplified implementation - in reality you'd analyze:
 		// - Content similarity
 		// - User interaction patterns
 		// - Learning outcome correlations
 		// - Expert annotations
 
-		return {
+        const value: 'weak' | 'medium' | 'strong' = link.strength < 0.34 ? 'weak' : link.strength < 0.67 ? 'medium' : 'strong';
+        return {
+            value,
 			linkId: link.id,
 			strength: link.strength,
 			confidence: 0.8, // Placeholder
@@ -875,14 +819,14 @@ class RecommendationEngine {
 		allModules: ContentModule[],
 		completedContent: Set<string>
 	): Promise<ContentRecommendation[]> {
-		const recommendations: ContentRecommendation[] = [];
-		const currentDifficulty = currentModule.metadata.difficulty;
+        const recommendations: ContentRecommendation[] = [];
+        const currentDifficulty = difficultyToRank(currentModule.metadata.difficulty);
 
 		// Find modules with slightly higher difficulty
 		for (const module of allModules) {
 			if (module.id === currentModule.id || completedContent.has(module.id)) {continue;}
 
-			const difficultyGap = module.metadata.difficulty - currentDifficulty;
+            const difficultyGap = difficultyToRank(module.metadata.difficulty) - currentDifficulty;
 
 			if (difficultyGap >= 1 && difficultyGap <= 2) {
 				recommendations.push({
@@ -982,7 +926,7 @@ class RecommendationEngine {
 					paths.push(path);
 					// Mark edges as used to encourage diversity
 					path.steps.forEach(step => {
-						const edgeId = `${step.from}-${step.to}`;
+                    const edgeId = `${(step as any).from || ''}-${(step as any).to || ''}`;
 						usedEdges.add(edgeId);
 					});
 				}

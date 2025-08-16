@@ -3,7 +3,7 @@
  * Defines the data structures and interfaces for the web content sourcing MCP server
  */
 
-import type { ContentBlock } from '../../types/content.js';
+import type { ContentBlock } from '../../types/unified';
 
 export type { ContentBlock }; // Re-export ContentBlock
 

@@ -98,7 +98,7 @@ export function getUserPreferences() {
 		appState.user.settings?.preferences || {
 			theme: 'light',
 			learningStyle: 'visual',
-			difficulty: 3,
+            difficulty: 'intermediate',
 			language: 'en',
 			notifications: true,
 			autoSave: true

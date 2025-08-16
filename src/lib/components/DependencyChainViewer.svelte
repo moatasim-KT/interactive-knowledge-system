@@ -1,374 +1,381 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
-	import type { ContentModule } from '../types/content.js';
-	import type {
-		DependencyChain,
-		ContentLink,
-		RelationshipType
-	} from '../types/relationships.js';
-	import { relationshipService } from '../services/relationshipService.js';
-	import { relationshipStorage } from '../storage/relationshipStorage.js';
+    import type { ContentModule, DependencyChain, RelationshipType } from '$lib/types/unified';
+    import { relationshipStorage } from '../storage/relationshipStorage.js';
 
-	const dispatch = createEventDispatcher();
+    interface Props {
+        contentId?: string | null;
+        modules: ContentModule[];
+        completedContent: Set<string>;
+        showPrerequisites?: boolean;
+        showDependents?: boolean;
+        showCircularDependencies?: boolean;
+        maxDepth?: number;
+        interactive?: boolean;
+        expandAll?: boolean;
+        onNodeSelect?: (nodeId: string) => void;
+        onNavigate?: (nodeId: string) => void;
+    }
 
-	interface Props {
-		contentId?: string | null;
-		modules: ContentModule[];
-		completedContent: Set<string>;
-		showPrerequisites?: boolean;
-		showDependents?: boolean;
-		showCircularDependencies?: boolean;
-		maxDepth?: number;
-		interactive?: boolean;
-		expandAll?: boolean;
-	}
+    let {
+        contentId = null,
+        modules,
+        completedContent,
+        showPrerequisites = true,
+        showDependents = true,
+        showCircularDependencies = true,
+        maxDepth = 5,
+        interactive = true,
+        expandAll = false,
+        onNodeSelect,
+        onNavigate
+    }: Props = $props();
 
-	let {
-		contentId = null,
-		modules,
-		completedContent,
-		showPrerequisites = true,
-		showDependents = true,
-		showCircularDependencies = true,
-		maxDepth = 5,
-		interactive = true,
-		expandAll = false
-	}: Props = $props();
+    interface ChainNode {
+        id: string;
+        title: string;
+        level: number;
+        status: 'completed' | 'current' | 'available' | 'locked';
+        isExpanded: boolean;
+        children: ChainNode[];
+        parents: ChainNode[];
+        linkType?: RelationshipType;
+        linkStrength?: number;
+        isCircular?: boolean;
+        module?: ContentModule;
+    }
 
-	interface ChainNode {
-		id: string;
-		title: string;
-		level: number;
-		status: 'completed' | 'current' | 'available' | 'locked';
-		isExpanded: boolean;
-		children: ChainNode[];
-		parents: ChainNode[];
-		linkType?: RelationshipType;
-		linkStrength?: number;
-		isCircular?: boolean;
-		module?: ContentModule;
-	}
+    // State
+    let dependencyChain = $state<DependencyChain | null>(null);
+    let prerequisiteTree = $state<ChainNode | null>(null);
+    let dependentTree = $state<ChainNode | null>(null);
+    let circularDependencies = $state<string[][]>([]);
+    let loading = $state(false);
+    let error = $state<string | null>(null);
+    let selectedNodeId = $state<string | null>(null);
+    let expandedNodes = $state<Set<string>>(new Set());
 
-	// State
-	let dependencyChain = $state<DependencyChain | null>(null);
-	let prerequisiteTree = $state<ChainNode | null>(null);
-	let dependentTree = $state<ChainNode | null>(null);
-	let circularDependencies = $state<string[][]>([]);
-	let loading = $state(false);
-	let error = $state<string | null>(null);
-	let selectedNodeId = $state<string | null>(null);
-	let expandedNodes = $state<Set<string>>(new Set());
+    // View options
+    let showOnlyBlocked = $state(false);
+    let showOnlyMissing = $state(false);
+    let highlightCriticalPath = $state(true);
 
-	// View options
-	let showOnlyBlocked = $state(false);
-	let showOnlyMissing = $state(false);
-	let highlightCriticalPath = $state(true);
+    
 
-	onMount(async () => {
-		if (contentId) {
-			await analyzeDependencies();
-		}
-	});
+    /**
+     * Analyze dependencies for the current content
+     */
+    async function analyzeDependencies() {
+        if (!contentId) return;
 
-	/**
-	 * Analyze dependencies for the current content
-	 */
-	async function analyzeDependencies() {
-		if (!contentId) return;
+        loading = true;
+        error = null;
 
-		loading = true;
-		error = null;
+        try {
+            // Get dependency chain analysis
+            dependencyChain = await relationshipStorage.analyzeDependencyChain(
+                contentId
+            );
 
-		try {
-			// Get dependency chain analysis
-			dependencyChain = await relationshipStorage.analyzeDependencyChain(
-				contentId,
-				completedContent
-			);
+            // Build prerequisite tree
+            if (showPrerequisites) {
+                prerequisiteTree = await buildPrerequisiteTree(contentId);
+            }
 
-			// Build prerequisite tree
-			if (showPrerequisites) {
-				prerequisiteTree = await buildPrerequisiteTree(contentId);
-			}
+            // Build dependent tree
+            if (showDependents) {
+                dependentTree = await buildDependentTree(contentId);
+            }
 
-			// Build dependent tree
-			if (showDependents) {
-				dependentTree = await buildDependentTree(contentId);
-			}
+            // Check for circular dependencies
+            if (showCircularDependencies) {
+                circularDependencies = await relationshipStorage.detectCircularDependencies();
+            }
 
-			// Check for circular dependencies
-			if (showCircularDependencies) {
-				circularDependencies = await relationshipStorage.findCircularDependencies();
-			}
+            // Auto-expand if requested
+            if (expandAll) {
+                expandAllNodes();
+            }
 
-			// Auto-expand if requested
-			if (expandAll) {
-				expandAllNodes();
-			}
+        } catch (err) {
+            error = err instanceof Error ? err.message : 'Failed to analyze dependencies';
+            console.error('Dependency analysis error:', err);
+        } finally {
+            loading = false;
+        }
+    }
 
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to analyze dependencies';
-			console.error('Dependency analysis error:', err);
-		} finally {
-			loading = false;
-		}
-	}
+    /**
+     * Build prerequisite tree recursively
+     */
+    async function buildPrerequisiteTree(
+        nodeId: string,
+        level: number = 0,
+        visited: Set<string> = new Set()
+    ): Promise<ChainNode | null> {
+        if (visited.has(nodeId) || level > maxDepth) {
+            return null;
+        }
 
-	/**
-	 * Build prerequisite tree recursively
-	 */
-	async function buildPrerequisiteTree(
-		nodeId: string,
-		level: number = 0,
-		visited: Set<string> = new Set()
-	): Promise<ChainNode | null> {
-		if (visited.has(nodeId) || level > maxDepth) {
-			return null;
-		}
+        visited.add(nodeId);
+        const module = modules.find(m => m.id === nodeId);
+        if (!module) return null;
 
-		visited.add(nodeId);
-		const module = modules.find(m => m.id === nodeId);
-		if (!module) return null;
+        const node: ChainNode = {
+            id: nodeId,
+            title: module.title,
+            level,
+            status: getNodeStatus(nodeId),
+            isExpanded: expandedNodes.has(nodeId),
+            children: [],
+            parents: [],
+            module
+        };
 
-		const node: ChainNode = {
-			id: nodeId,
-			title: module.title,
-			level,
-			status: getNodeStatus(nodeId),
-			isExpanded: expandedNodes.has(nodeId),
-			children: [],
-			parents: [],
-			module
-		};
+        // Get prerequisite links
+        const prerequisiteLinks = await relationshipStorage.findLinks({
+            targetIds: [nodeId],
+            types: ['prerequisite', 'sequence']
+        });
 
-		// Get prerequisite links
-		const incomingLinks = await relationshipStorage.getIncomingLinks(nodeId);
-		const prerequisiteLinks = incomingLinks.filter(link =>
-			link.type === 'prerequisite' || link.type === 'sequence'
-		);
+        // Build children (prerequisites)
+        for (const link of prerequisiteLinks) {
+            const childNode = await buildPrerequisiteTree(
+                link.sourceId,
+                level + 1,
+                new Set(visited)
+            );
 
-		// Build children (prerequisites)
-		for (const link of prerequisiteLinks) {
-			const childNode = await buildPrerequisiteTree(
-				link.sourceId,
-				level + 1,
-				new Set(visited)
-			);
+            if (childNode) {
+                childNode.linkType = link.type;
+                childNode.linkStrength = link.strength;
+                childNode.isCircular = isCircularDependency(link.sourceId, nodeId);
+                node.children.push(childNode);
+                childNode.parents.push(node);
+            }
+        }
 
-			if (childNode) {
-				childNode.linkType = link.type;
-				childNode.linkStrength = link.strength;
-				childNode.isCircular = isCircularDependency(link.sourceId, nodeId);
-				node.children.push(childNode);
-				childNode.parents.push(node);
-			}
-		}
+        return node;
+    }
 
-		return node;
-	}
+    /**
+     * Build dependent tree recursively
+     */
+    async function buildDependentTree(
+        nodeId: string,
+        level: number = 0,
+        visited: Set<string> = new Set()
+    ): Promise<ChainNode | null> {
+        if (visited.has(nodeId) || level > maxDepth) {
+            return null;
+        }
 
-	/**
-	 * Build dependent tree recursively
-	 */
-	async function buildDependentTree(
-		nodeId: string,
-		level: number = 0,
-		visited: Set<string> = new Set()
-	): Promise<ChainNode | null> {
-		if (visited.has(nodeId) || level > maxDepth) {
-			return null;
-		}
+        visited.add(nodeId);
+        const module = modules.find(m => m.id === nodeId);
+        if (!module) return null;
 
-		visited.add(nodeId);
-		const module = modules.find(m => m.id === nodeId);
-		if (!module) return null;
+        const node: ChainNode = {
+            id: nodeId,
+            title: module.title,
+            level,
+            status: getNodeStatus(nodeId),
+            isExpanded: expandedNodes.has(nodeId),
+            children: [],
+            parents: [],
+            module
+        };
 
-		const node: ChainNode = {
-			id: nodeId,
-			title: module.title,
-			level,
-			status: getNodeStatus(nodeId),
-			isExpanded: expandedNodes.has(nodeId),
-			children: [],
-			parents: [],
-			module
-		};
+        // Get dependent links
+        const dependentLinks = await relationshipStorage.findLinks({
+            sourceIds: [nodeId],
+            types: ['prerequisite', 'sequence']
+        });
 
-		// Get dependent links
-		const outgoingLinks = await relationshipStorage.getOutgoingLinks(nodeId);
-		const dependentLinks = outgoingLinks.filter(link =>
-			link.type === 'prerequisite' || link.type === 'sequence'
-		);
+        // Build children (dependents)
+        for (const link of dependentLinks) {
+            const childNode = await buildDependentTree(
+                link.targetId,
+                level + 1,
+                new Set(visited)
+            );
 
-		// Build children (dependents)
-		for (const link of dependentLinks) {
-			const childNode = await buildDependentTree(
-				link.targetId,
-				level + 1,
-				new Set(visited)
-			);
+            if (childNode) {
+                childNode.linkType = link.type;
+                childNode.linkStrength = link.strength;
+                childNode.isCircular = isCircularDependency(nodeId, link.targetId);
+                node.children.push(childNode);
+                childNode.parents.push(node);
+            }
+        }
 
-			if (childNode) {
-				childNode.linkType = link.type;
-				childNode.linkStrength = link.strength;
-				childNode.isCircular = isCircularDependency(nodeId, link.targetId);
-				node.children.push(childNode);
-				childNode.parents.push(node);
-			}
-		}
+        return node;
+    }
 
-		return node;
-	}
+    /**
+     * Check if there's a circular dependency between two nodes
+     */
+    function isCircularDependency(sourceId: string, targetId: string): boolean {
+        return circularDependencies.some(cycle =>
+            cycle.includes(sourceId) && cycle.includes(targetId)
+        );
+    }
 
-	/**
-	 * Check if there's a circular dependency between two nodes
-	 */
-	function isCircularDependency(sourceId: string, targetId: string): boolean {
-		return circularDependencies.some(cycle =>
-			cycle.includes(sourceId) && cycle.includes(targetId)
-		);
-	}
+    /**
+     * Get node status based on completion and prerequisites
+     */
+    function getNodeStatus(nodeId: string): 'completed' | 'current' | 'available' | 'locked' {
+        if (completedContent.has(nodeId)) {
+            return 'completed';
+        }
 
-	/**
-	 * Get node status based on completion and prerequisites
-	 */
-	function getNodeStatus(nodeId: string): 'completed' | 'current' | 'available' | 'locked' {
-		if (completedContent.has(nodeId)) {
-			return 'completed';
-		}
+        if (nodeId === contentId) {
+            return 'current';
+        }
 
-		if (nodeId === contentId) {
-			return 'current';
-		}
+        // Check if prerequisites are met
+        const module = modules.find(m => m.id === nodeId);
+        if (!module) return 'locked';
 
-		// Check if prerequisites are met
-		const module = modules.find(m => m.id === nodeId);
-		if (!module) return 'locked';
+        const allPrerequisitesMet = module.metadata.prerequisites.every(prereqId =>
+            completedContent.has(prereqId)
+        );
 
-		const allPrerequisitesMet = module.metadata.prerequisites.every(prereqId =>
-			completedContent.has(prereqId)
-		);
+        return allPrerequisitesMet ? 'available' : 'locked';
+    }
 
-		return allPrerequisitesMet ? 'available' : 'locked';
-	}
+    /**
+     * Toggle node expansion
+     */
+    function toggleNodeExpansion(nodeId: string) {
+        if (expandedNodes.has(nodeId)) {
+            expandedNodes.delete(nodeId);
+        } else {
+            expandedNodes.add(nodeId);
+        }
+        expandedNodes = new Set(expandedNodes); // Trigger reactivity
+    }
 
-	/**
-	 * Toggle node expansion
-	 */
-	function toggleNodeExpansion(nodeId: string) {
-		if (expandedNodes.has(nodeId)) {
-			expandedNodes.delete(nodeId);
-		} else {
-			expandedNodes.add(nodeId);
-		}
-		expandedNodes = new Set(expandedNodes); // Trigger reactivity
-	}
+    /**
+     * Expand all nodes
+     */
+    function expandAllNodes() {
+        const collectNodeIds = (node: ChainNode | null): string[] => {
+            if (!node) return [];
+            const ids = [node.id];
+            node.children.forEach(child => {
+                ids.push(...collectNodeIds(child));
+            });
+            return ids;
+        };
 
-	/**
-	 * Expand all nodes
-	 */
-	function expandAllNodes() {
-		const collectNodeIds = (node: ChainNode | null): string[] => {
-			if (!node) return [];
-			const ids = [node.id];
-			node.children.forEach(child => {
-				ids.push(...collectNodeIds(child));
-			});
-			return ids;
-		};
+        const allNodeIds = [
+            ...collectNodeIds(prerequisiteTree),
+            ...collectNodeIds(dependentTree)
+        ];
 
-		const allNodeIds = [
-			...collectNodeIds(prerequisiteTree),
-			...collectNodeIds(dependentTree)
-		];
+        expandedNodes = new Set(allNodeIds);
+    }
 
-		expandedNodes = new Set(allNodeIds);
-	}
+    /**
+     * Collapse all nodes
+     */
+    function collapseAllNodes() {
+        expandedNodes = new Set();
+    }
 
-	/**
-	 * Collapse all nodes
-	 */
-	function collapseAllNodes() {
-		expandedNodes = new Set();
-	}
+    /**
+     * Handle node selection
+     */
+    function selectNode(nodeId: string) {
+        selectedNodeId = nodeId;
+        onNodeSelect?.(nodeId);
 
-	/**
-	 * Handle node selection
-	 */
-	function selectNode(nodeId: string) {
-		selectedNodeId = nodeId;
-		dispatch('nodeselect', { nodeId });
+        if (interactive) {
+            // Optionally navigate to analyze dependencies of selected node
+            // contentId = nodeId;
+            // analyzeDependencies();
+        }
+    }
 
-		if (interactive) {
-			// Optionally navigate to analyze dependencies of selected node
-			// contentId = nodeId;
-			// analyzeDependencies();
-		}
-	}
+    /**
+     * Handle node navigation
+     */
+    function navigateToNode(nodeId: string) {
+        onNavigate?.(nodeId);
+    }
 
-	/**
-	 * Handle node navigation
-	 */
-	function navigateToNode(nodeId: string) {
-		dispatch('navigate', { nodeId });
-	}
+    /**
+     * Get missing prerequisites for current content
+     */
+    function getMissingPrerequisites(): string[] {
+        if (!dependencyChain) return [];
+        return getPrerequisitesArray().filter(id => !completedContent.has(id));
+    }
 
-	/**
-	 * Get missing prerequisites for current content
-	 */
-	function getMissingPrerequisites(): string[] {
-		if (!dependencyChain) return [];
-		return dependencyChain.prerequisites.filter(id => !completedContent.has(id));
-	}
+    /**
+     * Get blocked dependents (cannot access due to current not being completed)
+     */
+    function getBlockedDependents(): string[] {
+        if (!dependencyChain || !contentId || completedContent.has(contentId)) return [];
+        return getDependentsArray();
+    }
 
-	/**
-	 * Get blocked dependents (cannot access due to current not being completed)
-	 */
-	function getBlockedDependents(): string[] {
-		if (!dependencyChain || !contentId || completedContent.has(contentId)) return [];
-		return dependencyChain.dependents;
-	}
+    /**
+     * Filter nodes based on current view options
+     */
+    function shouldShowNode(node: ChainNode): boolean {
+        if (showOnlyBlocked && node.status !== 'locked') return false;
+        if (showOnlyMissing && completedContent.has(node.id)) return false;
+        return true;
+    }
 
-	/**
-	 * Filter nodes based on current view options
-	 */
-	function shouldShowNode(node: ChainNode): boolean {
-		if (showOnlyBlocked && node.status !== 'locked') return false;
-		if (showOnlyMissing && completedContent.has(node.id)) return false;
-		return true;
-	}
+    /**
+     * Get appropriate icon for node status
+     */
+    function getStatusIcon(status: string): string {
+        switch (status) {
+            case 'completed': return '✅';
+            case 'current': return '📍';
+            case 'available': return '🟢';
+            case 'locked': return '🔒';
+            default: return '⚪';
+        }
+    }
 
-	/**
-	 * Get appropriate icon for node status
-	 */
-	function getStatusIcon(status: string): string {
-		switch (status) {
-			case 'completed': return '✅';
-			case 'current': return '📍';
-			case 'available': return '🟢';
-			case 'locked': return '🔒';
-			default: return '⚪';
-		}
-	}
+    /**
+     * Get color for link type
+     */
+    function getLinkColor(linkType?: RelationshipType): string {
+        switch (linkType) {
+            case 'prerequisite': return '#ef4444';
+            case 'sequence': return '#3b82f6';
+            case 'dependent': return '#f97316';
+            default: return '#6b7280';
+        }
+    }
 
-	/**
-	 * Get color for link type
-	 */
-	function getLinkColor(linkType?: RelationshipType): string {
-		switch (linkType) {
-			case 'prerequisite': return '#ef4444';
-			case 'sequence': return '#3b82f6';
-			case 'dependent': return '#f97316';
-			default: return '#6b7280';
-		}
-	}
+    /**
+     * Helpers to work with Set-based dependencyChain fields
+     */
+    function getPrerequisitesArray(): string[] {
+        if (!dependencyChain) return [];
+        return Array.isArray(dependencyChain.prerequisites)
+            ? dependencyChain.prerequisites
+            : Array.from(dependencyChain.prerequisites as unknown as Set<string>);
+    }
 
-	// Reactive updates
-	$effect(() => {
-		if (contentId) {
-			analyzeDependencies();
-		}
-	});
+    function getDependentsArray(): string[] {
+        if (!dependencyChain) return [];
+        return Array.isArray(dependencyChain.dependents)
+            ? dependencyChain.dependents
+            : Array.from(dependencyChain.dependents as unknown as Set<string>);
+    }
+
+    // Reactive updates
+    $effect(() => {
+        if (contentId) {
+            analyzeDependencies();
+        }
+    });
 </script>
 
 <div class="dependency-chain-viewer">
@@ -438,33 +445,6 @@
 		</div>
 	{/if}
 
-	<!-- Summary Information -->
-	{#if dependencyChain && !loading && !error}
-		<div class="summary">
-			<div class="summary-item">
-				<span class="label">Prerequisites:</span>
-				<span class="value">{dependencyChain.prerequisites.length}</span>
-				{#if getMissingPrerequisites().length > 0}
-					<span class="missing">({getMissingPrerequisites().length} missing)</span>
-				{/if}
-			</div>
-
-			<div class="summary-item">
-				<span class="label">Dependents:</span>
-				<span class="value">{dependencyChain.dependents.length}</span>
-				{#if getBlockedDependents().length > 0}
-					<span class="blocked">({getBlockedDependents().length} blocked)</span>
-				{/if}
-			</div>
-
-			{#if circularDependencies.length > 0}
-				<div class="summary-item warning">
-					<span class="label">⚠️ Circular Dependencies:</span>
-					<span class="value">{circularDependencies.length}</span>
-				</div>
-			{/if}
-		</div>
-	{/if}
 
 	<!-- Trees Container -->
 	<div class="trees-container">
@@ -484,12 +464,12 @@
 								class:circular={node.isCircular}
 								class:critical-path={highlightCriticalPath && node.status === 'locked'}
 							>
-								<div class="node-content" onclick={() => selectNode(node.id)}>
+								<div class="node-content" onclick={() => selectNode(node.id)} onkeydown={(e) => e.key === 'Enter' && selectNode(node.id)} role="button" tabindex="0">
 									<div class="node-line" class:last={isLast}>
 										{#if node.children.length > 0}
-											<button
-												class="expand-button"
-												onclick={(e) => {
+                                <button
+                                    class="expand-button"
+                                    onclick={(e) => {
 													e.stopPropagation();
 													toggleNodeExpansion(node.id);
 												}}
@@ -528,9 +508,9 @@
 
 											{#if interactive}
 												<div class="node-actions">
-													<button
+                                <button
 														class="action-btn"
-														onclick={(e) => {
+                                    onclick={(e) => {
 															e.stopPropagation();
 															navigateToNode(node.id);
 														}}
@@ -575,7 +555,7 @@
 								class:selected={selectedNodeId === node.id}
 								class:circular={node.isCircular}
 							>
-								<div class="node-content" onclick={() => selectNode(node.id)}>
+								<div class="node-content" onclick={() => selectNode(node.id)} onkeydown={(e) => e.key === 'Enter' && selectNode(node.id)} role="button" tabindex="0">
 									<div class="node-line" class:last={isLast}>
 										{#if node.children.length > 0}
 											<button
@@ -660,9 +640,9 @@
 					<div class="cycle-nodes">
 						{#each cycle as nodeId, i}
 							{@const module = modules.find(m => m.id === nodeId)}
-							<span class="cycle-node" onclick={() => selectNode(nodeId)}>
+							<button type="button" class="cycle-node" onclick={() => selectNode(nodeId)} onkeydown={(e) => e.key === 'Enter' && selectNode(nodeId)}>
 								{module?.title || nodeId}
-							</span>
+							</button>
 							{#if i < cycle.length - 1}
 								<span class="cycle-arrow">→</span>
 							{/if}
@@ -777,45 +757,19 @@
 		gap: 8px;
 	}
 
-	.summary {
-		display: flex;
-		gap: 24px;
-		margin-bottom: 20px;
-		padding: 12px;
-		background: #f3f4f6;
-		border-radius: 6px;
-		font-size: 12px;
-	}
+	
 
-	.summary-item {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
+	
 
-	.summary-item.warning {
-		color: #dc2626;
-	}
+	
 
-	.label {
-		font-weight: 500;
-		color: #374151;
-	}
+	
 
-	.value {
-		font-weight: 600;
-		color: #1f2937;
-	}
+	
 
-	.missing {
-		color: #dc2626;
-		font-weight: 500;
-	}
+	
 
-	.blocked {
-		color: #f59e0b;
-		font-weight: 500;
-	}
+	
 
 	.trees-container {
 		display: flex;
@@ -1129,10 +1083,7 @@
 			gap: 8px;
 		}
 
-		.summary {
-			flex-direction: column;
-			gap: 8px;
-		}
+		
 
 		.cycle-nodes {
 			flex-direction: column;

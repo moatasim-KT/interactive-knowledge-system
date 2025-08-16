@@ -3,7 +3,12 @@
  * Provides comprehensive error handling for web content sourcing operations
  */
 
-import { createLogger } from '../utils/logger.js';
+import type { WebContent, WebContentMetadata } from '$lib/types/unified';
+const logger = {
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console)
+};
 // In Node (tests/headless), avoid importing Svelte store actions that rely on crypto.randomUUID
 let webContentActions: any;
 const isNodeRuntime = typeof window === 'undefined';
@@ -14,7 +19,7 @@ if (isNodeRuntime) {
     webContentActions = (mod as any).webContentActions;
 }
 
-const logger = createLogger('web-content-error-handler');
+// Using simple console-based logger above to avoid undefined createLogger
 
 export interface WebContentError {
 	code: string;

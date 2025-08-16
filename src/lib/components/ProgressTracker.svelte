@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { UserProgress } from '../types/user.js';
+	import type { UserProgress } from '$lib/types/unified';
 	import { progressStorage } from '../storage/userStorage.js';
 	import { appState, actions } from '../stores/appState.svelte.js';
 	import ProgressIndicator from './ProgressIndicator.svelte';

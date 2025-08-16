@@ -2,7 +2,7 @@
  * Main synchronization service that orchestrates offline functionality
  */
 
-import type { CloudSyncConfig } from '../types/sync';
+import type { CloudSyncConfig } from '$lib/types/unified';
 import { networkService } from './networkService';
 import { offlineQueue } from './offlineQueue';
 import { cloudSyncService } from './cloudSyncService';
@@ -25,7 +25,7 @@ export class SyncService {
 	/**
 	 * Initialize the sync service
 	 */
-	async initialize(config?: CloudSyncConfig): Promise<void> {
+    async initialize(config?: CloudSyncConfig): Promise<void> {
 		if (this.initialized) {return;}
 
 		// Initialize network monitoring
@@ -35,9 +35,16 @@ export class SyncService {
 		this.setupNetworkEffects();
 
 		// Initialize cloud sync if config provided
-		if (config) {
-			cloudSyncService.initialize(config);
-		}
+        if (config) {
+            // Map unified config to runtime config used by cloudSyncService
+            cloudSyncService.initialize({
+                endpoint: '',
+                userId: 'default-user',
+                batchSize: 50,
+                syncInterval: config.syncInterval,
+                apiKey: undefined
+            });
+        }
 
 		// Optimize offline queue on startup
 		await offlineQueue.optimizeQueue();

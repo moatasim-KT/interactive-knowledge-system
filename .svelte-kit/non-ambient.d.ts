@@ -27,25 +27,21 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/accessibility-test" | "/articles" | "/articles/machine-learning" | "/content-sources" | "/enhanced-dashboard" | "/interactive-article-demo" | "/knowledge-test" | "/knowledge" | "/knowledge/[id]" | "/responsive-test" | "/visualizations";
+		RouteId(): "/" | "/articles" | "/articles/machine-learning" | "/content-sources" | "/enhanced-dashboard" | "/knowledge" | "/knowledge/[id]" | "/visualizations";
 		RouteParams(): {
 			"/knowledge/[id]": { id: string }
 		};
 		LayoutParams(): {
 			"/": { id?: string };
-			"/accessibility-test": Record<string, never>;
 			"/articles": Record<string, never>;
 			"/articles/machine-learning": Record<string, never>;
 			"/content-sources": Record<string, never>;
 			"/enhanced-dashboard": Record<string, never>;
-			"/interactive-article-demo": Record<string, never>;
-			"/knowledge-test": Record<string, never>;
 			"/knowledge": { id?: string };
 			"/knowledge/[id]": { id: string };
-			"/responsive-test": Record<string, never>;
 			"/visualizations": Record<string, never>
 		};
-		Pathname(): "/" | "/accessibility-test" | "/articles" | "/articles/machine-learning" | "/content-sources" | "/enhanced-dashboard" | "/interactive-article-demo" | "/knowledge-test" | "/knowledge" | `/knowledge/${string}` & {} | "/responsive-test" | "/visualizations";
+		Pathname(): "/" | "/articles" | "/articles/machine-learning" | "/content-sources" | "/enhanced-dashboard" | "/knowledge" | `/knowledge/${string}` & {} | "/visualizations";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.svg";
 	}
