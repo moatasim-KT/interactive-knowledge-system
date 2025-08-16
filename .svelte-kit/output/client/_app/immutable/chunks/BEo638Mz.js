@@ -1,1 +1,0 @@
-const n={addNotification(t){},setContentProcessing(t,o){},addContent(t){},addSource(t){},addBatchJob(t){},setActiveBatchJob(t){},setBatchProcessing(t){},updateBatchJob(t,o){},setTransformationAnalyzing(t){},setTransformationOpportunities(t){},setCurrentTransformation(t){},addTransformationToHistory(t){}};export{n as svelteActions};
